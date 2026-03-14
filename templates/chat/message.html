@@ -1,0 +1,56 @@
+<div class="litm dice-roll {{outcome.label}}" data-type="{{type}}" data-result="{{outcome.label}}"
+	data-action="expandRoll">
+	<header class="dice-header">
+		<div class="dice-outcome-header {{outcome.label}} flexrow">
+			<img src="systems/litmv2/assets/media/icons/{{outcome.label}}.svg" alt="{{outcome.label}}"
+				class="outcome-image" />
+			<span class="outcome-label">{{#if (eq type 'mitigate')}}{{power}} {{localize 'LITM.Tags.power'}}{{else}}{{{
+				localize
+				outcome.label }}}{{/if}}</span>
+			<div class="dice-total-wrapper noflex">{{total}}</div>
+		</div>
+		{{!-- <span class="dice-flavor ellipsis">{{flavor}}</span> --}} {{#if (eq type 'tracked')}}<span
+			class="power-total">{{power}} {{localize 'LITM.Tags.power'}}</span>{{/if}}
+	</header>
+
+	<div class="dice-result-details flexcol">
+		<div class="dice-tooltip-container">{{{tooltip}}}</div>
+
+		<div class="dice-effect flexcol">
+			{{#if effect}} {{#if (eq type 'mitigate')}}
+			<h4 style="margin-bottom: 0px; font-size: var(--font-size-18)">
+				{{localize "LITM.Effects.mitigate.key"}}:
+			</h4>
+			{{/if}}
+			<p class="effect-description"><em>{{localize effect.description}}</em></p>
+			<p class="effect-action">{{localize effect.action}}</p>
+			<p class="effect-cost">
+				<strong>{{localize 'LITM.Terms.cost'}}:</strong> {{localize effect.cost}}
+			</p>
+			{{else}}
+			<p class="outcome-description"><em>{{{localize outcome.description}}}</em></p>
+			{{/if}}
+		</div>
+
+		{{#if (and isOwner (eq type 'tracked') (eq outcome.label 'success'))}}
+		<div class="roll-hints flexcol">
+			<p class="litm--dice-roll-subtle">{{localize 'LITM.Ui.roll_tracked_success'}}</p>
+		</div>
+		{{/if}}
+	</div>
+
+	{{#if isOwner}}
+	<footer class="dice-footer flexrow">
+		{{#if (and (eq type 'tracked') (eq outcome.label 'success'))}}
+		<button type="button" class="noflex" data-click="push-roll">
+			<i class="fas fa-arrow-up"></i> {{localize 'LITM.Ui.push_roll'}}
+		</button>
+		{{/if}}
+		{{#if canSpendPower}}
+		<button class="litm--roll-spend-power-button noflex" data-click="spend-power">
+			<i class="fas fa-bolt"></i> {{localize 'LITM.Ui.spend_power'}}
+		</button>
+		{{/if}}
+	</footer>
+	{{/if}}
+</div>

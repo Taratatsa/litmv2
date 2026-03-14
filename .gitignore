@@ -1,0 +1,15 @@
+diff.js
+foundry.js
+.DS_Store
+license.json
+.claude/
+.playwright/
+.auth/
+.playwright-cli/
+.vscode/
+foundry
+packs/
+__fixtures__/
+tests/
+CSS_GUIDE.md
+check-keys.js

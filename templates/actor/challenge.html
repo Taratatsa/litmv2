@@ -1,0 +1,152 @@
+<section class="standard-form scrollable">
+	<!-- Header -->
+	<header class="img-name">
+		<img src="{{document.img}}" data-edit="img" data-action="editImage" data-tooltip="{{localize 'LITM.Ui.edit_image'}}" />
+
+		<input type="text" name="name" id="name" value="{{document.name}}" required
+			style="padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 3px;" />
+	</header>
+
+	<!-- Challenge Type -->
+	<div class="form-group">
+		<label for="category" class="flex1">{{localize "LITM.Terms.category"}}</label>
+		<input id="category" type="text" name="system.category" value="{{source.system.category}}" />
+
+
+		<label for="rating" class="flex1">{{localize "LITM.Terms.rating"}}</label>
+		<input class="flex2" id="rating" type="number" name="system.rating" value="{{rating}}" min="0" max="5" step="1" />
+	</div>
+
+	<!-- Description -->
+	<fieldset>
+		<legend>{{localize "LITM.Terms.description"}}</legend>
+		<prose-mirror class="journal-entry-content" name="system.description" data-document-uuid="{{document.uuid}}"
+			value="{{source.system.description}}" compact>
+			{{{ enriched.description }}}
+		</prose-mirror>
+	</fieldset>
+
+	<!-- Special Features -->
+	<fieldset>
+		<legend>{{localize "LITM.Terms.special_features"}}</legend>
+		<prose-mirror class="journal-entry-content" name="system.specialFeatures" data-document-uuid="{{document.uuid}}"
+			value="{{source.system.specialFeatures}}" compact>
+			{{{ enriched.specialFeatures }}}
+		</prose-mirror>
+	</fieldset>
+
+	<!-- Limits -->
+	<fieldset>
+		<legend class="control flexrow gap-sm">
+			<span class="flex1">{{localize "LITM.Terms.limits"}}</span>
+			<button type="button" class="noflex" data-action="addLimit" data-tooltip="{{localize 'LITM.Ui.add_limit'}}">
+				<i class="fa-solid fa-plus"></i>
+			</button>
+		</legend>
+
+		{{#if limits.length}}
+		<ul class="plain">
+			{{#each limits as |limit|}}
+			<li class="flexcol gap-md">
+				<div class="flexrow gap-sm">
+					<input class="flex2" type="text" name="system.limits.{{@index}}.label" value="{{limit.label}}"
+						placeholder="{{localize 'LITM.Ui.limit_label'}}" />
+
+					<input class="flex0" type="text" name="system.limits.{{@index}}.max" value="{{limit.max}}"
+						style="width: 4.5rem;" placeholder="{{localize 'LITM.Terms.max'}}" />
+
+					<button type="button" class="noflex" data-action="removeLimit" data-index="{{@index}}"
+						data-tooltip="{{localize 'LITM.Ui.remove_limit'}}">
+						<i class="fa-solid fa-trash"></i>
+					</button>
+				</div>
+
+				<div class="flexrow gap-sm" style="align-items: center;">
+					<i class="fa-solid fa-arrow-right noflex"></i>
+					<input class="flex1" type="text" name="system.limits.{{@index}}.outcome" value="{{limit.outcome}}"
+						placeholder="{{localize 'LITM.Ui.limit_outcome_placeholder'}}" />
+				</div>
+				{{#unless @last}}
+				<hr style="margin:0;"/>
+				{{/unless}}
+			</li>
+			{{/each}}
+		</ul>
+		{{/if}}
+	</fieldset>
+
+	<!-- Tags & Statuses -->
+	<fieldset>
+		<legend>{{localize "LITM.Terms.tags_statuses"}}</legend>
+		<textarea name="system.tags" rows="3"
+			placeholder="{{localize 'LITM.Ui.tags_format_hint'}}">{{tagsString}}</textarea>
+	</fieldset>
+
+	<!-- Might -->
+	<fieldset>
+		<legend class="control flexrow gap-sm">
+			<span class="flex1">{{localize "LITM.Terms.might"}}</span>
+			<button type="button" class="noflex" data-action="addMight" data-tooltip="{{localize 'LITM.Ui.add_might'}}">
+				<i class="fa-solid fa-plus"></i>
+			</button>
+		</legend>
+
+		{{#if might.length}}
+		<ul class="plain">
+			{{#each might as |entry|}}
+			<li class="form-group gap-sm" style="align-items: center;">
+				<select class="flex0" name="system.might.{{@index}}.level">
+					{{selectOptions ../mightOptions selected=entry.level localize=true}}
+				</select>
+				<input class="flex1" type="text" name="system.might.{{@index}}.description" value="{{entry.description}}"
+					placeholder="{{localize 'LITM.Terms.description'}}" />
+				<button type="button" class="noflex" data-action="removeMight" data-index="{{@index}}"
+					data-tooltip="{{localize 'LITM.Ui.remove'}}">
+					<i class="fa-solid fa-trash"></i>
+				</button>
+			</li>
+			{{/each}}
+		</ul>
+		{{else}}
+		<p class="hint">{{localize "LITM.Ui.add_might_entry"}}</p>
+		{{/if}}
+	</fieldset>
+
+	<!-- Threats & Consequences -->
+	<div class="flexrow gap-sm" style="align-items: center; justify-content: space-between;">
+		<h4 style="margin: 0;">{{localize "LITM.Terms.threats_consequences"}}</h4>
+		<button type="button" class="noflex" data-action="addVignette" data-tooltip="{{localize 'LITM.Ui.add_vignette'}}">
+			<i class="fa-solid fa-plus"></i>
+		</button>
+	</div>
+
+	{{#if displayVignettes.length}}
+	<div class="grid-2col" data-drop-zone="vignette">
+		{{#each displayVignettes as |vignette|}}
+		<fieldset class="vignette-card item draggable" data-item-id="{{vignette._id}}">
+			<legend class="flexrow gap-xs">
+				<span class="litm-banner vignette-card-label">{{vignette.name}}</span>
+				<button type="button" data-action="editVignette" data-item-id="{{vignette._id}}"
+					data-tooltip="{{localize 'LITM.Ui.edit'}}" aria-label="{{localize 'LITM.Ui.edit'}}">
+					<i class="fa-solid fa-pen" aria-hidden="true"></i>
+				</button>
+				<button type="button" data-action="removeVignette" data-item-id="{{vignette._id}}"
+					data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
+					<i class="fa-solid fa-trash" aria-hidden="true"></i>
+				</button>
+			</legend>
+
+			{{#if vignette.system.consequences.length}}
+			<ul class="consequences-list">
+				{{#each vignette.system.consequences as |consequence|}}
+				<li class="consequence-item">{{{consequence}}}</li>
+				{{/each}}
+			</ul>
+			{{/if}}
+		</fieldset>
+		{{/each}}
+	</div>
+	{{else}}
+	<p class="hint" data-drop-zone="vignette">{{localize "LITM.Ui.no_vignettes"}}</p>
+	{{/if}}
+</section>

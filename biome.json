@@ -1,0 +1,26 @@
+{
+	"$schema": "https://biomejs.dev/schemas/latest/schema.json",
+	"formatter": {
+		"indentWidth": 2
+	},
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"linter": {
+		"rules": {
+			"complexity": {
+				"noStaticOnlyClass": "off",
+				"noThisInStatic": "off"
+			},
+			"suspicious": {
+				"noDuplicateProperties": "off"
+			}
+		},
+		"includes": ["**", "!**/check-keys.js", "!**/diff.js"]
+	},
+	"files": {
+		"includes": ["**", "!!foundry", "!**/*.html"]
+	}
+}

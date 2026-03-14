@@ -1,0 +1,108 @@
+{
+	"$schema": "https://json.schemastore.org/foundryvtt-system-manifest.json",
+	"id": "litmv2",
+	"version": "1",
+	"license": "LICENSE",
+	"title": "Legend in the Mist: Unofficial",
+	"description": "An unofficial, community-made system for playing the <strong>Rustic Fantasy</strong> game <em>Legend in the Mist</em> in Foundry Virtual Tabletop.",
+	"authors": [
+		{
+			"name": "Filip Ambrosius",
+			"discord": "aMediocreDad#2483",
+			"email": "hello@amediocre.dev",
+			"ko-fi": "amediocredad"
+		}
+	],
+	"esmodules": ["litmv2.js"],
+	"styles": ["litmv2.css"],
+	"documentTypes": {
+		"Actor": {
+			"hero": {
+				"htmlFields": ["description"]
+			},
+			"journey": {
+				"htmlFields": ["description"]
+			},
+			"challenge": {
+				"htmlFields": ["description", "specialFeatures"]
+			},
+			"fellowship": {
+				"htmlFields": ["description"]
+			}
+		},
+		"ActiveEffect": {
+			"story_tag": {},
+			"status_card": {}
+		},
+		"Item": {
+			"backpack": {},
+			"story_theme": {
+				"htmlFields": ["description"]
+			},
+			"theme": {
+				"htmlFields": ["description"]
+			},
+			"themebook": {
+				"htmlFields": ["description"]
+			},
+			"trope": {
+				"htmlFields": ["description"]
+			},
+			"vignette": {}
+		}
+	},
+	"languages": [
+		{
+			"lang": "cn",
+			"name": "中文",
+			"path": "lang/cn.json"
+		},
+		{
+			"lang": "de",
+			"name": "Deutsch",
+			"path": "lang/de.json"
+		},
+		{
+			"lang": "en",
+			"name": "English",
+			"path": "lang/en.json"
+		},
+		{
+			"lang": "es",
+			"name": "Español",
+			"path": "lang/es.json"
+		},
+		{
+			"lang": "no",
+			"name": "Norsk",
+			"path": "lang/no.json"
+		}
+	],
+	"socket": true,
+	"compatibility": {
+		"minimum": 13,
+		"verified": 14,
+		"maximum": 14
+	},
+	"packs": [],
+	"flags": {
+		"hotReload": {
+			"extensions": ["css", "html", "js", "json"],
+			"paths": ["styles", "templates", "lang", "litmv2.css", "litmv2.js"]
+		}
+	},
+	"relationships": {
+		"recommends": [
+			{
+				"id": "dice-so-nice",
+				"manifest": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/module/module.json"
+			}
+		]
+	},
+	"background": "systems/litmv2/assets/media/litm_splash.webp",
+	"url": "https://github.com/Son-of-Oak-Community/litmv2",
+	"bugs": "https://github.com/Son-of-Oak-Community/litmv2/issues?q=is:issue+is:open+sort:updated-desc",
+	"manifest": "https://raw.githubusercontent.com/Son-of-Oak-Community/litmv2/refs/heads/main/system.json",
+	"download": "https://github.com/Son-of-Oak-Community/litmv2/archive/refs/heads/main.zip",
+	"readme": "https://github.com/Son-of-Oak-Community/litmv2/blob/main/README.md"
+}

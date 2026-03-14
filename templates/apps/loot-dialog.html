@@ -1,0 +1,17 @@
+<form class="standard-form {{cssClass}}" autocomplete="off">
+	<p>{{localize 'LITM.Ui.item_transfer_content'}}</p>
+
+	<fieldset>
+		<ul class="plain">
+			{{#each contents}}
+			<li>
+				<label class="checkbox">
+					<input type="checkbox" id="tag-{{this.id}}" name="loot" value="{{this.id}}" checked
+						data-dtype="Boolean" />
+					<span>{{this.name}}</span>
+				</label>
+			</li>
+			{{/each}}
+		</ul>
+	</fieldset>
+</form>
