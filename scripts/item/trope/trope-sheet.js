@@ -1,5 +1,5 @@
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
-import { queryItemsFromPacks } from "../../utils.js";
+import { enrichHTML, queryItemsFromPacks } from "../../utils.js";
 
 export class TropeSheet extends LitmItemSheet {
 	static DEFAULT_OPTIONS = {
@@ -33,14 +33,10 @@ export class TropeSheet extends LitmItemSheet {
 
 	async _prepareContext(options) {
 		const context = await super._prepareContext(options);
-		const enrichedDescription =
-			await foundry.applications.ux.TextEditor.enrichHTML(
-				this.system.description,
-				{
-					secrets: this.document.isOwner,
-					relativeTo: this.document,
-				},
-			);
+		const enrichedDescription = await enrichHTML(
+			this.system.description,
+			this.document,
+		);
 		const themeKitLookup = await this.#getThemeKitLookup();
 		const fixedKits = this.#resolveKits(
 			this.system.themeKits.fixed,

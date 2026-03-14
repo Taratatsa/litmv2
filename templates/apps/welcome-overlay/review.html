@@ -1,4 +1,4 @@
-<div class="litm--welcome-overlay__wizard litm--welcome-overlay__wizard--wide standard-form">
+<div class="litm--welcome-overlay__wizard litm--welcome-overlay__wizard--wide application standard-form">
 	<div class="litm--welcome-overlay__wizard-header">
 		<h2>{{localize "LITM.Ui.hero_creation_review"}}</h2>
 		<hr />
@@ -62,26 +62,12 @@
 			<legend>{{localize "LITM.Terms.backpack"}}</legend>
 			<div class="theme-card-tags">
 				{{#each reviewBackpackChoices as |tag|}}
-				{{#if (eq ../mode "trope")}}
-				<span class="{{#if (eq tag ../../reviewBackpackSelection)}}litm-tag{{else}}litm-backpack{{/if}}"
+				<span class="{{#if (eq tag ../reviewBackpackSelection)}}litm-tag{{else}}litm-backpack{{/if}}"
 					data-text="{{tag}}">{{tag}}</span>
-				{{else}}
-				<span class="litm-tag" data-text="{{tag}}">{{tag}}</span>
-				{{/if}}
 				{{/each}}
 			</div>
 		</fieldset>
 		{{/if}}
 	</div>
-	<div class="litm--welcome-overlay__wizard-footer">
-		<button type="button" class="litm--welcome-overlay__btn" data-action="back">
-			{{localize "LITM.Ui.hero_creation_back"}}
-		</button>
-		<div class="litm--welcome-overlay__wizard-footer-actions">
-			<button type="button" class="litm--welcome-overlay__btn litm--welcome-overlay__btn--primary"
-				data-action="create">
-				{{localize "LITM.Ui.hero_creation_create"}}
-			</button>
-		</div>
-	</div>
+	{{> "systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html" primaryAction="create" primaryLabel=(localize "LITM.Ui.hero_creation_create")}}
 </div>

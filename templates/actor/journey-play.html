@@ -15,22 +15,16 @@
 	</div>
 
 	<!-- Description + Tags -->
-	{{#if (or enriched.description storyTags.length)}}
+	{{#if (or enriched.description enriched.tags)}}
 	<div>
 		{{#if enriched.description}}
 		<div class="enriched-content" data-field="system.description">{{{enriched.description}}}</div>
-		{{/if}} {{#if storyTags.length}}
-		<div class="litm--play-tags">
-			{{#each storyTags as |tag|}} {{#if (eq tag.type "status")}}
-			<span class="litm-status{{#if tag.hidden}} litm--tag-hidden{{/if}}" draggable="true"
-				data-text="{{tag.name}}-{{tag.value}}">{{tag.name}}-{{tag.value}}</span>{{#unless @last}}<span
-				class="litm-tag-separator">,</span>{{/unless}}
-			{{else}}
-			<span class="litm-tag{{#if tag.hidden}} litm--tag-hidden{{/if}}" draggable="true"
-				data-text="{{tag.name}}">{{tag.name}}</span>{{#unless @last}}<span
-				class="litm-tag-separator">,</span>{{/unless}}
-			{{/if}} {{/each}}
-		</div>
+		{{/if}}
+		{{#if enriched.tags}}
+		<fieldset>
+			<legend>{{localize "LITM.Terms.tags_statuses"}}</legend>
+			<div class="litm--play-tags">{{{enriched.tags}}}</div>
+		</fieldset>
 		{{/if}}
 	</div>
 	{{/if}}

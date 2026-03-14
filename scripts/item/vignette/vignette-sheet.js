@@ -1,4 +1,5 @@
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
+import { enrichHTML } from "../../utils.js";
 
 /**
  * Vignette sheet for Legend in the Mist
@@ -45,15 +46,7 @@ export class VignetteSheet extends LitmItemSheet {
 		const context = await super._prepareContext(options);
 
 		// Enrich threat text for display
-		const enrichedThreat = this.system.threat
-			? await foundry.applications.ux.TextEditor.enrichHTML(
-					this.system.threat,
-					{
-						secrets: this.document.isOwner,
-						relativeTo: this.document,
-					},
-				)
-			: "";
+		const enrichedThreat = await enrichHTML(this.system.threat, this.document);
 
 		return {
 			...context,

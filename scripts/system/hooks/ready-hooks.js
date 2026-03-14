@@ -173,8 +173,6 @@ function _renderWelcomeScreen() {
 			);
 			await Scene.updateDocuments(updates);
 			game.journal.getName("Tinderbox Demo Rules")?.sheet?.render(true);
-		})().catch((err) =>
-			error("Failed to process adventure import", err),
-		);
+		})().catch((err) => error("Failed to process adventure import", err));
 	});
 }

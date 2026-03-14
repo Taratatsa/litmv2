@@ -39,16 +39,13 @@ export async function migrateWorld() {
 	}
 
 	// Collect and sort pending migrations
-	const pending = MIGRATIONS
-		.filter((m) => m.version > storedVersion)
-		.sort((a, b) => a.version - b.version);
+	const pending = MIGRATIONS.filter((m) => m.version > storedVersion).sort(
+		(a, b) => a.version - b.version,
+	);
 	if (!pending.length) return;
 
 	// Run pending migrations in order
-	ui.notifications.info(
-		t("LITM.Ui.migration_start"),
-		{ permanent: true },
-	);
+	ui.notifications.info(t("LITM.Ui.migration_start"), { permanent: true });
 
 	for (const { version, migrate } of pending) {
 		try {
@@ -57,10 +54,9 @@ export async function migrateWorld() {
 			info(`Migration to version ${version} complete`);
 		} catch (err) {
 			console.error(`litm | Migration to version ${version} failed`, err);
-			ui.notifications.error(
-				t("LITM.Ui.migration_failed"),
-				{ permanent: true },
-			);
+			ui.notifications.error(t("LITM.Ui.migration_failed"), {
+				permanent: true,
+			});
 			// Stop running further migrations on failure
 			return;
 		}
@@ -70,8 +66,5 @@ export async function migrateWorld() {
 	const highestApplied = pending[pending.length - 1].version;
 	await LitmSettings.setSystemMigrationVersion(highestApplied);
 
-	ui.notifications.info(
-		t("LITM.Ui.migration_complete"),
-		{ permanent: true },
-	);
+	ui.notifications.info(t("LITM.Ui.migration_complete"), { permanent: true });
 }

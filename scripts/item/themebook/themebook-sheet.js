@@ -1,4 +1,5 @@
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
+import { enrichHTML } from "../../utils.js";
 
 export class ThemebookSheet extends LitmItemSheet {
 	static DEFAULT_OPTIONS = {
@@ -33,14 +34,10 @@ export class ThemebookSheet extends LitmItemSheet {
 	async _prepareContext(options) {
 		const context = await super._prepareContext(options);
 
-		const enrichedDescription =
-			await foundry.applications.ux.TextEditor.enrichHTML(
-				this.system.description,
-				{
-					secrets: this.document.isOwner,
-					relativeTo: this.document,
-				},
-			);
+		const enrichedDescription = await enrichHTML(
+			this.system.description,
+			this.document,
+		);
 
 		const toLabeledList = (items = []) =>
 			items.map((question, index) => ({

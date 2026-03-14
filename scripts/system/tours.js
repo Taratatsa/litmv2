@@ -163,7 +163,6 @@ export class LitmTour extends Tour {
 		if (!hasTag) await sidebar.addTag("story", "tag");
 		if (!hasStatus) await sidebar.addTag("story", "status");
 	}
-
 }
 
 /**

@@ -1,4 +1,4 @@
-<div class="litm--welcome-overlay__wizard standard-form">
+<div class="litm--welcome-overlay__wizard application standard-form">
 	<div class="litm--welcome-overlay__wizard-header">
 		<h2>{{localize "LITM.Ui.hero_creation_select_trope"}}</h2>
 		<hr />
@@ -19,8 +19,14 @@
 					{{else}}
 					{{#each tropesByCategory as |group|}}
 					<div class="hero-creation__group">
+						{{#if group.img}}
+						<div class="hero-creation__category-banner" style="background-image: url('{{group.img}}')">
+							<span class="hero-creation__category-banner-name">{{group.name}}</span>
+						</div>
+						{{else}}
 						<h4>{{group.name}}</h4>
-						<div class="hero-creation__grid">
+						{{/if}}
+						<div class="hero-creation__category-list">
 							{{#each group.items as |trope|}}
 							<button type="button"
 								class="hero-creation__trope-button {{#if (eq trope.uuid ../../selectedTropeUuid)}}active{{/if}}"
@@ -88,14 +94,5 @@
 			</div>
 		</section>
 	</div>
-	<div class="litm--welcome-overlay__wizard-footer">
-		<button type="button" class="litm--welcome-overlay__btn" data-action="back">
-			{{localize "LITM.Ui.hero_creation_back"}}
-		</button>
-		<div class="litm--welcome-overlay__wizard-footer-actions">
-			<button type="button" class="litm--welcome-overlay__btn litm--welcome-overlay__btn--primary" data-action="next">
-				{{localize "LITM.Ui.hero_creation_next"}}
-			</button>
-		</div>
-	</div>
+	{{> "systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html" primaryAction="next" primaryLabel=(localize "LITM.Ui.hero_creation_next")}}
 </div>

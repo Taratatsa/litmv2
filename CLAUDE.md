@@ -179,3 +179,29 @@ E2E tests use Playwright in `tests/e2e/`. Specs are in `tests/e2e/specs/`, selec
 ### Hot Reload
 
 The system supports hot reloading for `css`, `html`, `js`, and `json` files in `templates/`, `lang/`, `litmv2.css`, and `litmv2.js`. No build step is required; edit files directly.
+
+## Design Context
+
+### Users
+Primary audience is TTRPG players and GMs running Legend in the Mist sessions online via Foundry VTT. The system should also feel welcoming to newcomers who are new to virtual tabletops — clear affordances, discoverable UI, no assumed Foundry knowledge.
+
+### Brand Personality
+**Rustic, warm, storied.** The interface should feel like a well-loved book of legends — aged but inviting, with the warmth of candlelight and parchment. Typography leans on blackletter headings (Ysgarth), decorative serifs (Luminari, PowellAntique), and readable body serifs (Labrada, Fraunces). The color palette is earth-toned: golden mustard tags, sage green statuses, muted rose limits, warm beige banners.
+
+### Emotional Goals
+- **Immersion & wonder**: The UI should transport players into the world, not remind them they're using software. Decorative elements (banners, tag badges, antique fonts) serve atmosphere.
+- **Confidence & clarity**: Despite the decorative layer, information hierarchy must be crystal clear. Players should always know where they are, what they can do, and what just happened.
+
+### Aesthetic Direction
+- Warm earth tones with strong light/dark mode support
+- Antique/rustic typography with clear readability hierarchy
+- Notched banners, stroke-effect tag badges, parchment textures
+- Foundry utility classes and CSS variables as the foundation layer
+- **Anti-reference**: Avoid overly ornate or heavy decoration that slows comprehension. Decoration should serve atmosphere, never obstruct usability.
+
+### Design Principles
+1. **Atmosphere through restraint** — Decorative elements (fonts, banners, textures) create mood, but never at the cost of clarity. When in doubt, simplify.
+2. **Newcomer-friendly** — Every interaction should be discoverable without a manual. Tooltips, clear labels, and consistent patterns over clever shortcuts.
+3. **Foundry-native first** — Use Foundry's built-in UI patterns, utility classes, and CSS variables before writing custom solutions. This ensures theme compatibility and reduces maintenance.
+4. **Warm, not heavy** — The palette and typography evoke aged parchment and candlelight, but the interface should feel light and responsive, not weighed down by decoration.
+5. **Both modes matter** — Light and dark themes are first-class citizens. Every color, texture, and decorative element must work well in both.

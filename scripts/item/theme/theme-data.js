@@ -8,9 +8,6 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 			description: new fields.HTMLField({
 				initial: "",
 			}),
-			note: new fields.HTMLField({
-				initial: "",
-			}),
 			themebook: new fields.StringField({
 				trim: true,
 				initial: "",

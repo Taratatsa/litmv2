@@ -1,0 +1,16 @@
+<div class="litm--welcome-overlay__wizard-footer">
+	<button type="button" class="litm--welcome-overlay__btn" data-action="back">
+		{{localize "LITM.Ui.hero_creation_back"}}
+	</button>
+	<div class="litm--welcome-overlay__wizard-footer-actions">
+		<button type="button" class="litm--welcome-overlay__btn" data-action="cancel">
+			{{localize "LITM.Ui.hero_creation_cancel"}}
+		</button>
+		{{#if primaryAction}}
+		<button type="button" class="litm--welcome-overlay__btn litm--welcome-overlay__btn--primary"
+			data-action="{{primaryAction}}" {{#if primaryDisabled}}disabled{{/if}}>
+			{{primaryLabel}}
+		</button>
+		{{/if}}
+	</div>
+</div>

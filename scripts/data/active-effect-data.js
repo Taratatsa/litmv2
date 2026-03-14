@@ -5,6 +5,7 @@ export class StoryTagData extends foundry.abstract.TypeDataModel {
 			isSingleUse: new fields.BooleanField({ initial: false }),
 			isScratched: new fields.BooleanField({ initial: false }),
 			isHidden: new fields.BooleanField({ initial: false }),
+			// Required by Foundry's ActiveEffect type data model contract
 			changes: new fields.ArrayField(
 				new fields.SchemaField({
 					type: new fields.StringField({
@@ -30,7 +31,6 @@ export class StoryTagData extends foundry.abstract.TypeDataModel {
 			),
 		};
 	}
-
 }
 
 export class StatusCardData extends foundry.abstract.TypeDataModel {
@@ -42,6 +42,7 @@ export class StatusCardData extends foundry.abstract.TypeDataModel {
 				initial: [false, false, false, false, false, false],
 				validate: (tiers) => tiers.length === 6,
 			}),
+			// Required by Foundry's ActiveEffect type data model contract
 			changes: new fields.ArrayField(
 				new fields.SchemaField({
 					type: new fields.StringField({
