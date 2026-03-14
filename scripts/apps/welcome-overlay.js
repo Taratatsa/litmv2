@@ -1,3 +1,4 @@
+import { error, warn } from "../logger.js";
 import { createSampleHero } from "../system/sample-hero.js";
 import { LitmSettings } from "../system/settings.js";
 import { registerTours } from "../system/tours.js";
@@ -453,9 +454,7 @@ export class WelcomeOverlay {
 		const slideKey = this.currentSlideKey;
 		const templatePath = SLIDE_TEMPLATES[slideKey];
 		if (!templatePath) {
-			console.warn(
-				`litmv2 | WelcomeOverlay: No template for slide "${slideKey}"`,
-			);
+			warn(`WelcomeOverlay: No template for slide "${slideKey}"`);
 			return;
 		}
 
@@ -724,7 +723,7 @@ export class WelcomeOverlay {
 				try {
 					await this.#handleAction(action, target, event);
 				} catch (err) {
-					console.error("litmv2 | Welcome overlay action failed:", err);
+					error("Welcome overlay action failed:", err);
 					ui.notifications.error(
 						"Something went wrong. Check the console for details.",
 					);
@@ -1087,7 +1086,7 @@ export class WelcomeOverlay {
 				await this.dismiss();
 				break;
 			default:
-				console.warn(`litmv2 | WelcomeOverlay: Unknown action "${action}"`);
+				warn(`WelcomeOverlay: Unknown action "${action}"`);
 		}
 	}
 

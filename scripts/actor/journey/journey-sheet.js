@@ -1,3 +1,4 @@
+import { error } from "../../logger.js";
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
 import { confirmDelete, enrichHTML } from "../../utils.js";
 
@@ -94,10 +95,7 @@ export class JourneySheet extends LitmActorSheet {
 		super._onFirstRender(context, options);
 		if (this.document.isOwner) {
 			this.#migrateTagsToEffects().catch((err) =>
-				console.error(
-					"litmv2 | Failed to migrate journey tags to effects",
-					err,
-				),
+				error("Failed to migrate journey tags to effects", err),
 			);
 		}
 	}

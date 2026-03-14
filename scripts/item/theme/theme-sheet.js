@@ -1,3 +1,4 @@
+import { error } from "../../logger.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import {
 	findThemebookByName,
@@ -333,8 +334,8 @@ export class ThemeSheet extends LitmItemSheet {
 
 		try {
 			await this.document.update({ [field]: newValue });
-		} catch (error) {
-			console.error("Error updating progress track:", error);
+		} catch (err) {
+			error("Error updating progress track:", err);
 		}
 	}
 }

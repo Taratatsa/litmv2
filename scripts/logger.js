@@ -13,15 +13,16 @@ const Status = {
 
 /**
  * @param {Status} status
+ * @param {"log"|"warn"|"error"} [method="log"]
  * @returns {function}
  */
-function log(status) {
+function log(status, method = "log") {
 	/**
 	 * @param  {...string} args
 	 * @returns {void}
 	 */
 	return (...args) => {
-		return console.log(
+		return console[method](
 			`%cLegend in the Mist | %c${args.join("\n")}`,
 			`font-weight: bold; color: ${status};`,
 			"",
@@ -36,7 +37,7 @@ function log(status) {
  * error("This is an error message");
  */
 export function error(...args) {
-	return log(Status.ERROR)(...args);
+	return log(Status.ERROR, "error")(...args);
 }
 
 /**
@@ -66,5 +67,5 @@ export function info(...args) {
  * warn("This is a warning message");
  */
 export function warn(...args) {
-	return log(Status.WARN)(...args);
+	return log(Status.WARN, "warn")(...args);
 }

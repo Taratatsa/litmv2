@@ -1,3 +1,4 @@
+import { error } from "../../logger.js";
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
 import { confirmDelete, enrichHTML } from "../../utils.js";
 
@@ -217,7 +218,7 @@ export class ChallengeSheet extends LitmActorSheet {
 		super._onFirstRender(context, options);
 		if (this.document.isOwner) {
 			this.#migrateTagsAndEffects().catch((err) =>
-				console.error("litmv2 | Failed to migrate challenge tags/effects", err),
+				error("Failed to migrate challenge tags/effects", err),
 			);
 		}
 		this._hookIds = {

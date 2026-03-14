@@ -1,3 +1,4 @@
+import { error } from "../../logger.js";
 import { localize as t } from "../../utils.js";
 
 export function registerActorHooks() {
@@ -79,7 +80,7 @@ function _prepareCharacterOnCreate() {
 					"system.generalConsequences": vignette?.id || "",
 				});
 			}
-		})().catch((err) => console.error("litmv2 | Failed to setup actor", err));
+		})().catch((err) => error("Failed to setup actor", err));
 	});
 }
 
