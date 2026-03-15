@@ -19,13 +19,9 @@
 					{{else}}
 					{{#each tropesByCategory as |group|}}
 					<div class="hero-creation__group">
-						{{#if group.img}}
-						<div class="hero-creation__category-banner" style="background-image: url('{{group.img}}')">
+						<div class="hero-creation__category-banner">
 							<span class="hero-creation__category-banner-name">{{group.name}}</span>
 						</div>
-						{{else}}
-						<h4>{{group.name}}</h4>
-						{{/if}}
 						<div class="hero-creation__category-list">
 							{{#each group.items as |trope|}}
 							<button type="button"
@@ -43,9 +39,16 @@
 
 			<div class="hero-creation__detail scrollable">
 				{{#if selectedTrope}}
-				<h2>{{selectedTrope.name}}</h2>
-				<div>
-					{{{selectedTrope.description}}}
+				<div class="hero-creation__detail-header">
+					<div class="hero-creation__detail-header-text">
+						<h2>{{selectedTrope.name}}</h2>
+						<div>
+							{{{selectedTrope.description}}}
+						</div>
+					</div>
+					{{#if selectedCategoryImg}}
+					<div class="hero-creation__detail-portrait" style="background-image: url('{{selectedCategoryImg}}')"></div>
+					{{/if}}
 				</div>
 
 				<fieldset>

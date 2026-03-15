@@ -332,7 +332,8 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		this.actorId = options.actorId;
 		this.characterTags = options.characterTags || [];
 		this.speaker =
-			options.speaker || ChatMessage.getSpeaker({ actor: this.actor });
+			options.speaker ||
+			foundry.documents.ChatMessage.getSpeaker({ actor: this.actor });
 		this.rollName = options.title || game.i18n.localize("LITM.Ui.roll_title");
 		this.type = options.type || "tracked";
 	}
@@ -1066,7 +1067,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			.filter((u) => u[1] === 3 && u[0] !== "default")
 			.map((u) => u[0]);
 
-		await ChatMessage.create({
+		await foundry.documents.ChatMessage.create({
 			content: await foundry.applications.handlebars.renderTemplate(
 				"systems/litmv2/templates/chat/moderation.html",
 				{

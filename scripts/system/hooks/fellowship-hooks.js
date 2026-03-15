@@ -38,12 +38,12 @@ function _ensureFellowshipSingleton() {
 				await LitmSettings.setFellowshipId(fellowshipId);
 			} else {
 				// No fellowship exists — create one
-				const actor = await Actor.create(
+				const actor = await foundry.documents.Actor.create(
 					{
 						name: t("LITM.Terms.fellowship"),
 						type: "fellowship",
 						ownership: {
-							default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
+							default: foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER,
 						},
 					},
 					{ litm: { skipSingletonCheck: true } },
@@ -73,7 +73,7 @@ async function _linkAllHeroes(fellowshipId) {
 		}));
 
 	if (updates.length > 0) {
-		await Actor.updateDocuments(updates);
+		await foundry.documents.Actor.updateDocuments(updates);
 	}
 }
 
@@ -117,9 +117,10 @@ function _blockFellowshipDeletion() {
  */
 function _hideFromCreateDialog() {
 	Hooks.once("ready", () => {
-		const original = Actor.createDialog;
-		Actor.createDialog = function (data, options, dialogOptions = {}) {
-			dialogOptions.types ??= Actor.TYPES.filter(
+		const ActorCls = foundry.documents.Actor;
+		const original = ActorCls.createDialog;
+		ActorCls.createDialog = function (data, options, dialogOptions = {}) {
+			dialogOptions.types ??= ActorCls.TYPES.filter(
 				(type) => type !== "fellowship",
 			);
 			return original.call(this, data, options, dialogOptions);
@@ -128,32 +129,53 @@ function _hideFromCreateDialog() {
 }
 
 /**
- * Re-render open hero sheets when the fellowship actor or its items change.
- * Without this, hero sheets display stale fellowship data until manually refreshed.
+ * Cross-render: re-render hero sheets when fellowship changes,
+ * and re-render the fellowship sheet when hero data changes (party overview).
+ * Uses a single set of hooks with a debounced fellowship re-render.
  */
 function _rerenderHeroSheetsOnFellowshipChange() {
-	const rerenderLinkedHeroes = (actorOrItem) => {
+	let fellowshipRenderTimer = null;
+
+	const onDocumentChange = (actorOrItem) => {
 		const fellowshipId = LitmSettings.fellowshipId;
 		if (!fellowshipId) return;
 
-		// Determine if this change is on the fellowship actor or its items
 		const actorId = actorOrItem.parent?.id ?? actorOrItem.id;
-		if (actorId !== fellowshipId) return;
 
-		for (const actor of game.actors) {
-			if (actor.type !== "hero") continue;
-			if (actor.system.fellowshipId !== fellowshipId) continue;
-			if (actor.sheet?.rendered) actor.sheet.render();
+		// Fellowship changed → re-render linked hero sheets
+		if (actorId === fellowshipId) {
+			for (const actor of game.actors) {
+				if (actor.type !== "hero") continue;
+				if (actor.system.fellowshipId !== fellowshipId) continue;
+				if (actor.sheet?.rendered) actor.sheet.render();
+			}
+			return;
 		}
+
+		// Hero changed → debounce re-render of fellowship sheet (party overview)
+		const actor = game.actors.get(actorId);
+		if (!actor || actor.type !== "hero") return;
+		if (!game.user.isGM) return;
+
+		const fellowship = game.actors.get(fellowshipId);
+		if (!fellowship?.sheet?.rendered) return;
+
+		clearTimeout(fellowshipRenderTimer);
+		fellowshipRenderTimer = setTimeout(() => fellowship.sheet.render(), 200);
 	};
 
-	Hooks.on("updateActor", rerenderLinkedHeroes);
-	Hooks.on("updateItem", rerenderLinkedHeroes);
-	Hooks.on("createItem", rerenderLinkedHeroes);
-	Hooks.on("deleteItem", rerenderLinkedHeroes);
-	Hooks.on("updateActiveEffect", rerenderLinkedHeroes);
-	Hooks.on("createActiveEffect", rerenderLinkedHeroes);
-	Hooks.on("deleteActiveEffect", rerenderLinkedHeroes);
+	const hooks = [
+		"updateActor",
+		"updateItem",
+		"createItem",
+		"deleteItem",
+		"updateActiveEffect",
+		"createActiveEffect",
+		"deleteActiveEffect",
+	];
+	for (const hook of hooks) {
+		Hooks.on(hook, onDocumentChange);
+	}
 }
 
 /**

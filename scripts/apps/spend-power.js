@@ -416,14 +416,14 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 					<span class="litm-spend-chat__action">${action}</span>
 				</div>
 			</header>
-			<div class="litm-spend-chat__body">${body}</div>
+			${body ? `<div class="litm-spend-chat__body">${body}</div>` : ""}
 			<footer class="litm-spend-chat__cost">${costLine}</footer>
 		</div>`;
 	}
 
 	static async #onSubmit(_event, form, _formData) {
 		const actor = game.actors.get(this.actorId);
-		const speaker = ChatMessage.getSpeaker({ actor });
+		const speaker = foundry.documents.ChatMessage.getSpeaker({ actor });
 
 		const checkedOptions = [
 			...form.querySelectorAll(".litm-spend-power__option"),
@@ -485,7 +485,7 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 					bodyLines.push(`<span>${name}-${oldTier} &rarr; ${after}</span>`);
 				}
 
-				await ChatMessage.create({
+				await foundry.documents.ChatMessage.create({
 					content: SpendPowerApp.#chatCard({
 						actor,
 						action: t(option.label),
@@ -506,11 +506,14 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 				const power = option.cost * count;
 				totalSpent += power;
 
-				await ChatMessage.create({
+				await foundry.documents.ChatMessage.create({
 					content: SpendPowerApp.#chatCard({
 						actor,
 						action: t(option.label),
-						body: `<span>&times;${count}</span>`,
+						body:
+							count > 1
+								? `<span class="litm-spend-chat__count">&times;${count}</span>`
+								: "",
 						power,
 					}),
 					speaker,
@@ -550,7 +553,7 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 					}
 				}
 
-				await ChatMessage.create({
+				await foundry.documents.ChatMessage.create({
 					content: SpendPowerApp.#chatCard({
 						actor,
 						action: t(option.label),
@@ -601,7 +604,7 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 
 			totalSpent += power;
 
-			await ChatMessage.create({
+			await foundry.documents.ChatMessage.create({
 				content: SpendPowerApp.#chatCard({
 					actor,
 					action: t(option.label),

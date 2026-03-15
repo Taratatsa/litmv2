@@ -28,7 +28,7 @@ export class KeyBindings {
 			},
 			onUp: () => {},
 			restricted: false,
-			precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL,
+			precedence: foundry.CONST.KEYBINDING_PRECEDENCE.NORMAL,
 		});
 
 		game.keybindings.register("litmv2", "wrapTagMarkup", {
@@ -59,7 +59,7 @@ export class KeyBindings {
 			},
 			onUp: () => {},
 			restricted: false,
-			precedence: CONST.KEYBINDING_PRECEDENCE.PRIORITY,
+			precedence: foundry.CONST.KEYBINDING_PRECEDENCE.PRIORITY,
 		});
 
 		game.keybindings.register("litmv2", "toggleTagsSidebar", {
@@ -76,7 +76,7 @@ export class KeyBindings {
 			},
 			onUp: () => {},
 			restricted: false,
-			precedence: CONST.KEYBINDING_PRECEDENCE.NORMAL,
+			precedence: foundry.CONST.KEYBINDING_PRECEDENCE.NORMAL,
 		});
 
 		game.keybindings.register("litmv2", "openDiceRoller", {
@@ -98,7 +98,7 @@ export class KeyBindings {
 			},
 			onUp: () => {},
 			restricted: false,
-			precedence: CONST.KEYBINDING_PRECEDENCE.PRIORITY,
+			precedence: foundry.CONST.KEYBINDING_PRECEDENCE.PRIORITY,
 		});
 	}
 }

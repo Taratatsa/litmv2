@@ -22,6 +22,7 @@ export class FellowshipSheet extends LitmActorSheet {
 			adjustProgress: FellowshipSheet.#onAdjustProgress,
 			openThemeAdvancement: FellowshipSheet.#onOpenThemeAdvancement,
 			browseThemes: FellowshipSheet.#onBrowseThemes,
+			"open-hero-sheet": FellowshipSheet.#onOpenHeroSheet,
 		},
 		form: {
 			handler: LitmActorSheet._onSubmitActorForm,
@@ -78,6 +79,9 @@ export class FellowshipSheet extends LitmActorSheet {
 			.sort((a, b) => a.sort - b.sort)
 			.map((i) => this._prepareThemeData(i));
 
+		// Party overview data (GM only)
+		const party = game.user.isGM ? this.#preparePartyOverview() : [];
+
 		return {
 			...context,
 			isGM: game.user.isGM,
@@ -93,12 +97,80 @@ export class FellowshipSheet extends LitmActorSheet {
 				tag: "LITM.Terms.tag",
 				status: "LITM.Terms.status",
 			},
+			party,
 		};
 	}
 
 	/* -------------------------------------------- */
 	/*  Event Handlers & Actions                    */
 	/* -------------------------------------------- */
+
+	/**
+	 * Prepare party overview data for all hero actors.
+	 * @returns {object[]}
+	 */
+	#preparePartyOverview() {
+		const fellowshipId = this.document.id;
+		const playerCharacterIds = new Set(
+			game.users
+				.filter((u) => u.character?.type === "hero")
+				.map((u) => u.character.id),
+		);
+		const heroes = game.actors.filter(
+			(a) =>
+				a.type === "hero" &&
+				playerCharacterIds.has(a.id) &&
+				a.system.fellowshipId === fellowshipId,
+		);
+		return heroes.map((hero) => {
+			const themes = hero.items.filter(
+				(i) =>
+					i.type === "theme" && !i.system.isFellowship && !i.system.isScratched,
+			);
+
+			const quests = themes
+				.filter((theme) => theme.system.quest?.description)
+				.map((theme) => ({
+					themeName: theme.name,
+					description: theme.system.quest.description,
+				}));
+
+			const weaknesses = themes
+				.flatMap((theme) => theme.system.weakness)
+				.filter((tag) => tag.isActive && !tag.isScratched)
+				.map((tag) => tag.name);
+
+			const storyTags = hero.system.storyTags;
+			const statuses = hero.system.statuses.filter((s) => s.value > 0);
+
+			// Strip HTML from description
+			const desc = hero.system.description ?? "";
+			const div = document.createElement("div");
+			div.innerHTML = desc;
+			const description = div.textContent?.trim() ?? "";
+
+			return {
+				id: hero.id,
+				name: hero.name,
+				img: hero.img,
+				description,
+				quests,
+				weaknesses,
+				storyTags,
+				statuses,
+				hasTagsOrStatuses: storyTags.length > 0 || statuses.length > 0,
+			};
+		});
+	}
+
+	/**
+	 * Open a hero's sheet from the party overview
+	 * @private
+	 */
+	static #onOpenHeroSheet(_event, target) {
+		const actor = game.actors.get(target.dataset.actorId);
+		actor?.sheet?.render(true);
+	}
 
 	/**
 	 * Add a new story theme
@@ -381,7 +453,7 @@ export class FellowshipSheet extends LitmActorSheet {
 
 		if (!result) return;
 
-		const doc = await fromUuid(result.uuid);
+		const doc = await foundry.utils.fromUuid(result.uuid);
 		if (!doc) return;
 
 		if (result.type === "themebook") {
