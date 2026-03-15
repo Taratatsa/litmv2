@@ -1,5 +1,7 @@
+import { error } from "../../logger.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import {
+	enrichHTML,
 	findThemebookByName,
 	queryItemsFromPacks,
 	toQuestionOptions,
@@ -85,22 +87,10 @@ export class ThemeSheet extends LitmItemSheet {
 				.filter(([, q]) => `${q ?? ""}`.trim()),
 		);
 
-		// Enrich HTML note
-		const enrichedNote =
-			(await foundry.applications.ux.TextEditor.enrichHTML(this.system.note, {
-				secrets: this.document.isOwner,
-				relativeTo: this.document,
-			})) || "";
-
-		// Enrich HTML description
-		const enrichedDescription =
-			(await foundry.applications.ux.TextEditor.enrichHTML(
-				this.system.description,
-				{
-					secrets: this.document.isOwner,
-					relativeTo: this.document,
-				},
-			)) || "";
+		const enrichedDescription = await enrichHTML(
+			this.system.description,
+			this.document,
+		);
 
 		// Theme tag question (Question A) for placeholder
 		const themeTagQuestion = `${allPowerQuestions[0] ?? ""}`.trim();
@@ -108,7 +98,6 @@ export class ThemeSheet extends LitmItemSheet {
 		return {
 			...context,
 			enriched: {
-				note: enrichedNote,
 				description: enrichedDescription,
 			},
 			// Document data
@@ -333,8 +322,8 @@ export class ThemeSheet extends LitmItemSheet {
 
 		try {
 			await this.document.update({ [field]: newValue });
-		} catch (error) {
-			console.error("Error updating progress track:", error);
+		} catch (err) {
+			error("Error updating progress track:", err);
 		}
 	}
 }

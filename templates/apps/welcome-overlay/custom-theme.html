@@ -1,0 +1,296 @@
+<div class="litm--welcome-overlay__wizard application standard-form">
+	<div class="litm--welcome-overlay__wizard-header">
+		<div class="flexrow" style="align-items: center; justify-content: space-between;">
+			<h2>{{localize "LITM.Ui.theme_title"}} {{themeNumber}} {{localize "LITM.Ui.hero_creation_of"}} 4</h2>
+			<nav class="custom-step-indicator">
+				{{#each steps}}
+				<button type="button"
+					class="custom-step-indicator__dot {{#if active}}active{{/if}} {{#if complete}}complete{{/if}}"
+					data-action="jumpToCustomStep" data-slide="{{slide}}"
+					data-tooltip="{{tooltip}}">
+					{{#if icon}}<i class="{{icon}}"></i>{{else}}{{label}}{{/if}}
+				</button>
+				{{/each}}
+			</nav>
+		</div>
+		<hr />
+	</div>
+	<div class="litm--welcome-overlay__wizard-body">
+		<section class="hero-creation__split">
+			<!-- Left column: method selection and source list -->
+			<div class="hero-creation__list">
+				{{#unless currentTheme.method}}
+				<h3>{{localize "LITM.Ui.hero_creation_choose_method"}}</h3>
+				<ul class="hero-creation__method-list">
+					<li>
+						<button type="button" class="method-btn" data-action="selectThemeMethod" data-method="themekit">
+							<strong>{{localize "LITM.Ui.hero_creation_method_themekit"}}</strong>
+							<span>{{localize "LITM.Ui.hero_creation_method_themekit_hint"}}</span>
+						</button>
+					</li>
+					<li>
+						<button type="button" class="method-btn" data-action="selectThemeMethod" data-method="themebook">
+							<strong>{{localize "LITM.Ui.hero_creation_method_themebook"}}</strong>
+							<span>{{localize "LITM.Ui.hero_creation_method_themebook_hint"}}</span>
+						</button>
+					</li>
+					<li>
+						<button type="button" class="method-btn" data-action="selectThemeMethod" data-method="manual">
+							<strong>{{localize "LITM.Ui.hero_creation_method_manual"}}</strong>
+							<span>{{localize "LITM.Ui.hero_creation_method_manual_hint"}}</span>
+						</button>
+					</li>
+				</ul>
+				{{/unless}}
+
+				{{#if currentTheme.method}}
+				<div class="theme-method-display">
+					<span class="method-badge">{{#if (eq currentTheme.method "themekit")}}{{localize
+						"LITM.Ui.hero_creation_method_themekit"}}{{else}}{{#if (eq currentTheme.method "manual")}}{{localize
+						"LITM.Ui.hero_creation_method_manual"}}{{else}}{{localize
+						"LITM.Ui.hero_creation_method_themebook"}}{{/if}}{{/if}}</span>
+					<button type="button" class="change-method-btn" data-action="selectThemeMethod" data-method="">{{localize
+						"LITM.Ui.change"}}</button>
+				</div>
+				{{/if}}
+
+				{{!-- Themekit method --}}
+				{{#if (eq currentTheme.method "themekit")}}
+				{{#unless hasThemekits}}
+				<div class="hero-creation__empty-state">
+					<i class="fa-solid fa-triangle-exclamation"></i>
+					<p>{{localize "LITM.Ui.hero_creation_no_themekits"}}</p>
+				</div>
+				{{else}}
+				<div class="custom-themekit-list">
+					{{#each themekits as |kit|}}
+					<button type="button" class="themekit-link {{#if (eq kit.uuid ../currentTheme.themekitUuid)}}active{{/if}}"
+						data-action="selectThemeKit" data-uuid="{{kit.uuid}}" {{#if
+						kit.tagTooltip}}data-tooltip="{{kit.tagTooltip}}" {{/if}}>
+						<img class="noflex icon-sm" src="{{kit.img}}" />
+						{{kit.name}}
+					</button>
+					{{/each}}
+				</div>
+				{{/unless}}
+				{{/if}}
+
+				{{!-- Themebook method --}}
+				{{#if (eq currentTheme.method "themebook")}}
+				<div class="litm-field-stacked">
+					<select data-bind="custom.themes.{{themeIndex}}.themebookUuid" data-render="true">
+						<option value="">{{localize "LITM.Ui.select_themebook"}}</option>
+						{{#each themebooks as |book|}}
+						<option value="{{book.uuid}}" {{#if (eq book.uuid ../currentTheme.themebookUuid)}}selected{{/if}}>
+							{{book.name}} ({{book.themeLevel}})
+						</option>
+						{{/each}}
+					</select>
+				</div>
+
+				{{#if currentTheme.themebookUuid}}
+				<div class="litm-field-stacked">
+					<label>{{localize "LITM.Ui.hero_creation_theme_name"}}</label>
+					<input type="text" data-bind="custom.themes.{{themeIndex}}.name" value="{{currentTheme.name}}"
+						placeholder="{{namePlaceholder}}" />
+				</div>
+				{{/if}}
+
+				{{#if isVariableLevel}}
+				<div class="litm-field-stacked">
+					<label>{{localize "LITM.Terms.level"}}</label>
+					<select data-bind="custom.themes.{{themeIndex}}.level" data-render="true">
+						{{#each levelOptions}}
+						<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+						{{/each}}
+					</select>
+				</div>
+				{{/if}}
+				{{/if}}
+
+				{{!-- Manual method --}}
+				{{#if (eq currentTheme.method "manual")}}
+				<p class="hint">{{localize "LITM.Ui.hero_creation_hint_tags_match_might"}}</p>
+				<div class="litm-field-stacked">
+					<label>{{localize "LITM.Ui.hero_creation_theme_name"}}</label>
+					<input type="text" data-bind="custom.themes.{{themeIndex}}.name" value="{{currentTheme.name}}"
+						placeholder="{{localize 'LITM.Ui.hero_creation_theme_name'}}" />
+				</div>
+				{{/if}}
+			</div>
+
+			<!-- Right column: tag/question detail -->
+			<div class="hero-creation__detail scrollable">
+				{{#if currentTheme.method}}
+
+				{{!-- Themekit tags --}}
+				{{#if (eq currentTheme.method "themekit")}}
+				{{#unless currentTheme.themekitUuid}}
+				<div class="hero-creation__empty-state">
+					<i class="fa-solid fa-wand-magic-sparkles"></i>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_select_themekit_hint"}}</p>
+				</div>
+				{{/unless}}
+				{{#if currentTheme.themekitUuid}}
+				<p class="hint">{{localize "LITM.Ui.hero_creation_tags_optional"}}</p>
+				{{/if}}
+				{{#if currentTheme.powerTagOptions.length}}
+				<fieldset class="tag-section power-tags">
+					<legend>{{localize "LITM.Tags.power_tags"}} ({{currentTheme.selectedPowerTags.length}}/2)</legend>
+					<details class="tag-questions-details">
+						<summary class="hint">{{localize "LITM.Ui.hero_creation_hint_power_tags"}}</summary>
+						{{#if currentTheme.powerTagQuestions.length}}
+						<ul class="tag-questions">
+							{{#each currentTheme.powerTagQuestions}}<li class="hint">{{this}}</li>{{/each}}
+						</ul>
+						{{/if}}
+					</details>
+					<div class="theme-card-tags">
+						{{#each currentTheme.powerTagOptions}}
+						<label class="tag-checkbox">
+							<input type="checkbox" value="{{name}}" data-action="toggleCustomPowerTag"
+								data-index="{{@root.themeIndex}}" {{#if checked}}checked{{/if}}
+								aria-label="{{name}}" />
+							<img class="litm-tag-check"
+								src="systems/litmv2/assets/media/{{#if checked}}checkbox-c{{else}}checkbox{{/if}}.svg" />
+							<span class="litm-powerTag {{#unless checked}}unselected{{/unless}}" data-text="{{name}}"
+								aria-hidden="true">{{name}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</fieldset>
+				{{/if}}
+
+				{{#if currentTheme.weaknessTagOptions.length}}
+				<fieldset class="tag-section weakness-tags">
+					<legend>{{localize "LITM.Tags.weakness_tags"}} ({{#if currentTheme.selectedWeaknessTag}}1{{else}}0{{/if}}/1)
+					</legend>
+					<details class="tag-questions-details">
+						<summary class="hint">{{localize "LITM.Ui.hero_creation_hint_weakness_tags"}}</summary>
+						{{#if currentTheme.weaknessTagQuestions.length}}
+						<ul class="tag-questions">
+							{{#each currentTheme.weaknessTagQuestions}}<li class="hint">{{this}}</li>{{/each}}
+						</ul>
+						{{/if}}
+					</details>
+					<div class="theme-card-tags">
+						{{#each currentTheme.weaknessTagOptions}}
+						<label class="tag-checkbox">
+							<input type="checkbox" value="{{name}}" data-action="toggleCustomWeaknessTag"
+								data-index="{{@root.themeIndex}}" {{#if checked}}checked{{/if}}
+								aria-label="{{name}}" />
+							<img class="litm-tag-check"
+								src="systems/litmv2/assets/media/{{#if checked}}checkbox-c{{else}}checkbox{{/if}}.svg" />
+							<span class="litm-weaknessTag {{#unless checked}}unselected{{/unless}}"
+								data-text="{{name}}" aria-hidden="true">{{name}}</span>
+						</label>
+						{{/each}}
+					</div>
+				</fieldset>
+				{{/if}}
+				{{/if}}
+
+				{{!-- Themebook tags --}}
+				{{#if (eq currentTheme.method "themebook")}}
+				{{#unless currentTheme.themebookUuid}}
+				<div class="hero-creation__empty-state">
+					<i class="fa-solid fa-book-open"></i>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_select_themebook"}}</p>
+				</div>
+				{{/unless}}
+				{{#if currentTheme.themebookUuid}}
+				<fieldset>
+					<legend>{{localize "LITM.Tags.power_tags"}}</legend>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_hint_power_tags"}}</p>
+					<div class="tag-inputs">
+						<div class="litm-question-answer">
+							<select data-bind="custom.themes.{{themeIndex}}.powerQuestions.0" data-render="true">
+								{{{selectOptions powerQuestionOptions selected=(lookup currentTheme.powerQuestions 0) blank="—"}}}
+							</select>
+							<input type="text" data-bind="custom.themes.{{themeIndex}}.powerTags.0"
+								value="{{lookup currentTheme.powerTags 0}}"
+								placeholder="{{lookup powerQuestionTexts (lookup currentTheme.powerQuestions 0)}}" />
+						</div>
+						<hr />
+						<div class="litm-question-answer">
+							<select data-bind="custom.themes.{{themeIndex}}.powerQuestions.1" data-render="true">
+								{{{selectOptions powerQuestionOptions selected=(lookup currentTheme.powerQuestions 1) blank="—"}}}
+							</select>
+							<input type="text" data-bind="custom.themes.{{themeIndex}}.powerTags.1"
+								value="{{lookup currentTheme.powerTags 1}}"
+								placeholder="{{lookup powerQuestionTexts (lookup currentTheme.powerQuestions 1)}}" />
+						</div>
+					</div>
+				</fieldset>
+
+				<fieldset>
+					<legend>{{localize "LITM.Tags.weakness_tags"}}</legend>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_hint_weakness_tags"}}</p>
+					<div class="tag-inputs">
+						<div class="litm-question-answer">
+							<select data-bind="custom.themes.{{themeIndex}}.weaknessQuestion" data-render="true">
+								{{{selectOptions weaknessQuestionOptions selected=currentTheme.weaknessQuestion blank="—"}}}
+							</select>
+							<input type="text" data-bind="custom.themes.{{themeIndex}}.weaknessTag"
+								value="{{currentTheme.weaknessTag}}"
+								placeholder="{{lookup weaknessQuestionTexts currentTheme.weaknessQuestion}}" />
+						</div>
+					</div>
+				</fieldset>
+
+				<fieldset>
+					<legend>{{localize "LITM.Terms.quest"}}</legend>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_hint_quest"}}</p>
+					{{#if questIdeas.length}}
+					<p class="hint">{{localize "LITM.Ui.hero_creation_quest_ideas_label"}}</p>
+					<ul class="hint">
+						{{#each questIdeas}}<li>{{this}}</li>{{/each}}
+					</ul>
+					{{/if}}
+					<input type="text" data-bind="custom.themes.{{themeIndex}}.quest" value="{{currentTheme.quest}}"
+						placeholder="{{localize 'LITM.Ui.hero_creation_quest'}}" />
+				</fieldset>
+				{{/if}}
+				{{/if}}
+
+				{{!-- Manual tags --}}
+				{{#if (eq currentTheme.method "manual")}}
+				<fieldset>
+					<legend>{{localize "LITM.Tags.power_tags"}}</legend>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_hint_power_tags"}}</p>
+					<div class="tag-inputs">
+						<input type="text" data-bind="custom.themes.{{themeIndex}}.powerTags.0"
+							value="{{lookup currentTheme.powerTags 0}}" placeholder="" />
+						<input type="text" data-bind="custom.themes.{{themeIndex}}.powerTags.1"
+							value="{{lookup currentTheme.powerTags 1}}" placeholder="" />
+					</div>
+				</fieldset>
+				<fieldset>
+					<legend>{{localize "LITM.Tags.weakness_tags"}}</legend>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_hint_weakness_tags"}}</p>
+					<div class="tag-inputs">
+						<input type="text" data-bind="custom.themes.{{themeIndex}}.weaknessTag" value="{{currentTheme.weaknessTag}}"
+							placeholder="" />
+					</div>
+				</fieldset>
+				<fieldset>
+					<legend>{{localize "LITM.Terms.quest"}}</legend>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_hint_quest"}}</p>
+					<input type="text" data-bind="custom.themes.{{themeIndex}}.quest" value="{{currentTheme.quest}}"
+						placeholder="{{localize 'LITM.Ui.hero_creation_quest'}}" />
+				</fieldset>
+				{{/if}}
+
+				{{else}}
+				<div class="hero-creation__empty-state">
+					<i class="fa-solid fa-compass fa-2x"></i>
+					<h3>{{localize "LITM.Ui.hero_creation_choose_method"}}</h3>
+					<p class="hint">{{localize "LITM.Ui.hero_creation_method_guidance"}}</p>
+				</div>
+				{{/if}}
+			</div>
+		</section>
+	</div>
+	{{> "systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html" primaryAction="next" primaryLabel=(localize
+	"LITM.Ui.hero_creation_next")}}
+</div>

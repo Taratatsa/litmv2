@@ -76,6 +76,7 @@ export class Enrichers {
 	}
 
 	static #registerInserts() {
+		if (!CONFIG.TextEditor.inserts) return;
 		CONFIG.TextEditor.inserts.push({
 			action: "litm-ingress",
 			title: "LITM.Editor.ingress",

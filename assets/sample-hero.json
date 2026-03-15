@@ -541,7 +541,7 @@
 	},
 	"effects": [],
 	"flags": {
-		"litm": {
+		"litmv2": {
 			"isSampleHero": true
 		}
 	},

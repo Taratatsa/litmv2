@@ -1,4 +1,5 @@
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
+import { enrichHTML } from "../../utils.js";
 
 export class StoryThemeSheet extends LitmItemSheet {
 	static DEFAULT_OPTIONS = {
@@ -33,15 +34,10 @@ export class StoryThemeSheet extends LitmItemSheet {
 	async _prepareContext(options) {
 		const context = await super._prepareContext(options);
 
-		// Enrich HTML fields
-		const enrichedDescription =
-			await foundry.applications.ux.TextEditor.enrichHTML(
-				this.system.description,
-				{
-					secrets: this.document.isOwner,
-					relativeTo: this.document,
-				},
-			);
+		const enrichedDescription = await enrichHTML(
+			this.system.description,
+			this.document,
+		);
 		return {
 			...context,
 			enriched: {

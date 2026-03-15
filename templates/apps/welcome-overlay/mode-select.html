@@ -1,4 +1,4 @@
-<div class="litm--welcome-overlay__wizard">
+<div class="litm--welcome-overlay__wizard application">
 	<div class="litm--welcome-overlay__wizard-header">
 		<h2>{{localize "LITM.Ui.hero_creation_mode_prompt"}}</h2>
 		<hr />
@@ -30,11 +30,5 @@
 			</button>
 		</div>
 	</div>
-	<div class="litm--welcome-overlay__wizard-footer">
-		<button type="button" class="litm--welcome-overlay__btn" data-action="back">
-			{{localize "LITM.Ui.hero_creation_back"}}
-		</button>
-		<div class="litm--welcome-overlay__wizard-footer-actions">
-		</div>
-	</div>
+	{{> "systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html" primaryAction="next" primaryLabel=(localize "LITM.Ui.hero_creation_next") primaryDisabled=(not mode)}}
 </div>

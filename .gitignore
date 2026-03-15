@@ -13,3 +13,4 @@ __fixtures__/
 tests/
 CSS_GUIDE.md
 check-keys.js
+.superpowers/

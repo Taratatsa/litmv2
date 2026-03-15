@@ -1,4 +1,4 @@
-import { info } from "../logger.js";
+import { error, info, warn } from "../logger.js";
 import { createSampleHero } from "./sample-hero.js";
 
 const { Tour } = foundry.nue;
@@ -82,7 +82,7 @@ export class LitmTour extends Tour {
 			try {
 				await waitForElement(selector);
 			} catch (err) {
-				console.warn(`litmv2 | ${err.message} — skipping step`);
+				warn(`${err.message} — skipping step`);
 				if (this.hasNext) return this.next();
 			}
 		}
@@ -186,7 +186,7 @@ async function _doRegisterTours() {
 			const tour = await LitmTour.fromJSON(`systems/litmv2/${path}`);
 			game.tours.register("litmv2", id, tour);
 		} catch (err) {
-			console.error(`litmv2 | Failed to register tour "${id}"`, err);
+			error(`Failed to register tour "${id}"`, err);
 		}
 	}
 }

@@ -1,7 +1,9 @@
+import { error, warn } from "../logger.js";
+
 export class Sockets {
 	static dispatch(event, data) {
 		if (!game.ready) {
-			return console.error(
+			return error(
 				`Tried to dispatch ${event} socket event before the game was ready.`,
 			);
 		}
@@ -23,9 +25,7 @@ export class Sockets {
 
 	static on(event, cb) {
 		if (this.#handlers.has(event)) {
-			console.warn(
-				`litmv2 | Sockets.on: handler for "${event}" is being overwritten.`,
-			);
+			warn(`Sockets.on: handler for "${event}" is being overwritten.`);
 		}
 		this.#handlers.set(event, cb);
 		if (this.#bound) return;
@@ -51,7 +51,7 @@ export class Sockets {
 		Sockets.on("updateRollDialog", (event) => {
 			const { data } = event;
 			const actor = game.actors.get(data.actorId);
-			if (!actor) return console.warn(`Actor ${data.actorId} not found`);
+			if (!actor) return warn(`Actor ${data.actorId} not found`);
 			actor.sheet?.updateRollDialog(data);
 		});
 

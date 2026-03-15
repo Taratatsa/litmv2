@@ -8,9 +8,6 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 			description: new fields.HTMLField({
 				initial: "",
 			}),
-			note: new fields.HTMLField({
-				initial: "",
-			}),
 			themebook: new fields.StringField({
 				trim: true,
 				initial: "",
@@ -115,24 +112,6 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 			!Object.keys(CONFIG.litmv2.theme_levels).includes(source.level)
 		) {
 			source.level = Object.keys(CONFIG.litmv2.theme_levels)[0];
-		}
-
-		if (source.isScratched === undefined && source.isBurnt !== undefined) {
-			source.isScratched = source.isBurnt;
-		}
-		if (Array.isArray(source.powerTags)) {
-			for (const tag of source.powerTags) {
-				if (tag.isScratched === undefined && tag.isBurnt !== undefined) {
-					tag.isScratched = tag.isBurnt;
-				}
-			}
-		}
-		if (Array.isArray(source.weaknessTags)) {
-			for (const tag of source.weaknessTags) {
-				if (tag.isScratched === undefined && tag.isBurnt !== undefined) {
-					tag.isScratched = tag.isBurnt;
-				}
-			}
 		}
 		return super.migrateData(source);
 	}

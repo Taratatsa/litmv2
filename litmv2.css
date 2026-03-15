@@ -530,6 +530,10 @@ body {
 	transform: scale(1.05);
 }
 
+.hero-play-mode :is(:has(> .litm--hero-name):not(img + div)) {
+	margin-left: 16px;
+}
+
 /* Hero name with decorative underline (play mode) */
 .hero-play-mode .litm--hero-name {
 	position: relative;
@@ -1401,6 +1405,10 @@ body {
    Tag items, burn indicators, tier boxes, visibility toggles.
 ======================================== */
 
+.litm--story-tags {
+	color: var(--color-text-primary);
+}
+
 .litm--story-tags h3 {
 	font-size: var(--font-size-24);
 }
@@ -1979,6 +1987,15 @@ body {
 	justify-content: center;
 }
 
+.litm--welcome-overlay h4 {
+	font-size: var(--font-size-13, 0.8125rem);
+	color: var(--color-light-4);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 0;
+	text-align: center;
+}
+
 .litm--welcome-overlay__bg {
 	position: absolute;
 	inset: 0;
@@ -2012,6 +2029,11 @@ body {
 	align-items: center;
 	gap: 1rem;
 	padding: 1.5rem;
+}
+
+/* Welcome slide sits on the dark backdrop — force light button text */
+.litm--welcome-overlay__welcome .litm--welcome-overlay__btn {
+	color: var(--color-warm-1);
 }
 
 .litm--welcome-overlay__logo {
@@ -2062,6 +2084,7 @@ body {
 	font-size: var(--font-size-14);
 	cursor: pointer;
 	transition: 0.5s;
+	color: var(--button-text-color);
 }
 
 .litm--welcome-overlay__btn i {
@@ -2083,6 +2106,12 @@ body {
 	--button-hover-text-color: #000000;
 }
 
+.litm--welcome-overlay__btn--primary:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
 .litm--welcome-overlay__enabled-badge {
 	display: inline-flex;
 	align-items: center;
@@ -2102,15 +2131,6 @@ body {
 	gap: 0.5rem;
 	width: 100%;
 	max-width: 400px;
-}
-
-.litm--welcome-overlay__settings h3 {
-	font-size: var(--font-size-13, 0.8125rem);
-	color: var(--color-light-4);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	margin: 0;
-	text-align: center;
 }
 
 .litm--welcome-overlay__toggle {
@@ -2212,10 +2232,10 @@ body {
 	min-height: auto;
 	flex: 1;
 	min-width: 0;
-	background: rgba(0, 0, 0, 0.35);
-	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: var(--color-data-background);
+	border: 1px solid var(--color-border);
 	border-radius: 4px;
-	color: var(--color-light-2);
+	color: var(--color-text-primary);
 	cursor: pointer;
 	transition:
 		background 0.2s ease,
@@ -2224,19 +2244,23 @@ body {
 }
 
 .litm--welcome-overlay__tour-btn:hover {
-	background: rgba(0, 0, 0, 0.5);
-	border-color: rgba(255, 255, 255, 0.25);
+	background: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
+	border-color: var(--color-text-subtle);
 }
 
 .litm--welcome-overlay__tour-btn .litm--welcome-overlay__tour-title {
 	font-size: var(--font-size-16, 1rem);
 	font-weight: 600;
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 }
 
 .litm--welcome-overlay__tour-btn .litm--welcome-overlay__tour-desc {
 	font-size: var(--font-size-13, 0.8125rem);
-	color: rgba(255, 255, 255, 0.55);
+	color: var(--color-text-secondary);
 	line-height: 1.4;
 }
 
@@ -2246,7 +2270,7 @@ body {
 	border: none;
 	height: auto;
 	min-height: auto;
-	color: var(--color-light-5);
+	color: var(--color-text-subtle);
 	font-size: var(--font-size-14);
 	cursor: pointer;
 	padding: 0.75rem 1rem;
@@ -2255,8 +2279,20 @@ body {
 }
 
 .litm--welcome-overlay__dismiss:hover {
-	color: rgba(255, 255, 255, 0.7);
+	color: var(--color-text-primary);
 	opacity: 1;
+}
+
+/* --- Wizard & Hero Created: shared form element defaults --- */
+.litm--welcome-overlay__wizard hr,
+.litm--welcome-overlay__hero-created hr {
+	background-image: none;
+	border-top: 2px groove var(--color-border-light-secondary, #c9c7b8);
+}
+
+.litm--welcome-overlay__wizard fieldset,
+.litm--welcome-overlay__hero-created fieldset {
+	border-color: var(--color-border-light-secondary, #c9c7b8);
 }
 
 /* --- Wizard Panel (hero creation slides) --- */
@@ -2266,12 +2302,10 @@ body {
 	height: 80vh;
 	display: flex;
 	flex-direction: column;
-	background: var(--color-cool-5-90);
 	backdrop-filter: blur(4px);
 	-webkit-backdrop-filter: blur(4px);
-	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	box-shadow: 0 0 10px #000;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 	overflow: hidden;
 }
 
@@ -2281,15 +2315,16 @@ body {
 }
 
 .litm--welcome-overlay__wizard-header hr {
-	margin: 0.75rem 0 0;
-	border-color: var(--color-border);
+	border: none;
+	border-bottom: 1px solid
+		color-mix(in srgb, var(--color-border) 40%, transparent);
+	margin: 0.5rem 0 0;
 }
 
 .litm--welcome-overlay__wizard-header h2 {
 	margin: 0;
 	font-size: var(--font-size-20);
-	font-family: var(--font-h1);
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 	font-weight: bold;
 }
 
@@ -2312,7 +2347,7 @@ body {
 
 /* Slides with short content should center vertically */
 .litm--welcome-overlay__wizard-body:has(.litm--welcome-overlay__mode-grid),
-.litm--welcome-overlay__wizard-body:has(.hero-creation__method-grid) {
+.litm--welcome-overlay__wizard-body:has(.hero-creation__method-list) {
 	justify-content: center;
 }
 
@@ -2334,7 +2369,7 @@ body {
 
 .litm--welcome-overlay__mode-divider span {
 	font-size: var(--font-size-14);
-	color: var(--color-light-5);
+	color: var(--color-text-subtle);
 	font-weight: 600;
 }
 
@@ -2346,7 +2381,7 @@ body {
 	padding: 1.5rem 1.25rem 1.25rem;
 	height: auto;
 	min-height: auto;
-	background: var(--color-cool-5-50);
+	background: var(--color-data-background);
 	border: 1px solid var(--color-border);
 	border-radius: 6px;
 	cursor: pointer;
@@ -2355,18 +2390,22 @@ body {
 		border-color 0.25s ease,
 		box-shadow 0.25s ease;
 	text-align: center;
-	color: var(--color-light-2);
+	color: var(--color-text-primary);
 }
 
 .litm--welcome-overlay__mode-card:hover {
-	background: var(--color-cool-5-75);
-	border-color: rgba(255, 255, 255, 0.18);
+	background: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
+	border-color: var(--color-text-subtle);
 }
 
 .litm--welcome-overlay__mode-card.active {
 	background: color-mix(in srgb, var(--color-warm-1) 10%, transparent);
 	border-color: var(--color-warm-1);
-	box-shadow: 0 0 10px #000;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .mode-card__icon {
@@ -2376,8 +2415,9 @@ body {
 	align-items: center;
 	justify-content: center;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.04);
-	border: 1px solid rgba(255, 255, 255, 0.1);
+	background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+	border: 1px solid
+		color-mix(in srgb, var(--color-text-primary) 10%, transparent);
 	margin-bottom: 0.25rem;
 	transition:
 		background 0.25s ease,
@@ -2387,17 +2427,17 @@ body {
 
 .mode-card__icon i {
 	font-size: var(--font-size-24, 1.5rem);
-	color: rgba(255, 255, 255, 0.4);
+	color: var(--color-text-subtle);
 	transition: color 0.25s ease;
 }
 
 .litm--welcome-overlay__mode-card:hover .mode-card__icon {
-	background: rgba(255, 255, 255, 0.08);
-	border-color: rgba(255, 255, 255, 0.2);
+	background: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+	border-color: color-mix(in srgb, var(--color-text-primary) 20%, transparent);
 }
 
 .litm--welcome-overlay__mode-card:hover .mode-card__icon i {
-	color: rgba(255, 255, 255, 0.7);
+	color: var(--color-text-secondary);
 }
 
 .litm--welcome-overlay__mode-card.active .mode-card__icon {
@@ -2413,7 +2453,7 @@ body {
 	margin: 0;
 	font-size: var(--font-size-20, 1.25rem);
 	font-weight: 700;
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 }
 
 .litm--welcome-overlay__mode-card p {
@@ -2429,8 +2469,8 @@ body {
 	margin-top: 0.25rem;
 	padding: 0.2rem 0.75rem;
 	font-size: var(--font-size-11, 0.6875rem);
-	color: var(--color-light-5);
-	border: 1px solid rgba(255, 255, 255, 0.08);
+	color: var(--color-text-subtle);
+	border: 1px solid var(--color-border);
 	border-radius: 100px;
 	font-weight: 600;
 }
@@ -2454,24 +2494,22 @@ body {
 	gap: 1rem;
 	padding: 2rem 1.5rem;
 	text-align: center;
-	background: var(--color-cool-5-90);
 	backdrop-filter: blur(4px);
 	-webkit-backdrop-filter: blur(4px);
-	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	box-shadow: 0 0 10px #000;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .litm--welcome-overlay__hero-created h2 {
 	font-size: var(--font-size-24);
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 	font-family: var(--font-h1);
 	margin: 0;
 }
 
 .litm--welcome-overlay__hero-created p {
 	font-size: var(--font-size-18, 1.125rem);
-	color: var(--color-light-4);
+	color: var(--color-form-label);
 	margin: 0;
 	font-style: italic;
 }
@@ -2486,7 +2524,7 @@ body {
 
 .hero-created__flourish i {
 	font-size: var(--font-size-12);
-	color: color-mix(in srgb, var(--color-warm-1) 50%, transparent);
+	color: var(--color-border-light-tertiary, #7a7971);
 	flex-shrink: 0;
 }
 
@@ -2496,9 +2534,10 @@ body {
 	background: linear-gradient(
 		90deg,
 		transparent,
-		color-mix(in srgb, var(--color-warm-1) 30%, transparent) 50%,
+		var(--color-border-light-tertiary, #7a7971) 50%,
 		transparent
 	);
+	opacity: 0.4;
 }
 
 /* --- Hero Created: tours section --- */
@@ -2548,8 +2587,7 @@ body {
 /* --- Wizard Body Sub-styles (hero creation template structure) --- */
 .litm--welcome-overlay__wizard-body .hero-creation__split {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-	grid-template-rows: 1fr;
+	grid-template-columns: 2fr 3fr;
 	gap: 0.75rem;
 	min-height: 0;
 	flex: 1;
@@ -2561,7 +2599,13 @@ body {
 	flex-direction: column;
 	gap: 0.5rem;
 	min-height: 0;
+	min-width: 0; /* prevent grid child overflow */
 	flex: 1;
+}
+
+/* Ensure themekit tag preview wraps within container */
+.litm--welcome-overlay__wizard-body .hero-creation__list .theme-card-tags {
+	flex-wrap: wrap;
 }
 
 .litm--welcome-overlay__wizard-body .hero-creation__list-body {
@@ -2584,12 +2628,12 @@ body {
 .litm--welcome-overlay__wizard-body h2,
 .litm--welcome-overlay__wizard-body h3,
 .litm--welcome-overlay__wizard-body h4 {
-	color: var(--color-light-2);
+	color: var(--color-text-primary);
 	margin: 0.5rem 0 0.25rem;
 }
 
 .litm--welcome-overlay__wizard-body label {
-	color: var(--color-light-4);
+	color: var(--color-form-label);
 }
 
 .litm--welcome-overlay__wizard-body select,
@@ -2616,17 +2660,48 @@ body {
 }
 
 /* --- Trope Select: trope buttons & detail --- */
-.litm--welcome-overlay__wizard-body .hero-creation__grid {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 0.35rem;
+/* --- Trope category banner --- */
+.litm--welcome-overlay__wizard-body .hero-creation__category-banner {
+	position: relative;
+	height: 80px;
+	background-size: cover;
+	background-position: center top;
+	border-radius: var(--border-radius);
+	overflow: hidden;
 }
 
+.litm--welcome-overlay__wizard-body .hero-creation__category-banner::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		to top,
+		rgba(0, 0, 0, 0.75) 0%,
+		rgba(0, 0, 0, 0.15) 60%,
+		rgba(0, 0, 0, 0.05) 100%
+	);
+}
+
+.hero-creation__category-banner-name {
+	position: absolute;
+	bottom: 0.5rem;
+	left: 0.75rem;
+	z-index: 1;
+	font-family: var(--font-h1);
+	font-size: var(--font-size-20);
+	font-weight: bold;
+	color: var(--color-text-light-0);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Trope category fallback heading (no banner image) --- */
 .litm--welcome-overlay__wizard-body .hero-creation__group h4 {
 	font-size: var(--font-size-14);
 	font-weight: bold;
 	font-family: var(--font-h1);
-	color: var(--color-light-3);
+	color: var(--color-text-secondary);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	margin: 0;
@@ -2638,44 +2713,55 @@ body {
 .litm--welcome-overlay__wizard-body
 	.hero-creation__group
 	+ .hero-creation__group {
-	margin-top: 0.5rem;
+	margin-top: 0.75rem;
+}
+
+/* --- Trope list (single column, replaces 2-col grid) --- */
+.hero-creation__category-list {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 0.25rem 0;
 }
 
 .hero-creation__trope-button {
 	display: flex;
 	align-items: center;
-	padding: 0.35rem 0.5rem;
+	width: 100%;
+	padding: 0.4rem 0.75rem;
 	height: auto;
 	min-height: auto;
 	background: transparent;
-	border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-	border-radius: 4px;
-	color: var(--color-light-2);
+	border: none;
+	border-left: 3px solid transparent;
+	border-radius: 0;
+	color: var(--color-text-primary);
 	font-size: var(--font-size-13);
+	text-align: left;
 	cursor: pointer;
 	transition:
-		background 0.2s,
-		border-color 0.2s,
-		color 0.2s;
+		background 0.15s ease,
+		border-color 0.15s ease,
+		color 0.15s ease;
 }
 
 .hero-creation__trope-button:hover {
-	background: color-mix(in srgb, var(--color-light-5) 10%, transparent);
-	border-color: var(--color-border);
-	color: var(--color-light-1);
+	background: color-mix(in srgb, var(--color-text-subtle) 8%, transparent);
+	border-left-color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
+	color: var(--color-text-emphatic);
 }
 
 .hero-creation__trope-button.active {
-	background: color-mix(in srgb, var(--color-warm-1) 12%, transparent);
-	border-color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
-	color: var(--color-light-1);
+	background: color-mix(in srgb, var(--color-warm-1) 10%, transparent);
+	border-left-color: var(--color-warm-1);
+	color: var(--color-text-emphatic);
 	font-weight: 600;
 }
 
 /* Trope detail panel */
 .litm--welcome-overlay__wizard-body .hero-creation__detail h2 {
 	font-size: var(--font-size-24, 1.5rem);
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 	font-family: var(--font-h1);
 	margin: 0;
 }
@@ -2694,9 +2780,9 @@ body {
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.4rem 0.625rem;
-	background: var(--color-cool-5-50);
+	background: var(--color-data-background);
 	border-radius: 4px;
-	color: var(--color-light-3);
+	color: var(--color-text-secondary);
 	font-size: var(--font-size-14);
 }
 
@@ -2709,7 +2795,7 @@ body {
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.4rem 0.625rem;
-	background: var(--color-cool-5-50);
+	background: var(--color-data-background);
 	border: 1px solid var(--color-border);
 	border-radius: 4px;
 	cursor: pointer;
@@ -2717,14 +2803,18 @@ body {
 }
 
 .litm--welcome-overlay__wizard-body .trope-optional-kit:hover {
-	background: var(--color-cool-5-75);
+	background: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
 }
 
 .litm--welcome-overlay__wizard-body .trope-optional-kit span {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
-	color: var(--color-light-3);
+	color: var(--color-text-secondary);
 	font-size: var(--font-size-14);
 }
 
@@ -2733,7 +2823,7 @@ body {
 }
 
 .litm--welcome-overlay__wizard-body .trope-optional-kit i {
-	color: var(--color-light-3);
+	color: var(--color-text-secondary);
 	opacity: 0.7;
 }
 
@@ -2765,6 +2855,28 @@ body {
 	margin-left: 0.25rem;
 }
 
+.theme-card__progress {
+	display: flex;
+	gap: 1rem;
+	padding: 0.25rem 0;
+	font-size: var(--font-size-11);
+	color: var(--color-text-secondary);
+}
+
+.theme-card__progress-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.theme-card__progress-item.complete {
+	color: var(--color-positive);
+}
+
+.theme-card__progress-item i {
+	font-size: var(--font-size-10);
+}
+
 .litm--welcome-overlay__wizard-body .tag-section {
 	display: flex;
 	flex-direction: column;
@@ -2789,7 +2901,7 @@ body {
 	width: 14px;
 	height: 14px;
 	flex-shrink: 0;
-	filter: invert(1);
+	filter: none;
 }
 
 .tag-tooltip-content {
@@ -2850,10 +2962,10 @@ body {
 	padding: 0.5rem 0.625rem;
 	height: auto;
 	min-height: auto;
-	background: var(--color-cool-5-50);
+	background: var(--color-data-background);
 	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	color: var(--color-light-3);
+	color: var(--color-text-secondary);
 	font-size: var(--font-size-14);
 	cursor: pointer;
 	justify-content: start;
@@ -2864,8 +2976,12 @@ body {
 }
 
 .hero-creation__custom-theme-btn:hover {
-	background: var(--color-cool-5-75);
-	border-color: rgba(255, 255, 255, 0.15);
+	background: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
+	border-color: color-mix(in srgb, var(--color-border) 15%, transparent);
 }
 
 .hero-creation__custom-theme-btn.active {
@@ -2880,16 +2996,16 @@ body {
 	width: 24px;
 	height: 24px;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.08);
+	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
 	font-size: var(--font-size-12);
 	font-weight: 700;
-	color: var(--color-light-4);
+	color: var(--color-form-label);
 	flex-shrink: 0;
 }
 
 .hero-creation__custom-theme-btn.active .custom-theme-btn__num {
 	background: color-mix(in srgb, var(--color-warm-1) 25%, transparent);
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 }
 
 .custom-theme-btn__info {
@@ -2902,12 +3018,12 @@ body {
 .custom-theme-btn__type {
 	font-size: var(--font-size-11, 0.6875rem);
 	font-weight: bold;
-	color: var(--color-light-5);
+	color: var(--color-text-subtle);
 }
 
 .custom-theme-btn__name {
 	font-size: var(--font-size-13);
-	color: var(--color-light-2);
+	color: var(--color-text-primary);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -2915,7 +3031,7 @@ body {
 
 .custom-theme-btn__empty {
 	font-size: var(--font-size-13);
-	color: rgba(255, 255, 255, 0.3);
+	color: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
 	font-style: italic;
 }
 
@@ -2933,39 +3049,55 @@ body {
 }
 
 /* Method selection cards */
+.litm--welcome-overlay__wizard-body .hero-creation__method-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
 .litm--welcome-overlay__wizard-body .hero-creation__method-grid {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 0.5rem 0;
 }
 
 .litm--welcome-overlay__wizard-body .method-btn {
+	width: 100%;
 	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 0.25rem;
-	padding: 0.75rem;
+	align-items: baseline;
+	gap: 0.75rem;
+	padding: 0.875rem 1rem;
 	height: auto;
 	min-height: auto;
-	background: var(--color-cool-5-50);
-	border: 1px solid var(--color-border);
-	border-radius: 6px;
-	color: var(--color-light-2);
+	background: color-mix(in srgb, var(--color-data-background) 40%, transparent);
+	border: 1px solid color-mix(in srgb, var(--color-border) 30%, transparent);
+	border-left: 3px solid transparent;
+	border-radius: var(--border-radius);
+	color: var(--color-text-primary);
 	cursor: pointer;
-	text-align: center;
+	text-align: left;
 	transition:
-		background 0.15s ease,
-		border-color 0.15s ease;
+		background 0.2s ease,
+		border-color 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .litm--welcome-overlay__wizard-body .method-btn:hover {
-	background: var(--color-cool-5-75);
-	border-color: rgba(255, 255, 255, 0.2);
+	background: color-mix(
+		in srgb,
+		var(--color-data-background) 70%,
+		var(--color-text-primary)
+	);
+	border-left-color: color-mix(in srgb, var(--color-warm-1) 50%, transparent);
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .litm--welcome-overlay__wizard-body .method-btn strong {
 	font-size: var(--font-size-14);
-	color: var(--color-light-1);
+	font-family: var(--font-h1);
+	color: var(--color-text-emphatic);
+	white-space: nowrap;
 }
 
 .litm--welcome-overlay__wizard-body .method-btn span {
@@ -2984,11 +3116,11 @@ body {
 .method-badge {
 	display: inline-flex;
 	padding: 0.25rem 0.625rem;
-	background: var(--color-cool-5-50);
+	background: var(--color-data-background);
 	border: 1px solid var(--color-border);
 	border-radius: 4px;
 	font-size: var(--font-size-13);
-	color: var(--color-light-2);
+	color: var(--color-text-primary);
 	font-weight: 600;
 }
 
@@ -2998,14 +3130,14 @@ body {
 	height: auto;
 	min-height: auto;
 	padding: 0.2rem 0.5rem;
-	color: rgba(255, 255, 255, 0.4);
+	color: color-mix(in srgb, var(--color-text-primary) 40%, transparent);
 	font-size: var(--font-size-12);
 	cursor: pointer;
 	transition: color 0.15s ease;
 }
 
 .change-method-btn:hover {
-	color: rgba(255, 255, 255, 0.7);
+	color: color-mix(in srgb, var(--color-text-primary) 70%, transparent);
 }
 
 /* Themekit list in custom theme detail */
@@ -3013,6 +3145,9 @@ body {
 	display: flex;
 	flex-direction: column;
 	gap: 0.25rem;
+	overflow-y: auto;
+	min-height: 0;
+	flex: 1;
 }
 
 .litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link {
@@ -3020,44 +3155,60 @@ body {
 	align-items: center;
 	gap: 0.5rem;
 	width: 100%;
-	padding: 0.5rem 0.625rem;
+	padding: 0.4rem 0.625rem;
 	height: auto;
 	min-height: auto;
-	background: var(--color-cool-5-50);
-	border: 1px solid var(--color-border);
-	border-radius: 4px;
-	color: var(--color-light-3);
-	font-size: var(--font-size-14);
+	background: transparent;
+	border: none;
+	border-left: 3px solid transparent;
+	border-radius: 0;
+	color: var(--color-text-secondary);
+	font-size: var(--font-size-13);
 	cursor: pointer;
 	text-align: left;
 	transition:
 		background 0.15s ease,
-		border-color 0.15s ease;
+		border-color 0.15s ease,
+		color 0.15s ease;
 	text-decoration: none;
 }
 
 .litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link:hover {
-	background: var(--color-cool-5-75);
-	border-color: rgba(255, 255, 255, 0.15);
+	background: color-mix(in srgb, var(--color-text-subtle) 8%, transparent);
+	border-left-color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
+	color: var(--color-text-primary);
 }
 
 .litm--welcome-overlay__wizard-body
 	.custom-themekit-list
 	.themekit-link.active {
-	background: color-mix(in srgb, var(--color-warm-1) 12%, transparent);
-	border-color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
-	color: var(--color-light-1);
+	background: color-mix(in srgb, var(--color-warm-1) 10%, transparent);
+	border-left-color: var(--color-warm-1);
+	color: var(--color-text-emphatic);
+	font-weight: 600;
 }
 
 .litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link img {
-	opacity: 0.6;
+	opacity: 0.5;
+	transition: opacity 0.15s ease;
+}
+
+.litm--welcome-overlay__wizard-body
+	.custom-themekit-list
+	.themekit-link:hover
+	img,
+.litm--welcome-overlay__wizard-body
+	.custom-themekit-list
+	.themekit-link.active
+	img {
+	opacity: 0.8;
 }
 
 .litm--welcome-overlay__wizard-body .custom-themekit-tags {
 	margin-block-start: 0.75rem;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: 1rem;
 }
 
 /* Stacked field layout */
@@ -3098,19 +3249,29 @@ body {
 	align-items: center;
 	justify-content: center;
 	gap: 0.75rem;
-	padding: 2rem;
-	color: rgba(255, 255, 255, 0.35);
+	padding: 3rem 2rem;
+	color: color-mix(in srgb, var(--color-text-primary) 25%, transparent);
 	text-align: center;
+	font-style: italic;
 }
 
 .litm--welcome-overlay__wizard-body .hero-creation__empty-state i {
-	font-size: var(--font-size-24);
-	color: rgba(255, 255, 255, 0.2);
+	font-size: 2rem;
+	color: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
 }
 
 .litm--welcome-overlay__wizard-body .hero-creation__empty-state p {
 	margin: 0;
 	font-size: var(--font-size-14);
+	max-width: 28ch;
+	line-height: 1.5;
+}
+
+.litm--welcome-overlay__wizard-body .hero-creation__empty-state h3 {
+	margin: 0;
+	font-size: var(--font-size-16);
+	font-style: normal;
+	color: var(--color-text-primary);
 }
 
 /* Search input in wizard */
@@ -3138,7 +3299,11 @@ body {
 }
 
 .litm--welcome-overlay__wizard-body .checkbox:hover {
-	background: var(--color-cool-5-75);
+	background: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
 }
 
 .litm--welcome-overlay__wizard-body .checkbox input[type="radio"] {
@@ -3161,6 +3326,40 @@ body {
 		color-mix(in srgb, var(--color-warm-1) 30%, transparent);
 }
 
+/* Collapsible tag questions */
+.litm--welcome-overlay__wizard-body .tag-questions-details {
+	margin: 0 0 0.25rem;
+}
+
+.litm--welcome-overlay__wizard-body .tag-questions-details > summary {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.litm--welcome-overlay__wizard-body .tag-questions-details > summary::before {
+	content: "\f059"; /* fa-circle-question */
+	font-family: "Font Awesome 6 Free";
+	font-weight: 900;
+	font-size: var(--font-size-11);
+	color: var(--color-warm-1);
+	transition: transform 0.2s ease;
+}
+
+.litm--welcome-overlay__wizard-body
+	.tag-questions-details[open]
+	> summary::before {
+	content: "\f13a"; /* fa-circle-chevron-down */
+}
+
+.litm--welcome-overlay__wizard-body
+	.tag-questions-details
+	> summary::-webkit-details-marker {
+	display: none;
+}
+
 /* --- Quest ideas pill buttons --- */
 .quest-ideas {
 	margin-bottom: 0.5rem;
@@ -3179,10 +3378,10 @@ body {
 	padding: 0.2rem 0.625rem;
 	height: auto;
 	min-height: auto;
-	background: var(--color-cool-5-50);
+	background: var(--color-data-background);
 	border: 1px solid var(--color-border);
 	border-radius: 100px;
-	color: var(--color-light-3);
+	color: var(--color-text-secondary);
 	font-size: var(--font-size-12);
 	cursor: pointer;
 	transition:
@@ -3193,88 +3392,197 @@ body {
 .quest-ideas__btn:hover {
 	background: color-mix(in srgb, var(--color-warm-1) 12%, transparent);
 	border-color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
-	color: var(--color-light-1);
-}
-
-/* --- General Store (backpack suggestions) --- */
-.general-store__nav {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.25rem;
-	margin-top: 0.5rem;
-}
-
-.general-store__cat {
-	display: inline-flex;
-	align-items: center;
-	padding: 0.15rem 0.5rem;
-	height: auto;
-	min-height: auto;
-	background: var(--color-cool-5-50);
-	border: 1px solid var(--color-border);
-	border-radius: 100px;
-	color: var(--color-light-4);
-	font-size: var(--font-size-11, 0.6875rem);
-	cursor: pointer;
-	transition:
-		background 0.15s ease,
-		border-color 0.15s ease;
-}
-
-.general-store__cat:hover {
-	background: var(--color-cool-5-75);
-	border-color: rgba(255, 255, 255, 0.15);
-}
-
-.general-store__cat.active {
-	background: color-mix(in srgb, var(--color-warm-1) 12%, transparent);
-	border-color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
-	color: var(--color-light-1);
-}
-
-.general-store__items {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.25rem;
-	margin-top: 0.35rem;
-}
-
-.general-store__tag {
-	display: inline-flex;
-	align-items: center;
-	padding: 0.15rem 0.5rem;
-	height: auto;
-	min-height: auto;
-	background: transparent;
-	border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-	border-radius: 4px;
-	color: var(--color-light-3);
-	font-size: var(--font-size-12);
-	cursor: pointer;
-	transition:
-		background 0.15s ease,
-		border-color 0.15s ease;
-}
-
-.general-store__tag:hover {
-	background: color-mix(in srgb, var(--color-warm-1) 8%, transparent);
-	border-color: color-mix(in srgb, var(--color-warm-1) 30%, transparent);
-	color: var(--color-light-1);
+	color: var(--color-text-emphatic);
 }
 
 /* --- Review: trope subtitle --- */
 .review-trope-subtitle {
 	margin: 0.25rem 0 0;
 	font-size: var(--font-size-14);
-	color: var(--color-light-4);
+	color: var(--color-form-label);
 }
 
 /* --- Review: level badge in legend --- */
 .review-level-badge {
 	font-size: var(--font-size-11, 0.6875rem);
 	font-weight: normal;
-	color: var(--color-light-5);
+	color: var(--color-form-hint);
 	margin-left: 0.25rem;
+}
+
+/* --- Custom build step indicator --- */
+.custom-step-indicator {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+}
+
+.custom-step-indicator__dot {
+	min-height: unset;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	border: 2px solid var(--color-border);
+	background: transparent;
+	color: var(--color-text-secondary);
+	font-size: var(--font-size-12);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition:
+		background 0.2s ease,
+		border-color 0.2s ease,
+		color 0.2s ease;
+	padding: 0;
+}
+
+.custom-step-indicator__dot:hover,
+.custom-step-indicator__dot:focus-visible {
+	border-color: var(--color-text-primary);
+	color: var(--color-text-primary);
+}
+
+.custom-step-indicator__dot:focus {
+	box-shadow: none;
+	outline: none;
+}
+
+.custom-step-indicator__dot.active {
+	background: var(--color-warm-1);
+	border-color: var(--color-warm-1);
+	color: var(--color-text-dark-primary);
+	font-weight: 700;
+}
+
+.custom-step-indicator__dot.complete:not(.active) {
+	border-color: var(--color-positive);
+	color: var(--color-positive);
+}
+
+/* --- Backpack slots --- */
+/* --- Backpack slots --- */
+.backpack-slots {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-block-end: 1rem;
+}
+
+.backpack-slot {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	background: color-mix(in srgb, var(--color-data-background) 40%, transparent);
+	border-radius: var(--border-radius);
+	border-left: 3px solid transparent;
+	transition:
+		background 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.backpack-slot--active {
+	border-left-color: var(--color-warm-1);
+	background: color-mix(in srgb, var(--color-warm-1) 6%, transparent);
+}
+
+.backpack-slot input[type="radio"] {
+	flex-shrink: 0;
+	accent-color: var(--color-warm-1);
+}
+
+.backpack-slot input[type="text"] {
+	flex: 1;
+}
+
+.backpack-slot__active-label {
+	font-size: var(--font-size-10);
+	color: var(--color-warm-1);
+	text-transform: uppercase;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	flex-shrink: 0;
+}
+
+/* --- General store --- */
+.general-store h3 {
+	font-size: var(--font-size-14);
+	font-family: var(--font-h1);
+	color: var(--color-text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 0 0 0.5rem;
+}
+
+.general-store__tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 3px;
+	margin-block-end: 0.75rem;
+	border-bottom: 1px solid
+		color-mix(in srgb, var(--color-border) 30%, transparent);
+	padding-bottom: 0.5rem;
+}
+
+.general-store__tab {
+	padding: 0.3rem 0.625rem;
+	border-radius: var(--border-radius);
+	border: none;
+	background: transparent;
+	color: var(--color-text-secondary);
+	font-size: var(--font-size-11);
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		color 0.15s ease;
+}
+
+.general-store__tab:hover {
+	background: color-mix(in srgb, var(--color-text-subtle) 10%, transparent);
+	color: var(--color-text-primary);
+}
+
+.general-store__tab.active {
+	background: color-mix(in srgb, var(--color-warm-1) 15%, transparent);
+	color: var(--color-warm-1);
+	font-weight: 600;
+}
+
+/* --- General store tag items --- */
+.general-store__tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.general-store__item {
+	background: none;
+	border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+	border-radius: var(--border-radius);
+	padding: 0.25rem 0.5rem;
+	cursor: pointer;
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease;
+}
+
+.general-store__item:hover {
+	border-color: color-mix(in srgb, var(--color-warm-1) 50%, transparent);
+	background: color-mix(in srgb, var(--color-warm-1) 6%, transparent);
+}
+
+.general-store__item .litm-tag {
+	font-size: var(--font-size-12);
+}
+
+.general-store__item.chosen {
+	opacity: 0.3;
+	pointer-events: none;
+}
+
+.general-store__item.chosen .litm-tag {
+	text-decoration: line-through;
 }
 
 @media (prefers-reduced-transparency) {
@@ -3354,7 +3662,29 @@ body {
 }
 
 /* ========================================
-  18. Dark Mode
+  18. Light Mode
+   Window chrome overrides for the light Foundry theme.
+======================================== */
+
+:is(body, .themed).theme-light .litm.application .window-header {
+	background: unset;
+	color: var(--color-dark-2);
+	border-bottom: var(--sidebar-separator);
+}
+
+:is(body, .themed).theme-light .litm.application .window-header .window-title {
+	color: var(--color-dark-2);
+}
+
+:is(body, .themed).theme-light
+	.litm.application
+	.window-header
+	button.header-control {
+	--button-text-color: var(--color-dark-3);
+}
+
+/* ========================================
+  19. Dark Mode
    Theme overrides for dark interface and chat cards.
 ======================================== */
 
@@ -3376,6 +3706,59 @@ body {
 
 	& .hint img[data-color="white"] {
 		filter: sepia(1) saturate(5) hue-rotate(305deg);
+	}
+
+	/* Welcome overlay: dark overrides for hr, fieldset, tour buttons, flourishes, dismiss */
+	& .litm--welcome-overlay__wizard hr,
+	& .litm--welcome-overlay__hero-created hr {
+		background-image: none;
+		border-top: 2px groove var(--color-border);
+	}
+
+	& .litm--welcome-overlay__wizard fieldset,
+	& .litm--welcome-overlay__hero-created fieldset {
+		border-color: var(--color-border);
+	}
+
+	& .litm--welcome-overlay__tour-btn {
+		background: rgba(0, 0, 0, 0.35);
+		border-color: rgba(255, 255, 255, 0.12);
+		color: var(--color-light-2);
+	}
+
+	& .litm--welcome-overlay__tour-btn:hover {
+		background: rgba(0, 0, 0, 0.5);
+		border-color: rgba(255, 255, 255, 0.25);
+	}
+
+	& .litm--welcome-overlay__tour-title {
+		color: var(--color-light-1);
+	}
+
+	& .litm--welcome-overlay__tour-desc {
+		color: rgba(255, 255, 255, 0.55);
+	}
+
+	& .hero-created__flourish i {
+		color: color-mix(in srgb, var(--color-warm-1) 50%, transparent);
+	}
+
+	& .hero-created__line {
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in srgb, var(--color-warm-1) 30%, transparent) 50%,
+			transparent
+		);
+		opacity: 1;
+	}
+
+	& .litm--welcome-overlay__dismiss {
+		color: var(--color-light-5);
+	}
+
+	& .litm--welcome-overlay__dismiss:hover {
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	/* Chat message container override */

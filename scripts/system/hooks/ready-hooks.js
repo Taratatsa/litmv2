@@ -1,4 +1,5 @@
 import { WelcomeOverlay } from "../../apps/welcome-overlay.js";
+import { error } from "../../logger.js";
 import { localize as t } from "../../utils.js";
 import { LitmSettings } from "../settings.js";
 import { registerTours } from "../tours.js";
@@ -156,7 +157,7 @@ function _popoutTagsSidebar() {
 function _renderWelcomeScreen() {
 	Hooks.once("ready", () => {
 		WelcomeOverlay.showOnReady().catch((err) =>
-			console.error("litmv2 | Failed to show welcome overlay", err),
+			error("Failed to show welcome overlay", err),
 		);
 	});
 
@@ -172,8 +173,6 @@ function _renderWelcomeScreen() {
 			);
 			await Scene.updateDocuments(updates);
 			game.journal.getName("Tinderbox Demo Rules")?.sheet?.render(true);
-		})().catch((err) =>
-			console.error("litmv2 | Failed to process adventure import", err),
-		);
+		})().catch((err) => error("Failed to process adventure import", err));
 	});
 }

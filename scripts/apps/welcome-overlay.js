@@ -1,7 +1,8 @@
+import { error, warn } from "../logger.js";
 import { createSampleHero } from "../system/sample-hero.js";
 import { LitmSettings } from "../system/settings.js";
 import { registerTours } from "../system/tours.js";
-import { sleep, localize as t } from "../utils.js";
+import { sleep, localize as t, toQuestionOptions } from "../utils.js";
 
 const THEME_SLOTS = 4;
 const MODULE_ID = "legend-in-the-mist";
@@ -170,8 +171,16 @@ const SLIDE_TEMPLATES = {
 		"systems/litmv2/templates/apps/welcome-overlay/trope-select.html",
 	tropeThemes:
 		"systems/litmv2/templates/apps/welcome-overlay/trope-themes.html",
-	customThemes:
-		"systems/litmv2/templates/apps/welcome-overlay/custom-themes.html",
+	customTheme0:
+		"systems/litmv2/templates/apps/welcome-overlay/custom-theme.html",
+	customTheme1:
+		"systems/litmv2/templates/apps/welcome-overlay/custom-theme.html",
+	customTheme2:
+		"systems/litmv2/templates/apps/welcome-overlay/custom-theme.html",
+	customTheme3:
+		"systems/litmv2/templates/apps/welcome-overlay/custom-theme.html",
+	customBackpack:
+		"systems/litmv2/templates/apps/welcome-overlay/custom-backpack.html",
 	review: "systems/litmv2/templates/apps/welcome-overlay/review.html",
 	heroCreated:
 		"systems/litmv2/templates/apps/welcome-overlay/hero-created.html",
@@ -238,6 +247,7 @@ export class WelcomeOverlay {
 				})),
 			backpackTags: ["", "", ""],
 			activeStoreCategory: "",
+			activeBackpackIndex: 0,
 		},
 	};
 
@@ -417,7 +427,15 @@ export class WelcomeOverlay {
 				if (slide === fromSlide) break;
 			}
 		} else if (mode === "custom") {
-			const customSlides = ["customThemes", "review", "heroCreated"];
+			const customSlides = [
+				"customTheme0",
+				"customTheme1",
+				"customTheme2",
+				"customTheme3",
+				"customBackpack",
+				"review",
+				"heroCreated",
+			];
 			for (const slide of customSlides) {
 				flow.push(slide);
 				if (slide === fromSlide) break;
@@ -427,7 +445,11 @@ export class WelcomeOverlay {
 			const heroSlides = [
 				"tropeSelect",
 				"tropeThemes",
-				"customThemes",
+				"customTheme0",
+				"customTheme1",
+				"customTheme2",
+				"customTheme3",
+				"customBackpack",
 				"review",
 				"heroCreated",
 			];
@@ -453,9 +475,7 @@ export class WelcomeOverlay {
 		const slideKey = this.currentSlideKey;
 		const templatePath = SLIDE_TEMPLATES[slideKey];
 		if (!templatePath) {
-			console.warn(
-				`litmv2 | WelcomeOverlay: No template for slide "${slideKey}"`,
-			);
+			warn(`WelcomeOverlay: No template for slide "${slideKey}"`);
 			return;
 		}
 
@@ -489,8 +509,16 @@ export class WelcomeOverlay {
 				return this.#prepareTropeSelectContext();
 			case "tropeThemes":
 				return this.#prepareTropeThemesContext();
-			case "customThemes":
-				return this.#prepareCustomBuildContext();
+			case "customTheme0":
+				return this.#prepareCustomThemeContext(0);
+			case "customTheme1":
+				return this.#prepareCustomThemeContext(1);
+			case "customTheme2":
+				return this.#prepareCustomThemeContext(2);
+			case "customTheme3":
+				return this.#prepareCustomThemeContext(3);
+			case "customBackpack":
+				return this.#prepareCustomBackpackContext();
 			case "review":
 				return this.#prepareReviewContext();
 			case "heroCreated":
@@ -513,7 +541,7 @@ export class WelcomeOverlay {
 
 		const tours = [];
 		for (const [id, tour] of game.tours.entries()) {
-			if (!id.startsWith("litm.")) continue;
+			if (!id.startsWith("litmv2.")) continue;
 			tours.push({
 				id,
 				title: game.i18n.localize(tour.title),
@@ -612,22 +640,58 @@ export class WelcomeOverlay {
 	}
 
 	/**
-	 * Build context for the custom themes slide.
+	 * Build step indicator data for custom theme slides.
+	 * @param {string} activeSlide - The currently active slide key
+	 * @returns {object[]}
+	 */
+	#buildCustomStepIndicator(activeSlide) {
+		const themes = this._appState.custom.themes;
+		const steps = [];
+		for (let i = 0; i < THEME_SLOTS; i++) {
+			const theme = themes[i];
+			const slideKey = `customTheme${i}`;
+			const isComplete =
+				theme.method === "themekit"
+					? Boolean(theme.themekitUuid)
+					: theme.method === "themebook"
+						? Boolean(theme.themebookUuid) && Boolean(theme.name)
+						: theme.method === "manual"
+							? Boolean(theme.name)
+							: false;
+			const isActive = activeSlide === slideKey;
+			const tooltip = theme.name
+				? theme.name
+				: game.i18n.format("LITM.Ui.hero_creation_step_theme", { n: i + 1 });
+			steps.push({
+				label: String(i + 1),
+				slide: slideKey,
+				active: isActive,
+				complete: isComplete,
+				icon: isComplete && !isActive ? "fa-solid fa-check" : null,
+				tooltip,
+			});
+		}
+		steps.push({
+			label: "",
+			slide: "customBackpack",
+			active: activeSlide === "customBackpack",
+			complete: true,
+			icon: "fa-solid fa-suitcase",
+			tooltip: t("LITM.Terms.backpack"),
+		});
+		return steps;
+	}
+
+	/**
+	 * Build context for a single custom theme slide.
+	 * @param {number} index - Theme index (0-3)
 	 * @returns {Promise<object>}
 	 */
-	async #prepareCustomBuildContext() {
+	async #prepareCustomThemeContext(index) {
 		await this.ensureIndexes();
+		this._appState.custom.themeIndex = index;
 
-		const themeKitLookup = this.buildLookup(this._cache.themekits);
-		const themebookLookup = this.buildLookup(this._cache.themebooks);
-		const currentTheme =
-			this._appState.custom.themes[this._appState.custom.themeIndex];
-
-		const customThemeLabels = this._appState.custom.themes.map((theme) => {
-			const kitName = themeKitLookup.get(theme.themekitUuid)?.name || "";
-			const bookName = themebookLookup.get(theme.themebookUuid)?.name || "";
-			return theme.name || kitName || bookName || "";
-		});
+		const currentTheme = this._appState.custom.themes[index];
 
 		const selectedThemebook = await this.getThemebookDoc(
 			currentTheme.themebookUuid,
@@ -649,41 +713,36 @@ export class WelcomeOverlay {
 		const allPowerQs = (selectedThemebook?.system?.powerTagQuestions || []).map(
 			(q) => `${q ?? ""}`.trim(),
 		);
-		const powerTagQuestionOptions = this.toQuestionOptions(allPowerQs.slice(1));
-		const weaknessQuestionOptions = this.toQuestionOptions(
-			selectedThemebook?.system?.weaknessTagQuestions,
+		const allWeaknessQs = (
+			selectedThemebook?.system?.weaknessTagQuestions || []
+		).map((q) => `${q ?? ""}`.trim());
+
+		const powerQuestionOptions = toQuestionOptions(allPowerQs, 1);
+		const powerQuestionTexts = Object.fromEntries(
+			allPowerQs
+				.map((q, i) => [String(i), q])
+				.filter(([i, q]) => Number(i) > 0 && `${q ?? ""}`.trim()),
 		);
 
-		const customThemeQuestions = await Promise.all(
-			this._appState.custom.themes.map(async (theme) => {
-				const book = await this.getThemebookDoc(theme.themebookUuid);
-				const allPQs = (book?.system?.powerTagQuestions || []).map((q) =>
-					`${q ?? ""}`.trim(),
-				);
-				const nameQuestion = allPQs[0] || "";
-				return { nameQuestion };
-			}),
+		const weaknessQuestionOptions = toQuestionOptions(allWeaknessQs, 0);
+		const weaknessQuestionTexts = Object.fromEntries(
+			allWeaknessQs
+				.map((q, i) => [String(i), q])
+				.filter(([, q]) => `${q ?? ""}`.trim()),
 		);
+
+		const namePlaceholder =
+			allPowerQs[0] || t("LITM.Ui.hero_creation_theme_name");
 
 		const questIdeas =
 			selectedThemebook?.system?.questIdeas?.filter(Boolean) || [];
 
-		const activeCategory = this._appState.custom.activeStoreCategory;
-		const generalStore = Object.entries(GENERAL_STORE).map(([key, items]) => ({
-			key,
-			label: t(`LITM.Ui.hero_creation_store_${key}`),
-			items,
-			active: activeCategory === key,
-		}));
-
 		return {
 			mode: this._appState.mode,
 			state: this._appState,
-			custom: this._appState.custom,
-			themeIndex: this._appState.custom.themeIndex,
+			themeIndex: index,
+			themeNumber: index + 1,
 			currentTheme,
-			customThemeLabels,
-			customThemeQuestions,
 			hasThemekits: this._cache.themekits.length > 0,
 			themekits: this.filterBySearch(
 				this._cache.themekits,
@@ -693,13 +752,48 @@ export class WelcomeOverlay {
 				this._cache.themebooks,
 				this._appState.search.themebooks,
 			),
-			powerTagQuestionOptions,
-			weaknessQuestionOptions,
 			isVariableLevel,
 			levelOptions,
-			backpackTags: this._appState.custom.backpackTags,
+			powerQuestionOptions,
+			powerQuestionTexts,
+			weaknessQuestionOptions,
+			weaknessQuestionTexts,
+			namePlaceholder,
 			questIdeas,
+			steps: this.#buildCustomStepIndicator(`customTheme${index}`),
+		};
+	}
+
+	/**
+	 * Build context for the custom backpack slide.
+	 * @returns {Promise<object>}
+	 */
+	async #prepareCustomBackpackContext() {
+		const backpackTags = this._appState.custom.backpackTags;
+		const activeIdx = this._appState.custom.activeBackpackIndex;
+		const chosenSet = new Set(backpackTags.filter(Boolean));
+
+		const activeCategory = this._appState.custom.activeStoreCategory;
+		const generalStore = Object.entries(GENERAL_STORE).map(([key, items]) => ({
+			key,
+			label: t(`LITM.Ui.hero_creation_store_${key}`),
+			items: items.map((item) => ({
+				name: item,
+				chosen: chosenSet.has(item),
+			})),
+			active: activeCategory === key,
+		}));
+
+		return {
+			mode: this._appState.mode,
+			state: this._appState,
+			backpackTags: backpackTags.map((tag, i) => ({
+				value: tag,
+				index: i,
+				isActive: i === activeIdx,
+			})),
 			generalStore,
+			steps: this.#buildCustomStepIndicator("customBackpack"),
 		};
 	}
 
@@ -724,7 +818,7 @@ export class WelcomeOverlay {
 				try {
 					await this.#handleAction(action, target, event);
 				} catch (err) {
-					console.error("litmv2 | Welcome overlay action failed:", err);
+					error("Welcome overlay action failed:", err);
 					ui.notifications.error(
 						"Something went wrong. Check the console for details.",
 					);
@@ -826,7 +920,16 @@ export class WelcomeOverlay {
 						"review",
 					];
 				} else if (mode === "custom") {
-					this.#slideFlow = ["welcome", "modeSelect", "customThemes", "review"];
+					this.#slideFlow = [
+						"welcome",
+						"modeSelect",
+						"customTheme0",
+						"customTheme1",
+						"customTheme2",
+						"customTheme3",
+						"customBackpack",
+						"review",
+					];
 				}
 				await this.next();
 				break;
@@ -900,10 +1003,19 @@ export class WelcomeOverlay {
 			}
 
 			// Custom theme actions
-			case "selectCustomTheme":
-				this._appState.custom.themeIndex = Number(target.dataset.index);
+			case "jumpToCustomStep":
+				await this.goToSlide(target.dataset.slide);
+				break;
+
+			case "selectActiveBackpack": {
+				const idx = Number(target.dataset.index);
+				if (idx >= 0 && idx < 3) {
+					this._appState.custom.activeBackpackIndex = idx;
+				}
 				await this.#renderCurrentSlide();
 				break;
+			}
+
 			case "selectThemeMethod": {
 				const method = target.dataset.method || "";
 				const idx = Number(
@@ -1035,24 +1147,14 @@ export class WelcomeOverlay {
 				break;
 			}
 
-			// Quest idea (Feature B)
-			case "applyQuestIdea": {
-				const idea = target.dataset.value;
-				const idx = this._appState.custom.themeIndex;
-				this._appState.custom.themes[idx].quest = idea;
-				await this.#renderCurrentSlide();
-				break;
-			}
-
 			// Backpack suggestions (Feature C)
-			case "toggleStoreCategory": {
+			case "selectStoreCategory": {
 				const cat = target.dataset.value || "";
-				this._appState.custom.activeStoreCategory =
-					this._appState.custom.activeStoreCategory === cat ? "" : cat;
+				this._appState.custom.activeStoreCategory = cat;
 				await this.#renderCurrentSlide();
 				break;
 			}
-			case "fillBackpackSuggestion": {
+			case "fillBackpackFromStore": {
 				const tag = target.dataset.value || "";
 				const tags = this._appState.custom.backpackTags;
 				const emptyIdx = tags.findIndex((t) => !t);
@@ -1084,10 +1186,10 @@ export class WelcomeOverlay {
 			}
 
 			case "cancel":
-				await this.dismiss();
+				await this.goToSlide("welcome");
 				break;
 			default:
-				console.warn(`litmv2 | WelcomeOverlay: Unknown action "${action}"`);
+				warn(`WelcomeOverlay: Unknown action "${action}"`);
 		}
 	}
 
@@ -1123,9 +1225,19 @@ export class WelcomeOverlay {
 				await this.next();
 				break;
 
-			case "customThemes": {
-				const valid = await this.validateAllCustomThemes();
-				if (!valid) return;
+			case "customTheme0":
+			case "customTheme1":
+			case "customTheme2":
+			case "customTheme3":
+				await this.next();
+				break;
+
+			case "customBackpack": {
+				const invalidIdx = await this.validateAllCustomThemes();
+				if (invalidIdx !== -1) {
+					await this.goToSlide(`customTheme${invalidIdx}`);
+					return;
+				}
 				await this.next();
 				break;
 			}
@@ -1214,7 +1326,8 @@ export class WelcomeOverlay {
 		const reviewBackpackSelection =
 			this._appState.mode === "trope"
 				? this._appState.trope.backpackChoice || reviewBackpackChoices[0]
-				: null;
+				: reviewBackpackChoices[this._appState.custom.activeBackpackIndex] ||
+					null;
 
 		return {
 			logo: CONFIG.litmv2.assets.logo,
@@ -1234,7 +1347,7 @@ export class WelcomeOverlay {
 	#prepareHeroCreatedContext() {
 		const tours = [];
 		for (const [id, tour] of game.tours.entries()) {
-			if (!id.startsWith("litm.")) continue;
+			if (!id.startsWith("litmv2.")) continue;
 			tours.push({
 				id,
 				title: game.i18n.localize(tour.title),
@@ -1556,14 +1669,14 @@ export class WelcomeOverlay {
 			name: t("TYPES.Item.backpack"),
 			type: "backpack",
 			system: {
-				contents: backpackTags.map((tag) => ({
+				contents: backpackTags.map((tag, index) => ({
 					id: foundry.utils.randomID(),
 					name: tag,
 					type: "backpack",
 					isActive:
 						this._appState.mode === "trope"
 							? tag === selectedBackpackTag
-							: true,
+							: index === this._appState.custom.activeBackpackIndex,
 					isScratched: false,
 				})),
 			},
@@ -1732,16 +1845,25 @@ export class WelcomeOverlay {
 
 	groupByCategory(entries) {
 		const grouped = new Map();
+		const bannerImages = new Map();
 		for (const entry of entries) {
 			const category =
 				entry.category || t("LITM.Ui.hero_creation_uncategorized");
+			// Convention: a trope whose name matches its category is a banner image source
+			if (entry.name === entry.category) {
+				if (!bannerImages.has(category)) bannerImages.set(category, entry.img);
+				continue;
+			}
 			if (!grouped.has(category)) grouped.set(category, []);
 			grouped.get(category).push(entry);
 		}
-		return Array.from(grouped.entries()).map(([name, items]) => ({
-			name,
-			items,
-		}));
+		return Array.from(grouped.entries())
+			.filter(([, items]) => items.length > 0)
+			.map(([name, items]) => ({
+				name,
+				img: bannerImages.get(name) || "",
+				items,
+			}));
 	}
 
 	filterBySearch(entries, searchTerm) {
@@ -1970,74 +2092,61 @@ export class WelcomeOverlay {
 		return null;
 	}
 
-	toQuestionOptions(questions = []) {
-		return (questions || [])
-			.map((question) => `${question ?? ""}`.trim())
-			.filter((question) => question.length > 0)
-			.map((question) => ({
-				value: question,
-				label: question,
-			}));
-	}
-
 	isCustomReady() {
 		const themes = this._appState.custom.themes;
-		const configured = themes.filter((theme) => theme.method);
-		if (!configured.length) return false;
-		return configured.every((theme) => {
+		return themes.every((theme) => {
+			if (!theme.method) return false;
 			if (theme.method === "themekit") return Boolean(theme.themekitUuid);
+			if (theme.method === "themebook")
+				return Boolean(theme.themebookUuid) && Boolean(theme.name);
 			if (theme.method === "manual") return Boolean(theme.name);
-			if (theme.method === "themebook") return Boolean(theme.themebookUuid);
 			return false;
 		});
 	}
 
 	async validateAllCustomThemes() {
 		const themes = this._appState.custom.themes;
-		const configured = themes.filter((theme) => theme.method);
-
-		if (!configured.length) {
-			ui.notifications.warn("LITM.Ui.hero_creation_all_themes_required", {
-				localize: true,
-			});
-			return false;
-		}
 
 		for (let i = 0; i < THEME_SLOTS; i++) {
 			const theme = themes[i];
-			if (!theme.method) continue;
+			const label = `${game.i18n.localize("TYPES.Item.theme")} ${i + 1}`;
+
+			if (!theme.method) {
+				ui.notifications.warn(
+					`${label}: ${t("LITM.Ui.hero_creation_select_method")}`,
+				);
+				return i;
+			}
 
 			if (theme.method === "themekit" && !theme.themekitUuid) {
 				ui.notifications.warn(
-					`${game.i18n.localize("TYPES.Item.theme")} ${i + 1}: ${game.i18n.localize(
-						"LITM.Ui.hero_creation_select_themekit",
-					)}`,
+					`${label}: ${t("LITM.Ui.hero_creation_select_themekit")}`,
 				);
-				return false;
-			}
-
-			if (theme.method === "manual" && !theme.name) {
-				ui.notifications.warn(
-					`${game.i18n.localize("TYPES.Item.theme")} ${i + 1}: ${game.i18n.localize(
-						"LITM.Ui.hero_creation_manual_name_required",
-					)}`,
-				);
-				return false;
+				return i;
 			}
 
 			if (theme.method === "themebook") {
 				if (!theme.themebookUuid) {
-					ui.notifications.warn(
-						`${game.i18n.localize("TYPES.Item.theme")} ${i + 1}: ${game.i18n.localize(
-							"LITM.Ui.hero_creation_select_themebook",
-						)}`,
-					);
-					return false;
+					ui.notifications.warn(`${label}: ${t("LITM.Ui.select_themebook")}`);
+					return i;
 				}
+				if (!theme.name) {
+					ui.notifications.warn(
+						`${label}: ${t("LITM.Ui.hero_creation_manual_name_required")}`,
+					);
+					return i;
+				}
+			}
+
+			if (theme.method === "manual" && !theme.name) {
+				ui.notifications.warn(
+					`${label}: ${t("LITM.Ui.hero_creation_manual_name_required")}`,
+				);
+				return i;
 			}
 		}
 
-		return true;
+		return -1;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -2290,8 +2399,7 @@ export class WelcomeOverlay {
 			return;
 		}
 
-		const levelId = foundry.documents.BaseScene.metadata.defaultLevelId;
-		const scene = await Scene.create({
+		const sceneData = {
 			name: sceneName,
 			ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER },
 			navigation: true,
@@ -2300,20 +2408,31 @@ export class WelcomeOverlay {
 			initial: { x: 1669, y: 853, scale: 0.7 },
 			grid: { type: 0 },
 			tokenVision: false,
-			fog: { mode: CONST.FOG_EXPLORATION_MODES.DISABLED },
 			environment: { globalLight: { enabled: true } },
-			levels: [
+			background: {
+				src: CONFIG.litmv2.assets.splash,
+				color: "#000000",
+			},
+		};
+
+		// V14+ uses levels for backgrounds and fog modes; V13 uses flat scene fields
+		const levelId = foundry.documents.BaseScene.metadata.defaultLevelId;
+		if (levelId) {
+			sceneData.fog = { mode: CONST.FOG_EXPLORATION_MODES.DISABLED };
+			sceneData.levels = [
 				{
 					_id: levelId,
 					name: sceneName,
-					background: {
-						src: CONFIG.litmv2.assets.splash,
-						color: "#000000",
-					},
+					background: sceneData.background,
 				},
-			],
-			initialLevel: levelId,
-		});
+			];
+			sceneData.initialLevel = levelId;
+		} else {
+			sceneData.backgroundColor = "#000000";
+			sceneData.fogExploration = false;
+		}
+
+		const scene = await Scene.create(sceneData);
 
 		const { thumb } = await scene.createThumbnail();
 		await scene.update({ thumb });

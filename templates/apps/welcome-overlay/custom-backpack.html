@@ -1,0 +1,62 @@
+<div class="litm--welcome-overlay__wizard application standard-form">
+	<div class="litm--welcome-overlay__wizard-header">
+		<div class="flexrow" style="align-items: center; justify-content: space-between;">
+			<h2>{{localize "LITM.Terms.backpack"}}</h2>
+			<nav class="custom-step-indicator">
+			{{#each steps}}
+			<button type="button"
+				class="custom-step-indicator__dot {{#if active}}active{{/if}} {{#if complete}}complete{{/if}}"
+				data-action="jumpToCustomStep" data-slide="{{slide}}"
+				data-tooltip="{{tooltip}}">
+				{{#if icon}}<i class="{{icon}}"></i>{{else}}{{label}}{{/if}}
+			</button>
+			{{/each}}
+		</nav>
+		</div>
+		<hr />
+	</div>
+	<div class="litm--welcome-overlay__wizard-body">
+		<p class="hint">{{localize "LITM.Ui.hero_creation_backpack_hint"}}</p>
+
+		<div class="backpack-slots">
+			{{#each backpackTags}}
+			<div class="backpack-slot {{#if isActive}}backpack-slot--active{{/if}}">
+				<label>
+					<input type="radio" name="activeBackpack" data-action="selectActiveBackpack"
+						data-index="{{index}}" {{#if isActive}}checked{{/if}} />
+				</label>
+				<input type="text" data-bind="custom.backpackTags.{{index}}" value="{{value}}"
+					placeholder="{{localize 'LITM.Ui.backpack_choice_placeholder'}}" />
+				{{#if isActive}}
+				<span class="backpack-slot__active-label">{{localize "LITM.Ui.hero_creation_backpack_active"}}</span>
+				{{/if}}
+			</div>
+			{{/each}}
+		</div>
+
+		{{#if generalStore.length}}
+		<fieldset class="general-store">
+			<legend>{{localize "LITM.Ui.hero_creation_general_store"}}</legend>
+			<nav class="general-store__tabs">
+				{{#each generalStore}}
+				<button type="button" class="general-store__tab {{#if active}}active{{/if}}"
+					data-action="selectStoreCategory" data-value="{{key}}">{{label}}</button>
+				{{/each}}
+			</nav>
+			{{#each generalStore}}
+			{{#if active}}
+			<div class="general-store__tags">
+				{{#each items}}
+				<button type="button" class="general-store__item {{#if chosen}}chosen{{/if}}"
+					data-action="fillBackpackFromStore" data-value="{{name}}" {{#if chosen}}disabled{{/if}}>
+					<span class="litm-tag" data-text="{{name}}">{{name}}</span>
+				</button>
+				{{/each}}
+			</div>
+			{{/if}}
+			{{/each}}
+		</fieldset>
+		{{/if}}
+	</div>
+	{{> "systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html" primaryAction="next" primaryLabel=(localize "LITM.Ui.hero_creation_next")}}
+</div>

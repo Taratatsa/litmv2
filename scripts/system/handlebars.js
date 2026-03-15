@@ -40,6 +40,7 @@ export class HandlebarsPartials {
 		"systems/litmv2/templates/partials/edit-theme-tags-activatable.html",
 		"systems/litmv2/templates/partials/edit-theme-tracks.html",
 		"systems/litmv2/templates/partials/theme-special-improvements.html",
+		"systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html",
 	];
 
 	static register() {
