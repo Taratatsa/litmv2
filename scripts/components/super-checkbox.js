@@ -111,7 +111,7 @@ export class SuperCheckbox extends AdoptedStyleSheetMixin(HTMLElement) {
 					background-position: center;
 					font-size: 2.6em;
 					rotate: -45deg;
-					filter: var(--litm-scratch-filter, none);
+					filter: var(--litm-icon-filter, none);
 				}
 			}
 		}

@@ -488,7 +488,20 @@ export class WelcomeOverlay {
 		const container = this.#el.querySelector(".litm--welcome-overlay__slides");
 		if (!container) return;
 
+		// Save scroll positions before replacing content
+		const scrollPositions = new Map();
+		for (const el of container.querySelectorAll(".scrollable")) {
+			const key = `${el.className}|${el.dataset.tab}`;
+			scrollPositions.set(key, el.scrollTop);
+		}
+
 		container.innerHTML = html;
+
+		// Restore scroll positions
+		for (const el of container.querySelectorAll(".scrollable")) {
+			const key = `${el.className}|${el.dataset.tab}`;
+			if (scrollPositions.has(key)) el.scrollTop = scrollPositions.get(key);
+		}
 
 		const slideEl = container.firstElementChild;
 		if (slideEl) this.#bindSlideListeners(slideEl);
@@ -535,7 +548,8 @@ export class WelcomeOverlay {
 	#prepareWelcomeContext() {
 		const permissions = game.settings.get("core", "permissions");
 		const playerCanCreate =
-			permissions.ACTOR_CREATE?.includes(CONST.USER_ROLES.PLAYER) ?? false;
+			permissions.ACTOR_CREATE?.includes(foundry.CONST.USER_ROLES.PLAYER) ??
+			false;
 
 		const canCreateHero = game.user.can("ACTOR_CREATE");
 
@@ -597,6 +611,15 @@ export class WelcomeOverlay {
 			this._appState.trope.optionalUuid = selectedTrope.optional[0].uuid;
 		}
 
+		// Find the category banner image for the selected trope
+		let selectedCategoryImg = "";
+		if (selectedTrope?.category) {
+			const cat = tropesByCategory.find(
+				(g) => g.name === selectedTrope.category,
+			);
+			if (cat?.img) selectedCategoryImg = cat.img;
+		}
+
 		return {
 			mode: this._appState.mode,
 			state: this._appState,
@@ -605,6 +628,7 @@ export class WelcomeOverlay {
 			tropesByCategory,
 			selectedTrope,
 			selectedTropeUuid: this._appState.trope.selectedUuid,
+			selectedCategoryImg,
 		};
 	}
 
@@ -1258,8 +1282,8 @@ export class WelcomeOverlay {
 	async #enablePlayerCreation() {
 		const permissions = game.settings.get("core", "permissions");
 		const roles = permissions.ACTOR_CREATE || [];
-		if (!roles.includes(CONST.USER_ROLES.PLAYER)) {
-			roles.push(CONST.USER_ROLES.PLAYER);
+		if (!roles.includes(foundry.CONST.USER_ROLES.PLAYER)) {
+			roles.push(foundry.CONST.USER_ROLES.PLAYER);
 			permissions.ACTOR_CREATE = roles;
 			await game.settings.set("core", "permissions", permissions);
 			ui.notifications.info("LITM.Ui.gm_welcome_creation_granted", {
@@ -1688,7 +1712,7 @@ export class WelcomeOverlay {
 			system: {},
 			items,
 		};
-		const actor = await Actor.create(actorData, {
+		const actor = await foundry.documents.Actor.create(actorData, {
 			renderSheet: false,
 			fromSidebar: false,
 			litm: {
@@ -2065,7 +2089,7 @@ export class WelcomeOverlay {
 		if (!uuid) return null;
 		const cache = this._cache[cacheKey];
 		if (cache.has(uuid)) return cache.get(uuid);
-		const doc = await fromUuid(uuid);
+		const doc = await foundry.utils.fromUuid(uuid);
 		if (doc) cache.set(uuid, doc);
 		return doc;
 	}
@@ -2097,8 +2121,9 @@ export class WelcomeOverlay {
 		return themes.every((theme) => {
 			if (!theme.method) return false;
 			if (theme.method === "themekit") return Boolean(theme.themekitUuid);
-			if (theme.method === "themebook")
+			if (theme.method === "themebook") {
 				return Boolean(theme.themebookUuid) && Boolean(theme.name);
+			}
 			if (theme.method === "manual") return Boolean(theme.name);
 			return false;
 		});
@@ -2401,7 +2426,7 @@ export class WelcomeOverlay {
 
 		const sceneData = {
 			name: sceneName,
-			ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER },
+			ownership: { default: foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER },
 			navigation: true,
 			width: 1920,
 			height: 1080,
@@ -2418,7 +2443,7 @@ export class WelcomeOverlay {
 		// V14+ uses levels for backgrounds and fog modes; V13 uses flat scene fields
 		const levelId = foundry.documents.BaseScene.metadata.defaultLevelId;
 		if (levelId) {
-			sceneData.fog = { mode: CONST.FOG_EXPLORATION_MODES.DISABLED };
+			sceneData.fog = { mode: foundry.CONST.FOG_EXPLORATION_MODES.DISABLED };
 			sceneData.levels = [
 				{
 					_id: levelId,
@@ -2432,7 +2457,7 @@ export class WelcomeOverlay {
 			sceneData.fogExploration = false;
 		}
 
-		const scene = await Scene.create(sceneData);
+		const scene = await foundry.documents.Scene.create(sceneData);
 
 		const { thumb } = await scene.createThumbnail();
 		await scene.update({ thumb });

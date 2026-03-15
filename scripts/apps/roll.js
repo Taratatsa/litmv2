@@ -1,6 +1,6 @@
 import { localize as t } from "../utils.js";
 
-export class LitmRoll extends Roll {
+export class LitmRoll extends foundry.dice.Roll {
 	static CHAT_TEMPLATE = "systems/litmv2/templates/chat/message.html";
 	static TOOLTIP_TEMPLATE =
 		"systems/litmv2/templates/chat/message-tooltip.html";

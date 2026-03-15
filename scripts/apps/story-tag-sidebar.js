@@ -45,7 +45,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	static PARTS = {
 		form: {
 			template: "systems/litmv2/templates/apps/story-tags.html",
-			scrollable: [""],
+			scrollable: [".scrollable"],
 		},
 	};
 
@@ -75,12 +75,15 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	}
 
 	get actors() {
-		// Merge stored actors with user-assigned characters so PCs always appear
+		// Merge stored actors with user-assigned characters and the fellowship so they always appear
 		const storedIds = this.config.actors ?? [];
 		const userCharacterIds = new Set(
 			game.users.filter((u) => u.character).map((u) => u.character._id),
 		);
-		const mergedIds = [...new Set([...userCharacterIds, ...storedIds])];
+		const fellowshipId = game.litmv2?.fellowship?.id;
+		const autoIds = [...userCharacterIds];
+		if (fellowshipId) autoIds.push(fellowshipId);
+		const mergedIds = [...new Set([...autoIds, ...storedIds])];
 		return (
 			mergedIds
 				.map((id) => game.actors.get(id))
@@ -91,7 +94,8 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					img: actor.prototypeToken.texture.src || actor.img,
 					id: actor._id,
 					isOwner: actor.isOwner,
-					isUserCharacter: userCharacterIds.has(actor._id),
+					isUserCharacter:
+						userCharacterIds.has(actor._id) || actor._id === fellowshipId,
 					hidden: (this.config.hiddenActors ?? []).includes(actor._id),
 					tags: [...actor.effects]
 						.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
@@ -179,14 +183,30 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		context.isGM = game.user.isGM;
 		context.actors = this.actors.sort((a, b) => {
 			// User characters first
-			if (a.isUserCharacter !== b.isUserCharacter)
+			if (a.isUserCharacter !== b.isUserCharacter) {
 				return a.isUserCharacter ? -1 : 1;
+			}
 			// Then non-challenges before challenges
-			if ((a.type === "challenge") !== (b.type === "challenge"))
+			if ((a.type === "challenge") !== (b.type === "challenge")) {
 				return a.type === "challenge" ? 1 : -1;
+			}
 			// Alphabetical within each group
 			return a.name.localeCompare(b.name);
 		});
+
+		// Mark the first challenge/journey so the template can insert a group divider
+		let foundFirst = false;
+		for (const actor of context.actors) {
+			actor.isFirstChallenge = false;
+			if (
+				!foundFirst &&
+				(actor.type === "challenge" || actor.type === "journey")
+			) {
+				actor.isFirstChallenge = true;
+				foundFirst = true;
+			}
+		}
+
 		context.tags = this.tags || [];
 		return context;
 	}
@@ -568,10 +588,13 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				)
 				.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
 
-			const sortUpdates = SortingHelpers.performIntegerSort(source, {
-				target,
-				siblings,
-			});
+			const sortUpdates = foundry.utils.SortingHelpers.performIntegerSort(
+				source,
+				{
+					target,
+					siblings,
+				},
+			);
 			const updates = sortUpdates.map(({ target, update }) => ({
 				_id: target.id,
 				sort: update.sort,
@@ -682,11 +705,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	async #removeActor(id) {
 		if (!game.user.isGM) return;
 
-		// User-assigned characters can't be removed from the sidebar
+		// User-assigned characters and the fellowship can't be removed from the sidebar
 		const userCharacterIds = new Set(
 			game.users.filter((u) => u.character).map((u) => u.character._id),
 		);
 		if (userCharacterIds.has(id)) {
+			return ui.notifications.warn("LITM.Ui.warn_user_character", {
+				localize: true,
+			});
+		}
+		if (id === game.litmv2?.fellowship?.id) {
 			return ui.notifications.warn("LITM.Ui.warn_user_character", {
 				localize: true,
 			});

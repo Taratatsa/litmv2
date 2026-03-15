@@ -79,10 +79,23 @@
 
 		<!-- Actor Tags -->
 		{{#each actors as |actor|}}
-		<section class="flexcol {{#if actor.hidden}}litm--actor-hidden{{/if}}" data-id="{{actor.id}}">
-			<h3 class="divider litm--section-header" {{#unless actor.isUserCharacter}}data-context="remove-actor"{{/unless}} data-id="{{actor.id}}">
+		{{#if @first}}
+		<div class="litm--group-divider litm--group-divider-heroes"><i class="fa-solid fa-sun" aria-hidden="true"></i></div>
+		{{else if actor.isFirstChallenge}}
+		<div class="litm--group-divider litm--group-divider-challenges"><i class="fa-solid fa-skull" aria-hidden="true"></i>
+		</div>
+		{{else}}
+		<i class="fas fa-{{ifThen (or (eq actor.type 'hero') (eq actor.type 'fellowship')) 'sun' 'skull'}}"
+			style="text-align:center;font-size:var(--font-size-11);var(--color-text-primary);opacity:0.5;"></i>
+		{{/if}}
+		<section class="flexcol {{#if actor.hidden}}litm--actor-hidden{{/if}}" data-id="{{actor.id}}"
+			data-actor-type="{{actor.type}}">
+			<h3 class="divider litm--section-header" {{#unless actor.isUserCharacter}}data-context="remove-actor" {{/unless}}
+				data-id="{{actor.id}}">
 				<span data-action="open-sheet" data-id="{{actor.id}}"
-					data-tooltip="{{localize (ifThen actor.isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}" style="cursor: pointer;">
+					data-tooltip="{{localize (ifThen actor.isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}"
+					style="cursor: pointer;">
+					<img class="litm--section-portrait" src="{{actor.img}}" alt="" />
 					{{actor.name}}
 				</span>
 				{{#if ../isGM}}
@@ -111,7 +124,8 @@
 	</form>
 
 	{{#if isGM}}
-	<button type="button" class="litm--add-actor-btn" data-action="add-actor" data-tooltip="{{localize 'LITM.Ui.add_actor'}}">
+	<button type="button" class="litm--add-actor-btn" data-action="add-actor"
+		data-tooltip="{{localize 'LITM.Ui.add_actor'}}">
 		<i class="fa-solid fa-user-plus" aria-hidden="true"></i> {{localize "LITM.Ui.add_actor"}}
 	</button>
 	{{/if}}

@@ -19,8 +19,10 @@ export async function createSampleHero() {
 
 	const response = await foundry.utils.fetchJsonWithTimeout(SAMPLE_HERO_JSON);
 	// Ensure the sample hero is only visible to the GM
-	response.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
-	const actor = await Actor.create(response, {
+	response.ownership = {
+		default: foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE,
+	};
+	const actor = await foundry.documents.Actor.create(response, {
 		litm: { skipHeroWizard: true, skipAutoSetup: true },
 	});
 

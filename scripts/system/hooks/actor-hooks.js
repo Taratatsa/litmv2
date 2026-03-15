@@ -15,7 +15,7 @@ function _prepareCharacterOnCreate() {
 			? {
 					sight: { enabled: true },
 					actorLink: true,
-					disposition: CONST.TOKEN_DISPOSITIONS.FRIENDLY,
+					disposition: foundry.CONST.TOKEN_DISPOSITIONS.FRIENDLY,
 					texture: {
 						src: actor.prototypeToken?.texture?.src || actor.img,
 					},
@@ -26,7 +26,7 @@ function _prepareCharacterOnCreate() {
 		// Fellowship actors default to OWNER permission for all players
 		if (data.type === "fellowship") {
 			actor.updateSource({
-				ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
+				ownership: { default: foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
 			});
 			if (actor.img === "icons/svg/mystery-man.svg") {
 				actor.updateSource({

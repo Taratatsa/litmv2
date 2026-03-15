@@ -1,4 +1,4 @@
 /**
  * Custom Item document class for Legend in the Mist.
  */
-export class LitmItem extends Item {}
+export class LitmItem extends foundry.documents.Item {}

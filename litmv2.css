@@ -21,7 +21,9 @@
    15.  Trope Sheet ............. Theme kit drop zone
    16.  Theme Advancement ....... Image and button sizing
    17.  Secret Blocks ........... ProseMirror secret reveal button
-   18.  Dark Mode ............... Theme overrides for dark interface
+   18.  Light Mode .............. Light theme window header overrides
+   19.  Party Overview .......... Hero cards with quests, weaknesses, statuses
+   20.  Dark Mode ............... Theme overrides for dark interface
 ======================================== */
 
 /* ========================================
@@ -72,17 +74,9 @@
 }
 
 /* --- Foundry Variable Overrides --- */
-
 body {
 	--background-url: url("assets/media/sheet-background.webp");
 	--main-logo: url("assets/media/logo.svg");
-	--underline-url: url(assets/media/underline.webp) center / contain no-repeat;
-	--litm-scratch-filter: invert(1);
-	--color-litm-tag: #efd693;
-	--color-litm-status: #bcceb1;
-	--color-litm-limit: #d9b2a9;
-	--color-litm-weakness: #edbb89;
-	--color-litm-banner: #c4b5a8;
 	--font-blackletter:
 		Ysgarth, "Modesto Condensed", "Arial Narrow Bold", sans-serif;
 	--font-packard:
@@ -109,6 +103,17 @@ body {
 	input[type="number"] {
 		font-family: var(--font-monospace);
 	}
+}
+
+body,
+.application.theme-light {
+	--litm-icon-filter: invert(1);
+	--color-litm-tag: #efd693;
+	--color-litm-status: #bcceb1;
+	--color-litm-limit: #d9b2a9;
+	--color-litm-weakness: #edbb89;
+	--color-litm-banner: #c4b5a8;
+	--underline-url: url(assets/media/underline.webp) center / contain no-repeat;
 }
 
 /* ========================================
@@ -223,6 +228,10 @@ body {
 	display: grid;
 	gap: 1rem;
 	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.litm :is(.litm-tag-check, .progress-box img, .litm--tier-box) {
+	filter: var(--litm-icon-filter);
 }
 
 :is(.litm .progress-box) {
@@ -480,7 +489,7 @@ body {
 	font-family: var(--font-trattatello);
 	font-style: normal;
 	font-size: var(--font-size-20);
-	color: var(--color-text-secondary);
+	color: var(--color-text-subtle);
 }
 
 /* Default: single column layout - show HR separators */
@@ -598,6 +607,10 @@ body {
 	padding-left: 0;
 }
 
+.litm .theme-card-tags + .flexcol:has(.special-improvements-list) {
+	margin-top: 0.35rem;
+}
+
 .litm .special-improvements-list li {
 	display: flex;
 	gap: 0.35rem;
@@ -674,7 +687,7 @@ body {
 	font-style: italic;
 	color: var(--color-text-secondary);
 	padding: 0.2rem 0.5rem;
-	background: var(--color-data-background);
+	background: var(--color-data-background, var(--color-cool-5-25));
 	border-radius: 3px;
 	font-size: var(--font-size-13);
 }
@@ -745,7 +758,7 @@ body {
 }
 
 .challenge-play-mode .limit-shield.empty {
-	opacity: 0.2;
+	opacity: 0.3;
 }
 
 .challenge-play-mode .limit-impossible {
@@ -1387,9 +1400,18 @@ body {
 .litm-spend-chat__body {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	gap: 0.35rem;
-	font-size: var(--font-size-18);
+	font-size: var(--font-size-14);
 	line-height: 1.4;
+}
+
+.litm-spend-chat__count {
+	font-weight: 700;
+	font-size: var(--font-size-14);
+	background: rgba(0, 0, 0, 0.15);
+	padding: 0.15rem 0.5rem;
+	border-radius: 1rem;
 }
 
 .litm-spend-chat__cost {
@@ -1426,7 +1448,7 @@ body {
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
-	gap: 2rem;
+	gap: 1rem;
 	padding: 1rem 12px;
 	width: 100%;
 	scrollbar-gutter: stable;
@@ -1636,6 +1658,59 @@ body {
 	flex-flow: row nowrap;
 	gap: 3px;
 	align-items: center;
+}
+
+/* Actor-type section accents — color the divider lines to distinguish heroes, fellowship, and challenges */
+.litm--story-tags [data-actor-type="fellowship"] .litm--section-header::before,
+.litm--story-tags [data-actor-type="fellowship"] .litm--section-header::after {
+	border-color: var(--color-litm-status);
+}
+
+.litm--story-tags [data-actor-type="challenge"] .litm--section-header::before,
+.litm--story-tags [data-actor-type="challenge"] .litm--section-header::after,
+.litm--story-tags [data-actor-type="journey"] .litm--section-header::before,
+.litm--story-tags [data-actor-type="journey"] .litm--section-header::after {
+	border-color: var(--color-litm-limit);
+}
+
+/* Actor name + portrait wrapper in section headers */
+.litm--story-tags .litm--section-header [data-action="open-sheet"] {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+}
+
+/* Group divider between heroes/fellowship and challenges/journeys */
+.litm--story-tags .litm--group-divider {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	flex: none;
+	font-size: var(--font-size-11);
+	opacity: 0.5;
+}
+
+.litm--story-tags .litm--group-divider::before,
+.litm--story-tags .litm--group-divider::after {
+	color: var(--color-text-emphatic);
+	content: "";
+	flex: 1;
+	height: 2px;
+	background: linear-gradient(90deg, transparent, currentColor);
+}
+
+.litm--story-tags .litm--group-divider::after {
+	background: linear-gradient(90deg, currentColor, transparent);
+}
+
+/* Portrait thumbnail next to actor name in section headers */
+.litm--section-portrait {
+	width: 1.4em;
+	height: 1.4em;
+	object-fit: cover;
+	border-radius: 50%;
+	vertical-align: middle;
+	flex: none;
 }
 
 /* Single-use toggle — styled as a compact button matching visibility/remove buttons */
@@ -2599,7 +2674,8 @@ body {
 	flex-direction: column;
 	gap: 0.5rem;
 	min-height: 0;
-	min-width: 0; /* prevent grid child overflow */
+	min-width: 0;
+	/* prevent grid child overflow */
 	flex: 1;
 }
 
@@ -2660,40 +2736,68 @@ body {
 }
 
 /* --- Trope Select: trope buttons & detail --- */
-/* --- Trope category banner --- */
+/* --- Trope category banner (flourish, no image) --- */
 .litm--welcome-overlay__wizard-body .hero-creation__category-banner {
 	position: relative;
-	height: 80px;
-	background-size: cover;
-	background-position: center top;
-	border-radius: var(--border-radius);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 3.75rem;
 	overflow: hidden;
+	background: var(--color-text-accent);
+}
+
+/* .litm--welcome-overlay__wizard-body .hero-creation__category-banner::before,
+.litm--welcome-overlay__wizard-body .hero-creation__category-banner::after {
+	content: "✦ ─── ✦";
+	position: absolute;
+	font-size: var(--font-size-11);
+	color: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
+	letter-spacing: 0.3em;
+} */
+
+.litm--welcome-overlay__wizard-body .hero-creation__category-banner::before {
+	top: 0.25rem;
 }
 
 .litm--welcome-overlay__wizard-body .hero-creation__category-banner::after {
-	content: "";
-	position: absolute;
-	inset: 0;
-	background: linear-gradient(
-		to top,
-		rgba(0, 0, 0, 0.75) 0%,
-		rgba(0, 0, 0, 0.15) 60%,
-		rgba(0, 0, 0, 0.05) 100%
-	);
+	bottom: 0.25rem;
 }
 
 .hero-creation__category-banner-name {
-	position: absolute;
-	bottom: 0.5rem;
-	left: 0.75rem;
-	z-index: 1;
 	font-family: var(--font-h1);
 	font-size: var(--font-size-20);
 	font-weight: bold;
-	color: var(--color-text-light-0);
+	color: var(--background);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+	z-index: 1;
+}
+
+/* --- Trope detail header with side portrait --- */
+.hero-creation__detail-header {
+	display: flex;
+	gap: 1rem;
+	align-items: flex-start;
+}
+
+.hero-creation__detail-header-text {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.hero-creation__detail-portrait {
+	align-self: stretch;
+	min-width: 100px;
+	flex: 0 0 auto;
+	background-size: cover;
+	background-color: var(--color-form-hint);
+	border-radius: 4px;
+	background-position: center top;
+	border: 1px groove color-mix(in srgb, var(--color-border) 50%, transparent);
 }
 
 /* --- Trope category fallback heading (no banner image) --- */
@@ -3340,7 +3444,8 @@ body {
 }
 
 .litm--welcome-overlay__wizard-body .tag-questions-details > summary::before {
-	content: "\f059"; /* fa-circle-question */
+	content: "\f059";
+	/* fa-circle-question */
 	font-family: "Font Awesome 6 Free";
 	font-weight: 900;
 	font-size: var(--font-size-11);
@@ -3351,7 +3456,8 @@ body {
 .litm--welcome-overlay__wizard-body
 	.tag-questions-details[open]
 	> summary::before {
-	content: "\f13a"; /* fa-circle-chevron-down */
+	content: "\f13a";
+	/* fa-circle-chevron-down */
 }
 
 .litm--welcome-overlay__wizard-body
@@ -3666,34 +3772,132 @@ body {
    Window chrome overrides for the light Foundry theme.
 ======================================== */
 
-:is(body, .themed).theme-light .litm.application .window-header {
+:is(body, .themed).theme-light
+	.litm.application:not(.theme-dark)
+	.window-header {
 	background: unset;
 	color: var(--color-dark-2);
 	border-bottom: var(--sidebar-separator);
 }
 
-:is(body, .themed).theme-light .litm.application .window-header .window-title {
+:is(body, .themed).theme-light
+	.litm.application:not(.theme-dark)
+	.window-header
+	.window-title {
 	color: var(--color-dark-2);
 }
 
 :is(body, .themed).theme-light
-	.litm.application
+	.litm.application:not(.theme-dark)
 	.window-header
 	button.header-control {
 	--button-text-color: var(--color-dark-3);
 }
 
 /* ========================================
-  19. Dark Mode
+  19. Party Overview (embedded in fellowship sheet)
+   Hero cards with quests, weaknesses, statuses.
+======================================== */
+
+fieldset.litm-party-overview {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.litm-party-overview__hero {
+	border-radius: 6px;
+	padding: 12px;
+	background: var(--color-border);
+}
+
+.litm-party-overview__hero-header {
+	margin-bottom: 8px;
+}
+
+.litm-party-overview__hero-img {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	object-fit: cover;
+	cursor: pointer;
+	float: left;
+	shape-outside: circle(50%);
+	margin-right: 6px;
+}
+
+.litm-party-overview__hero-info h2 {
+	font-family: var(--font-powell);
+	font-size: var(--font-size-18);
+	margin: 0;
+	cursor: pointer;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.litm-party-overview__hero-info h2:hover,
+.litm-party-overview__hero-img:hover {
+	text-decoration: underline;
+	opacity: 0.85;
+}
+
+.litm-party-overview__hero-desc {
+	font-family: var(--font-serif);
+	font-style: italic;
+	font-size: var(--font-size-13);
+	opacity: 0.7;
+	margin: 2px 0 0;
+}
+
+.litm-party-overview__section {
+	margin-top: 6px;
+}
+
+.litm-party-overview__section h3 {
+	font-family: var(--font-powell);
+	font-size: var(--font-size-12);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	opacity: 0.6;
+	margin: 0 0 4px;
+}
+
+.litm-party-overview__quests {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-family: var(--font-serif);
+	font-size: var(--font-size-14);
+	line-height: 1.5;
+}
+
+.litm-party-overview__quests li {
+	margin-bottom: 2px;
+}
+
+.litm-party-overview__quests em {
+	font-weight: 600;
+}
+
+.litm-party-overview__tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	font-size: var(--font-size-14);
+}
+
+/* ========================================
+  20. Dark Mode
    Theme overrides for dark interface and chat cards.
 ======================================== */
 
 /* Dark Theme Overrides — matches both body.theme-dark (Applications: Dark)
    and .themed.theme-dark on interface elements (Interface: Dark) */
-:is(body, .themed).theme-dark {
+body.theme-dark,
+.application.theme-dark {
 	--underline-url:
 		url(assets/media/underline-w.webp) center / contain no-repeat;
-	--litm-scratch-filter: none;
+	--litm-icon-filter: none;
 	--color-litm-tag: #88621c;
 	--color-litm-status: #3f5a3f;
 	--color-litm-limit: #7a3e34;
@@ -3899,15 +4103,12 @@ body {
 		color: var(--color-light-5);
 	}
 
+	& .litm-spend-chat__count {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
 	& .litm-spend-chat__cost {
 		color: var(--color-light-2);
 		border-top-color: var(--color-cool-4);
-	}
-
-	/* Invert black checkbox SVGs to white in dark mode */
-	& .litm-tag-check,
-	& .progress-box img,
-	& .litm--tier-box {
-		filter: invert(1);
 	}
 }

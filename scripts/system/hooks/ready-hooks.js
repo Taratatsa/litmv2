@@ -171,7 +171,7 @@ function _renderWelcomeScreen() {
 						return { _id: s.id, thumb };
 					}),
 			);
-			await Scene.updateDocuments(updates);
+			await foundry.documents.Scene.updateDocuments(updates);
 			game.journal.getName("Tinderbox Demo Rules")?.sheet?.render(true);
 		})().catch((err) => error("Failed to process adventure import", err));
 	});
