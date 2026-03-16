@@ -1014,10 +1014,17 @@ export class HeroSheet extends LitmActorSheet {
 		const activeOwner = activeOwnerId ? game.users.get(activeOwnerId) : null;
 		const hasActorPermission =
 			game.user.isGM || this.document.testUserPermission(game.user, "OWNER");
+		// GM should only be a viewer for actors that have a player owner
+		const hasPlayerOwner = game.users.some(
+			(u) => !u.isGM && this.document.testUserPermission(u, "OWNER"),
+		);
+		const gmAsViewer = game.user.isGM && hasPlayerOwner;
 		const canClaimOwnership =
-			activeOwnerId === game.user.id ||
-			(!activeOwnerId && hasActorPermission) ||
-			(!activeOwner?.active && hasActorPermission);
+			!gmAsViewer &&
+			(activeOwnerId === game.user.id ||
+				(!activeOwnerId && hasActorPermission) ||
+				(!activeOwner?.active && hasActorPermission) ||
+				(activeOwner?.isGM && hasActorPermission));
 		const isOwner = canClaimOwnership;
 
 		if (options.toggle && this.rollDialogInstance.rendered) {
