@@ -490,16 +490,20 @@ export class WelcomeOverlay {
 
 		// Save scroll positions before replacing content
 		const scrollPositions = new Map();
-		for (const el of container.querySelectorAll(".scrollable")) {
-			const key = `${el.className}|${el.dataset.tab}`;
+		for (const el of container.querySelectorAll(
+			".scrollable, .litm--welcome-overlay__wizard-body",
+		)) {
+			const key = `${el.className}|${el.dataset.tab ?? ""}`;
 			scrollPositions.set(key, el.scrollTop);
 		}
 
 		container.innerHTML = html;
 
 		// Restore scroll positions
-		for (const el of container.querySelectorAll(".scrollable")) {
-			const key = `${el.className}|${el.dataset.tab}`;
+		for (const el of container.querySelectorAll(
+			".scrollable, .litm--welcome-overlay__wizard-body",
+		)) {
+			const key = `${el.className}|${el.dataset.tab ?? ""}`;
 			if (scrollPositions.has(key)) el.scrollTop = scrollPositions.get(key);
 		}
 

@@ -106,7 +106,7 @@ body {
 }
 
 body,
-.application.theme-light {
+.themed.theme-light {
 	--litm-icon-filter: invert(1);
 	--color-litm-tag: #efd693;
 	--color-litm-status: #bcceb1;
@@ -512,31 +512,86 @@ body,
    special improvements list, empty state, progress display.
 ======================================== */
 
-:is(.hero-play-mode, .challenge-play-mode, .journey-play-mode) h1 {
-	margin-block: 0.01em 0px;
+:is(
+		.litm-challenge-sheet,
+		.litm-fellowship-sheet,
+		.litm-hero-sheet,
+		.litm-journey-sheet
+	)
+	.window-content {
+	padding: 0px 16px 1rem;
 }
 
-:is(.hero-play-mode, .challenge-play-mode, .journey-play-mode)
+:is(
+		.litm-challenge-sheet,
+		.litm-fellowship-sheet,
+		.litm-hero-sheet,
+		.litm-journey-sheet
+	)
+	[data-application-part="form"]
+	> *:first-child {
+	margin-top: 0.5rem;
+}
+
+:is(
+		.hero-play-mode,
+		.challenge-play-mode,
+		.fellowship-play-mode,
+		.journey-play-mode
+	)
 	fieldset
 	> .litm-banner {
 	font-size: var(--font-size-11);
 }
 
-:is(.challenge-play-mode, .journey-play-mode, .fellowship-play-mode)
-	.profile-img,
-.hero-play-mode .profile-img {
-	width: 100px;
-	height: 100px;
-	object-fit: cover;
-	border-radius: 4px;
-	cursor: pointer;
-	transition: transform 0.2s;
+:is(
+		.hero-play-mode,
+		.challenge-play-mode,
+		.fellowship-play-mode,
+		.journey-play-mode
+	)
+	h1 {
+	margin: 0px;
 }
 
-:is(.challenge-play-mode, .journey-play-mode, .fellowship-play-mode)
+:is(
+		.challenge-play-mode,
+		.fellowship-play-mode,
+		.hero-play-mode,
+		.journey-play-mode,
+		.fellowship-play-mode
+	)
+	.profile-img {
+	width: 100px;
+	height: 100px;
+	border-radius: 50%;
+	object-fit: cover;
+	cursor: pointer;
+	transition: transform 0.2s;
+	margin-left: 3px;
+}
+
+:is(
+		.challenge-play-mode,
+		.fellowship-play-mode,
+		.journey-play-mode,
+		.fellowship-play-mode
+	)
 	.profile-img:hover,
 .hero-play-mode .profile-img:hover {
 	transform: scale(1.05);
+}
+
+:is(
+		.challenge-play-mode,
+		.fellowship-play-mode,
+		.hero-play-mode,
+		.journey-play-mode,
+		.fellowship-play-mode
+	)
+	.enriched-content
+	> p:first-child {
+	margin-top: 0px;
 }
 
 .hero-play-mode :is(:has(> .litm--hero-name):not(img + div)) {
@@ -549,14 +604,14 @@ body,
 	width: fit-content;
 	flex: 0;
 	min-width: 11ch;
-	margin: 0.07em 0px 0px;
+	margin: 0px;
 }
 
 .hero-play-mode .litm--hero-name::after {
 	content: "";
 	position: absolute;
 	left: -7%;
-	top: 106%;
+	top: 102%;
 	transform: translateY(-53%);
 	width: 115%;
 	aspect-ratio: 3032 / 1235;
@@ -1040,6 +1095,8 @@ body,
 /* GM Viewer Tabs */
 .litm--roll-dialog-tabs {
 	margin-bottom: 0.25rem;
+	flex-shrink: 0;
+	overflow-x: auto;
 }
 
 .litm--roll-dialog-tabs [data-tab] {
@@ -1047,6 +1104,8 @@ body,
 	flex-direction: row;
 	align-items: center;
 	gap: 0.3rem;
+	flex-shrink: 0;
+	white-space: nowrap;
 }
 
 .litm--roll-dialog-tabs [data-tab].active span {
@@ -1485,7 +1544,8 @@ body,
 	display: flex;
 	align-items: center;
 	gap: 0.35rem;
-	padding: 0.1rem 0;
+	padding: 0.1rem 0px;
+	margin: 0px;
 	cursor: grab;
 }
 
@@ -1652,12 +1712,74 @@ body,
 	flex: none;
 }
 
-/* Section header — inline block layout */
+/* Tag-row inline buttons — grouped pill-bar matching section actions */
+.litm--story-tags .litm--tag-item button,
+.litm--story-tags .litm--tag-item .litm--visibility-toggle {
+	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+	border: 1px solid
+		color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+	border-radius: 0;
+	box-shadow: none;
+	color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
+	transition:
+		background 0.15s,
+		color 0.15s;
+}
+
+.litm--story-tags .litm--tag-item button:hover,
+.litm--story-tags .litm--tag-item .litm--visibility-toggle:hover {
+	background: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+	color: var(--color-text-primary);
+}
+
+/* Individual tag-row buttons get full rounding (not adjacent, so no pill-bar grouping) */
+.litm--story-tags .litm--tag-item .litm--visibility-toggle,
+.litm--story-tags .litm--tag-item .litm--tag-action-btn {
+	border-radius: var(--border-radius);
+}
+
+/* Section header — name only, divider lines handle decoration */
 .litm--story-tags .litm--section-header {
 	display: flex;
 	flex-flow: row nowrap;
-	gap: 3px;
 	align-items: center;
+}
+
+/* Section actions toolbar — grouped icon buttons below the header */
+.litm--story-tags .litm--section-actions {
+	display: flex;
+	justify-content: center;
+	gap: 2px;
+	margin-top: -2px;
+	margin-bottom: 2px;
+}
+
+.litm--story-tags .litm--section-actions button {
+	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+	border: 1px solid
+		color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+	border-radius: 0;
+	color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
+	transition:
+		background 0.15s,
+		color 0.15s;
+}
+
+.litm--story-tags .litm--section-actions button:first-child {
+	border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+
+.litm--story-tags .litm--section-actions button:last-child {
+	border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+.litm--story-tags .litm--section-actions button:only-child {
+	border-radius: var(--border-radius);
+}
+
+.litm--story-tags .litm--section-actions button:hover {
+	background: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+	color: var(--color-text-primary);
 }
 
 /* Actor-type section accents — color the divider lines to distinguish heroes, fellowship, and challenges */
@@ -1678,6 +1800,10 @@ body,
 	display: inline-flex;
 	align-items: center;
 	gap: 0.25em;
+	text-wrap: wrap pretty;
+	white-space: normal;
+	flex: none;
+	max-width: 100%;
 }
 
 /* Group divider between heroes/fellowship and challenges/journeys */
@@ -1713,7 +1839,7 @@ body,
 	flex: none;
 }
 
-/* Single-use toggle — styled as a compact button matching visibility/remove buttons */
+/* Single-use toggle — styled to match tag-row buttons */
 .litm--single-use-label {
 	line-height: 0;
 	cursor: pointer;
@@ -1726,7 +1852,18 @@ body,
 	min-height: unset;
 	height: 1.6em;
 	font-size: var(--font-size-11);
-	border-radius: 3px;
+	border-radius: var(--border-radius);
+	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+	border: 1px solid
+		color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+	color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
+	transition:
+		background 0.15s,
+		color 0.15s;
+}
+
+.litm--single-use-label:hover {
+	background: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
 	color: var(--color-text-primary);
 }
 
@@ -2109,6 +2246,10 @@ body,
 /* Welcome slide sits on the dark backdrop — force light button text */
 .litm--welcome-overlay__welcome .litm--welcome-overlay__btn {
 	color: var(--color-warm-1);
+}
+
+.litm--welcome-overlay__welcome .litm--welcome-overlay__btn--primary {
+	color: var(--color-cool-5);
 }
 
 .litm--welcome-overlay__logo {
@@ -2558,6 +2699,11 @@ body,
 /* --- Wizard wide variant (review) --- */
 .litm--welcome-overlay__wizard--wide {
 	max-width: 940px;
+}
+
+/* Inactive backpack items in review */
+.litm--welcome-overlay__wizard .litm-backpack {
+	opacity: 0.4;
 }
 
 /* --- Hero Created Slide --- */
@@ -3772,10 +3918,13 @@ body,
    Window chrome overrides for the light Foundry theme.
 ======================================== */
 
+.litm.application .window-header {
+	background: unset;
+}
+
 :is(body, .themed).theme-light
 	.litm.application:not(.theme-dark)
 	.window-header {
-	background: unset;
 	color: var(--color-dark-2);
 	border-bottom: var(--sidebar-separator);
 }
@@ -3850,6 +3999,7 @@ fieldset.litm-party-overview {
 }
 
 .litm-party-overview__section {
+	clear: left;
 	margin-top: 6px;
 }
 
@@ -3873,10 +4023,14 @@ fieldset.litm-party-overview {
 
 .litm-party-overview__quests li {
 	margin-bottom: 2px;
+	padding-left: 0.5em;
+	text-indent: -0.5em;
 }
 
 .litm-party-overview__quests em {
 	font-weight: 600;
+	text-transform: uppercase;
+	font-style: normal;
 }
 
 .litm-party-overview__tags {
@@ -3894,7 +4048,7 @@ fieldset.litm-party-overview {
 /* Dark Theme Overrides — matches both body.theme-dark (Applications: Dark)
    and .themed.theme-dark on interface elements (Interface: Dark) */
 body.theme-dark,
-.application.theme-dark {
+.themed.theme-dark {
 	--underline-url:
 		url(assets/media/underline-w.webp) center / contain no-repeat;
 	--litm-icon-filter: none;

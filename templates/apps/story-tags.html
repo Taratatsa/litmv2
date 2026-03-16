@@ -2,7 +2,7 @@
 <li
 	class="litm--tag-item litm--{{ifThen (eq tag.type 'status') 'status' 'tag'}}{{#if tag.hidden}} litm--tag-hidden{{/if}}"
 	data-tag-item data-id="{{tag.id}}" data-type="{{source}}" draggable="true"
-	data-tooltip="{{localize (concat 'LITM.Terms.' tag.type)}}: {{tag.name}}{{#if tag.value}}{{concat '-' tag.value}}{{/if}}"
+	data-tooltip="{{localize (concat 'LITM.Terms.' tag.type)}}: {{tag.name}}{{#if (and (eq tag.type 'status') tag.value)}}{{concat '-' tag.value}}{{/if}}"
 	data-text="{{tag.name}}{{#if (eq tag.type 'status')}}-{{tag.value}}{{/if}}">
 	{{#if editable}}
 	{{#if (eq source "story")}}
@@ -51,11 +51,11 @@
 {{#*inline 'add-button' id}}
 <button type="button" data-action="add-tag" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_tag'}}"
 	aria-label="{{localize 'LITM.Ui.add_tag'}}">
-	<i class="fa-solid fa-tag" aria-hidden="true"></i>
+	<i class="fa-solid fa-scroll" aria-hidden="true"></i>
 </button>
 <button type="button" data-action="add-status" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_status'}}"
 	aria-label="{{localize 'LITM.Ui.add_status'}}">
-	<i class="fa-solid fa-heart" aria-hidden="true"></i>
+	<i class="fa-solid fa-droplet" aria-hidden="true"></i>
 </button>
 {{/inline}}
 
@@ -66,10 +66,12 @@
 		<section class="flexcol" data-id="story" data-context="remove-all-tags">
 			<h3 class="divider litm--section-header" data-tooltip="{{localize 'LITM.Ui.context_remove_all_tags'}}">
 				{{concat (localize "LITM.Tags.story") " " (localize "LITM.Terms.tags")}}
-				{{#if isGM}}
-				{{> add-button id="story"}}
-				{{/if}}
 			</h3>
+			{{#if isGM}}
+			<div class="litm--section-actions">
+				{{> add-button id="story"}}
+			</div>
+			{{/if}}
 			<ul class="plain">
 				{{#each tags as |tag|}}
 				{{> tagItem tag=tag source="story" editable=../isGM isGM=../isGM}}
@@ -98,7 +100,10 @@
 					<img class="litm--section-portrait" src="{{actor.img}}" alt="" />
 					{{actor.name}}
 				</span>
-				{{#if ../isGM}}
+			</h3>
+			{{#if (or ../isGM actor.isOwner)}}
+			<div class="litm--section-actions">
+				{{#if (and ../isGM (not actor.isUserCharacter))}}
 				<button type="button" class="litm--visibility-toggle" data-action="toggle-visibility" data-id="{{actor.id}}"
 					data-type="actor" data-tooltip="{{localize (ifThen actor.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
 					<i class="fa-solid {{ifThen actor.hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
@@ -107,7 +112,8 @@
 				{{#if actor.isOwner}}
 				{{> add-button id=actor.id}}
 				{{/if}}
-			</h3>
+			</div>
+			{{/if}}
 			<ul class="plain">
 				{{#each actor.tags as |tag|}}
 				{{> tagItem tag=tag source=../id editable=actor.isOwner isGM=../../isGM}}

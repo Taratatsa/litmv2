@@ -163,6 +163,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			type,
 			isScratched: false,
 			isSingleUse: false,
+			hidden: game.user.isGM,
 			id: foundry.utils.randomID(),
 		};
 
@@ -181,11 +182,15 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	async _prepareContext(_options) {
 		const context = await super._prepareContext(_options);
 		context.isGM = game.user.isGM;
+		const fellowshipId = game.litmv2?.fellowship?.id;
 		context.actors = this.actors.sort((a, b) => {
 			// User characters first
 			if (a.isUserCharacter !== b.isUserCharacter) {
 				return a.isUserCharacter ? -1 : 1;
 			}
+			// Fellowship before other user characters
+			if (a.id === fellowshipId) return -1;
+			if (b.id === fellowshipId) return 1;
 			// Then non-challenges before challenges
 			if ((a.type === "challenge") !== (b.type === "challenge")) {
 				return a.type === "challenge" ? 1 : -1;
@@ -672,10 +677,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				sort: maxSort + 1000,
 				system:
 					type === "status"
-						? { tiers }
+						? { tiers, isHidden: game.user.isGM }
 						: {
 								isScratched: tag.isScratched ?? false,
 								isSingleUse: false,
+								isHidden: game.user.isGM,
 							},
 			},
 		]);

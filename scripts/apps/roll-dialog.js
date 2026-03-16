@@ -527,26 +527,60 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		// GM viewer builds per-actor tabs from the story tag app
 		const gmViewerTabs = [];
 		if (isGMViewer) {
-			const storyTagActorIds = game.litmv2.storyTags?.config?.actors ?? [];
+			const sidebarActors = game.litmv2.storyTags?.actors ?? [];
+			const sidebarActorIds = sidebarActors.map((a) => a.id);
+			// Always include the rolling actor so the GM can see their tags
+			const storyTagActorIds = sidebarActorIds.includes(this.actorId)
+				? sidebarActorIds
+				: [this.actorId, ...sidebarActorIds];
+			// Index sidebar actor data for non-hero actors (challenges/journeys)
+			const sidebarActorMap = new Map(sidebarActors.map((a) => [a.id, a]));
 			for (const actorId of storyTagActorIds) {
 				const actor = game.actors.get(actorId);
-				if (!actor?.sheet?._buildAllRollTags) continue;
+				if (!actor) continue;
 				const actorImg = actor.prototypeToken?.texture?.src || actor.img;
-				const actorTags = actor.sheet._buildAllRollTags();
-				// Group tags by theme within each actor
 				const themeMap = new Map();
-				for (const rawTag of actorTags) {
-					const existing = this.characterTags.find((t) => t.id === rawTag.id);
-					const tag = decorateTag(existing || rawTag);
-					const groupKey = rawTag.themeId ?? `__${rawTag.type}`;
-					const groupLabel = rawTag.themeName ?? rawTag.type;
-					if (!themeMap.has(groupKey)) {
-						themeMap.set(groupKey, {
-							themeName: groupLabel,
-							tags: [],
-						});
+				// Heroes: use sheet's _buildAllRollTags for full tag list
+				if (actor.sheet?._buildAllRollTags) {
+					const actorTags = actor.sheet._buildAllRollTags();
+					for (const rawTag of actorTags) {
+						const existing = this.characterTags.find((t) => t.id === rawTag.id);
+						const tag = decorateTag(existing || rawTag);
+						const groupKey = rawTag.themeId ?? `__${rawTag.type}`;
+						const groupLabel = rawTag.themeName ?? rawTag.type;
+						if (!themeMap.has(groupKey)) {
+							themeMap.set(groupKey, {
+								themeName: groupLabel,
+								tags: [],
+							});
+						}
+						themeMap.get(groupKey).tags.push(tag);
 					}
-					themeMap.get(groupKey).tags.push(tag);
+				}
+				// Non-heroes (challenges/journeys): use sidebar tags
+				const sidebarEntry = sidebarActorMap.get(actorId);
+				if (sidebarEntry?.tags?.length && !actor.sheet?._buildAllRollTags) {
+					const stateMap = this.#tagStateMap();
+					for (const sTag of sidebarEntry.tags) {
+						const ts = stateMap.get(sTag.id);
+						const state = ts?.state || "";
+						const tag = decorateTag({
+							...sTag,
+							actorName: actor.name,
+							actorImg,
+							actorType: actor.type,
+							state: state === "burned" ? "scratched" : state,
+							contributorId: ts?.contributorId || null,
+						});
+						const groupKey = `__${sTag.type}`;
+						if (!themeMap.has(groupKey)) {
+							themeMap.set(groupKey, {
+								themeName: actor.name,
+								tags: [],
+							});
+						}
+						themeMap.get(groupKey).tags.push(tag);
+					}
 				}
 				// Add actor story items to this tab
 				const actorStory = allStoryItems
@@ -580,12 +614,19 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 						groups: [{ themeName: null, tags: sceneStoryItems }],
 					}
 				: null;
-			// Sort: rolling actor first, then Story, then the rest
+			// Sort: rolling actor first, then Story, then Fellowship, then the rest
+			const fellowshipId = game.litmv2?.fellowship?.id;
 			const rollingActorTab = gmViewerTabs.find((t) => t.id === this.actorId);
-			const otherTabs = gmViewerTabs.filter((t) => t.id !== this.actorId);
+			const fellowshipTab = fellowshipId
+				? gmViewerTabs.find((t) => t.id === fellowshipId)
+				: null;
+			const otherTabs = gmViewerTabs.filter(
+				(t) => t.id !== this.actorId && t.id !== fellowshipId,
+			);
 			gmViewerTabs.length = 0;
 			if (rollingActorTab) gmViewerTabs.push(rollingActorTab);
 			if (storyTab) gmViewerTabs.push(storyTab);
+			if (fellowshipTab) gmViewerTabs.push(fellowshipTab);
 			gmViewerTabs.push(...otherTabs);
 			// Initialize native tab group tracking
 			const initialTab = gmViewerTabs[0]?.id;
@@ -874,7 +915,8 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		if (!existingCharacterTag && isCharacterTag && !this.isOwner) {
 			// GM viewer: look up from any actor in the story tag app
 			if (game.user.isGM) {
-				const storyTagActorIds = game.litmv2.storyTags?.config?.actors ?? [];
+				const storyTagActorIds =
+					game.litmv2.storyTags?.actors?.map((a) => a.id) ?? [];
 				for (const actorId of storyTagActorIds) {
 					if (actorId === this.actorId) continue;
 					const actor = game.actors.get(actorId);
