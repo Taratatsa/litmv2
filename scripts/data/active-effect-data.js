@@ -5,6 +5,7 @@ export class StoryTagData extends foundry.abstract.TypeDataModel {
 			isSingleUse: new fields.BooleanField({ initial: false }),
 			isScratched: new fields.BooleanField({ initial: false }),
 			isHidden: new fields.BooleanField({ initial: false }),
+			limitId: new fields.StringField({ initial: null, nullable: true }),
 			// Required by Foundry's ActiveEffect type data model contract
 			changes: new fields.ArrayField(
 				new fields.SchemaField({
@@ -42,6 +43,7 @@ export class StatusCardData extends foundry.abstract.TypeDataModel {
 				initial: [false, false, false, false, false, false],
 				validate: (tiers) => tiers.length === 6,
 			}),
+			limitId: new fields.StringField({ initial: null, nullable: true }),
 			// Required by Foundry's ActiveEffect type data model contract
 			changes: new fields.ArrayField(
 				new fields.SchemaField({
@@ -82,32 +84,57 @@ export class StatusCardData extends foundry.abstract.TypeDataModel {
 	}
 
 	/**
+	 * Mark a specific tier on a tiers array (pure function).
+	 * If the target slot is occupied, bump to the next empty slot.
+	 * @param {boolean[]} tiers - 6-element boolean array
+	 * @param {number} tier - The tier to mark (1-6)
+	 * @returns {boolean[]} New tiers array
+	 */
+	static markTier(tiers, tier) {
+		const index = tier - 1;
+		if (index < 0 || index >= 6) return [...tiers];
+
+		const newTiers = [...tiers];
+		if (!newTiers[index]) {
+			newTiers[index] = true;
+		} else {
+			for (let i = index + 1; i < 6; i++) {
+				if (!newTiers[i]) {
+					newTiers[i] = true;
+					break;
+				}
+			}
+		}
+		return newTiers;
+	}
+
+	/**
+	 * Stack multiple status tier arrays into a combined tier value.
+	 * Each marked box is applied via markTier onto a cumulative card.
+	 * @param {boolean[][]} tierArrays - Array of 6-element boolean arrays
+	 * @returns {number} Combined tier (0-6)
+	 */
+	static stackTiers(tierArrays) {
+		let combined = [false, false, false, false, false, false];
+		for (const tiers of tierArrays) {
+			for (let i = 0; i < 6; i++) {
+				if (tiers[i]) {
+					combined = StatusCardData.markTier(combined, i + 1);
+				}
+			}
+		}
+		const lastIndex = combined.lastIndexOf(true);
+		return lastIndex === -1 ? 0 : lastIndex + 1;
+	}
+
+	/**
 	 * Mark a specific tier (box).
 	 * Implements the stacking rule: If box N is already marked, mark box N+1.
 	 * @param {number} tier - The tier to mark (1-6)
 	 * @returns {boolean[]} New tiers array
 	 */
 	calculateMark(tier) {
-		const index = tier - 1;
-		if (index < 0 || index >= 6) return this.tiers;
-
-		const newTiers = [...this.tiers];
-		if (!newTiers[index]) {
-			newTiers[index] = true;
-		} else {
-			// Find next empty slot
-			let nextEmpty = -1;
-			for (let i = index + 1; i < 6; i++) {
-				if (!newTiers[i]) {
-					nextEmpty = i;
-					break;
-				}
-			}
-			if (nextEmpty !== -1) {
-				newTiers[nextEmpty] = true;
-			}
-		}
-		return newTiers;
+		return StatusCardData.markTier(this.tiers, tier);
 	}
 
 	/**

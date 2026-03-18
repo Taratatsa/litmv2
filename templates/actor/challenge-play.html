@@ -58,6 +58,15 @@
 					<div class="limit-controls">
 						<span class="limit-impossible">~</span>
 					</div>
+					{{else if limit.isAutoManaged}}
+					<div class="limit-controls">
+						<div class="limit-shields">
+							{{#progress-buttons limit.value limit.max}}
+							<img src="systems/litmv2/assets/media/icons/limit.svg"
+								class="limit-shield {{#if @checked}}filled{{else}}empty{{/if}}" />
+							{{/progress-buttons}}
+						</div>
+					</div>
 					{{else}}
 					<div class="limit-controls">
 						<button type="button" class="limit-adjust" data-action="decreaseLimit" data-index="{{@index}}"

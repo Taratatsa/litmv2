@@ -103,11 +103,17 @@ export class ChallengeSheet extends LitmActorSheet {
 			displayVignettes: vignettes,
 			challenges: this.system.challenges,
 			limits: await Promise.all(
-				(this.system.limits || []).map(async (limit) => ({
-					...limit,
-					isImpossible: limit.max === "~",
-					enrichedOutcome: await enrichHTML(limit.outcome, this.document),
-				})),
+				(this.system.limits || []).map(async (limit) => {
+					const hasGroupedStatuses = this.document.effects.some(
+						(e) => e.type === "status_card" && e.system?.limitId === limit.id,
+					);
+					return {
+						...limit,
+						isImpossible: limit.max === "~",
+						isAutoManaged: hasGroupedStatuses,
+						enrichedOutcome: await enrichHTML(limit.outcome, this.document),
+					};
+				}),
 			),
 			rating: this.system.rating,
 			might: await Promise.all(
@@ -274,6 +280,15 @@ export class ChallengeSheet extends LitmActorSheet {
 				this.document.update({ "system.tags": tags });
 			}),
 		};
+
+		// Backfill stable IDs on legacy limits that don't have them
+		const limitsNeedingIds = this.system.limits.filter((l) => !l.id);
+		if (limitsNeedingIds.length && this.document.isOwner) {
+			const limits = this.system.limits.map((l) =>
+				l.id ? l : { ...l, id: foundry.utils.randomID() },
+			);
+			this.document.update({ "system.limits": limits });
+		}
 	}
 
 	/** @override */
@@ -348,6 +363,7 @@ export class ChallengeSheet extends LitmActorSheet {
 		const limits = [
 			...this.system.limits,
 			{
+				id: foundry.utils.randomID(),
 				label: game.i18n.localize("LITM.Ui.new_limit"),
 				outcome: "",
 				max: "3",
