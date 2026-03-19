@@ -539,9 +539,13 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 	 * Notify the story tags app and other clients that story tags changed.
 	 * @protected
 	 */
+	/** Debounced: notify the story tags app and other clients that story tags changed. */
 	_notifyStoryTags() {
-		game.litmv2.storyTags?.render();
-		Sockets.dispatch("storyTagsRender");
+		clearTimeout(this._notifyStoryTagsTimer);
+		this._notifyStoryTagsTimer = setTimeout(() => {
+			game.litmv2.storyTags?.render();
+			Sockets.dispatch("storyTagsRender");
+		}, 150);
 	}
 
 	/**

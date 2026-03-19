@@ -57,12 +57,6 @@ export class HeroSheet extends LitmActorSheet {
 		return "systems/litmv2/templates/actor/hero-play.html";
 	}
 
-	/** @override */
-	_configureRenderOptions(options) {
-		super._configureRenderOptions(options);
-		options.parts = ["form"];
-	}
-
 	/**
 	 * Roll dialog instance
 	 * @type {LitmRollDialog}
@@ -959,7 +953,9 @@ export class HeroSheet extends LitmActorSheet {
 
 	/** @override */
 	async _onDropItem(event, item) {
-		if (!["backpack", "theme", "story_theme"].includes(item.type)) return;
+		if (!["backpack", "theme", "story_theme"].includes(item.type)) {
+			return super._onDropItem(event, item);
+		}
 
 		// Check if already owned (for sorting)
 		if (this.actor.uuid === item.parent?.uuid) {
@@ -1003,8 +999,6 @@ export class HeroSheet extends LitmActorSheet {
 			}
 			return this.document.createEmbeddedDocuments("Item", [itemData]);
 		}
-
-		return super._onDropItem(event, item);
 	}
 
 	/** @override */
@@ -1042,12 +1036,16 @@ export class HeroSheet extends LitmActorSheet {
 
 		if (!chosenLoot || !chosenLoot.length) return;
 
-		const loot = contents.filter((i) => chosenLoot.includes(i.id));
 		const backpack = this.document.items.find((i) => i.type === "backpack");
 
 		if (!backpack) {
-			throw new Error("LITM.Ui.error_no_backpack");
+			ui.notifications.error(game.i18n.localize("LITM.Ui.error_no_backpack"));
+			return;
 		}
+
+		// Re-read contents fresh after the dialog to avoid stale data
+		const freshContents = item.system.contents;
+		const loot = freshContents.filter((i) => chosenLoot.includes(i.id));
 
 		// Add the loot to the backpack
 		await backpack.update({
@@ -1056,7 +1054,9 @@ export class HeroSheet extends LitmActorSheet {
 
 		// Remove the loot from the source item
 		await item.update({
-			"system.contents": contents.filter((i) => !chosenLoot.includes(i.id)),
+			"system.contents": freshContents.filter(
+				(i) => !chosenLoot.includes(i.id),
+			),
 		});
 
 		ui.notifications.info(

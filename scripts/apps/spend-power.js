@@ -407,13 +407,14 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 	}
 
 	static #chatCard({ actor, action, body, power }) {
+		const esc = foundry.utils.escapeHTML;
 		const costLine = `${power} ${t("LITM.Tags.power")}`;
 		return `<div class="litmv2 litm-spend-chat">
 			<header class="litm-spend-chat__header">
-				<img src="${actor.img}" alt="${actor.name}" />
+				<img src="${esc(actor.img)}" alt="${esc(actor.name)}" />
 				<div>
-					<span class="litm-spend-chat__name">${actor.name}</span>
-					<span class="litm-spend-chat__action">${action}</span>
+					<span class="litm-spend-chat__name">${esc(actor.name)}</span>
+					<span class="litm-spend-chat__action">${esc(action)}</span>
 				</div>
 			</header>
 			${body ? `<div class="litm-spend-chat__body">${body}</div>` : ""}
@@ -582,9 +583,10 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 			let body = "";
 			if (entries.length > 0) {
 				const tags = entries.map(({ name, tier }) => {
-					if (hasTier) return `{${name}-${Math.max(tier, 1)}}`;
-					if (option.draggable) return `{${name}}`;
-					return `<em>${foundry.utils.escapeHTML(name)}</em>`;
+					const escaped = foundry.utils.escapeHTML(name);
+					if (hasTier) return `{${escaped}-${Math.max(tier, 1)}}`;
+					if (option.draggable) return `{${escaped}}`;
+					return `<em>${escaped}</em>`;
 				});
 				body = tags.join(" ");
 			}

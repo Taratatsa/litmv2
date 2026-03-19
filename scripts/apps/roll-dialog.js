@@ -1152,7 +1152,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		const shouldClosePresence = this.isOwner;
 		const result = await super.close(options);
 		if (shouldClosePresence) {
-			this.updatePresence(false);
+			await this.updatePresence(false);
 		}
 		if (wasRendered) Hooks.callAll("litm.rollDialogClosed", this.actor);
 		return result;

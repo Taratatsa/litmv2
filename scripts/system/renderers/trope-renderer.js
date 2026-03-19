@@ -1,4 +1,4 @@
-import { localize as t } from "../../utils.js";
+import { enrichHTML, localize as t } from "../../utils.js";
 
 /**
  * Builds a tag tooltip HTML string from a theme's power/weakness tags,
@@ -46,7 +46,7 @@ function buildTagTooltip(system) {
  * @returns {Promise<HTMLElement>}
  */
 async function renderKitEntry(uuid) {
-	const item = await fromUuid(uuid);
+	const item = await foundry.utils.fromUuid(uuid);
 	const li = document.createElement("li");
 	if (!item) {
 		li.textContent = uuid;
@@ -106,7 +106,7 @@ export async function renderTrope(item) {
 	if (sys.description) {
 		const desc = document.createElement("div");
 		desc.classList.add("litm-render--trope__description");
-		desc.innerHTML = sys.description;
+		desc.innerHTML = await enrichHTML(sys.description, item);
 		container.appendChild(desc);
 	}
 

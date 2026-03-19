@@ -137,7 +137,7 @@ export class FellowshipSheet extends LitmActorSheet {
 				}));
 
 			const weaknesses = themes
-				.flatMap((theme) => theme.system.weakness)
+				.flatMap((theme) => theme.system.weaknessTags)
 				.filter((tag) => tag.isActive && !tag.isScratched)
 				.map((tag) => tag.name);
 

@@ -85,7 +85,7 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 	}
 
 	get weaknessTags() {
-		return this.#themeItems.flatMap((item) => item.system.weakness);
+		return this.#themeItems.flatMap((item) => item.system.weaknessTags);
 	}
 
 	get availablePowerTags() {

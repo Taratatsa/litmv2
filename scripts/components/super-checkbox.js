@@ -171,7 +171,7 @@ export class SuperCheckbox extends AdoptedStyleSheetMixin(HTMLElement) {
 
 	connectedCallback() {
 		this.#states = this.getAttribute("states")?.split(",") || this.#states;
-		this.#state = this.#states.indexOf(this.getAttribute("value"));
+		this.#state = Math.max(0, this.#states.indexOf(this.getAttribute("value")));
 		this.#updateState();
 		this.#syncDisabledState();
 	}

@@ -10,6 +10,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	AbstractSidebarTab,
 ) {
 	#dragDrop = null;
+	#cachedActors = null;
 
 	/** @type {Set<string>} Actor IDs whose sections are collapsed */
 	_collapsedActors = new Set();
@@ -38,6 +39,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		classes: ["litm", "litm--story-tags"],
 		window: {
 			title: "LITM.Ui.manage_tags",
+			resizable: true,
+		},
+		position: {
+			width: 960,
+			height: 600,
 		},
 		actions: {
 			"add-tag": StoryTagSidebar.#onAddTag,
@@ -56,7 +62,13 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	static PARTS = {
 		form: {
 			template: "systems/litmv2/templates/apps/story-tags.html",
-			scrollable: [".scrollable"],
+			scrollable: [
+				".litm--grid-form",
+				".litm--grid-col-party",
+				".litm--grid-col-right",
+				".litm--grid-col-story",
+				".litm--grid-col-scene",
+			],
 		},
 	};
 
@@ -85,7 +97,12 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		return config;
 	}
 
+	invalidateCache() {
+		this.#cachedActors = null;
+	}
+
 	get actors() {
+		if (this.#cachedActors) return this.#cachedActors;
 		// Merge stored actors with user-assigned characters and the fellowship so they always appear
 		const storedIds = this.config.actors ?? [];
 		const userCharacterIds = new Set(
@@ -95,7 +112,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		const autoIds = [...userCharacterIds];
 		if (fellowshipId) autoIds.push(fellowshipId);
 		const mergedIds = [...new Set([...autoIds, ...storedIds])];
-		return (
+		const result =
 			mergedIds
 				.map((id) => game.actors.get(id))
 				.filter(Boolean)
@@ -131,8 +148,9 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 							};
 						}),
 				}))
-				.filter((actor) => game.user.isGM || !actor.hidden) || []
-		);
+				.filter((actor) => game.user.isGM || !actor.hidden) || [];
+		this.#cachedActors = result;
+		return result;
 	}
 
 	get tags() {
@@ -160,16 +178,19 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			...this.config,
 			actors,
 		});
+		this.invalidateCache();
 		return this.#broadcastRender();
 	}
 
 	async setTags(tags) {
 		await LitmSettings.setStoryTags({ ...this.config, tags });
+		this.invalidateCache();
 		return this.#broadcastRender();
 	}
 
 	async setLimits(limits) {
 		await LitmSettings.setStoryTags({ ...this.config, limits });
+		this.invalidateCache();
 		return this.#broadcastRender();
 	}
 
@@ -286,6 +307,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			context.storyLimits = [];
 		}
 
+		// Split actors for two-column grid layout in popout
+		const isRight = (a) => a.type === "challenge" || a.type === "journey";
+		context.partyActors = context.actors.filter((a) => !isRight(a));
+		context.sceneActors = context.actors.filter(isRight);
+
 		return context;
 	}
 
@@ -363,8 +389,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			el.addEventListener("focus", (event) => event.currentTarget.select());
 		});
 
+		// Cache limit headers for dragover and double-click-to-edit
+		const limitHeaders = this.element.querySelectorAll(".litm--limit-header");
+
 		// Dragover highlighting for limit headers
-		this.element.querySelectorAll(".litm--limit-header").forEach((header) => {
+		limitHeaders.forEach((header) => {
 			header.addEventListener("dragover", (e) => {
 				e.preventDefault();
 				header.classList.add("dragover");
@@ -408,7 +437,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		});
 
 		// Double-click to edit limit label/max
-		this.element.querySelectorAll(".litm--limit-header").forEach((header) => {
+		limitHeaders.forEach((header) => {
 			const inputs = [...header.querySelectorAll("input.litm--locked")];
 			if (!inputs.length) return;
 
@@ -452,13 +481,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		});
 
 		// Restore collapsed state without triggering the transition
-		for (const id of this._collapsedActors) {
-			const section = this.element.querySelector(`[data-id="${id}"]`);
-			if (!section) continue;
-			const body = section.querySelector(".litm--section-body");
-			if (body) body.style.transition = "none";
-			section.classList.add("litm--collapsed");
-			if (body) requestAnimationFrame(() => (body.style.transition = ""));
+		if (this._collapsedActors.size > 0) {
+			const selector = [...this._collapsedActors]
+				.map((id) => `[data-id="${id}"]`)
+				.join(",");
+			for (const section of this.element.querySelectorAll(selector)) {
+				const body = section.querySelector(".litm--section-body");
+				if (body) body.style.transition = "none";
+				section.classList.add("litm--collapsed");
+				if (body) requestAnimationFrame(() => (body.style.transition = ""));
+			}
 		}
 
 		// Auto-focus newly added tag
@@ -634,6 +666,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 
 		// Add current tags and statuses from a challenge
 		const actor = game.actors.get(id);
+		if (!actor) return;
 		if (
 			(actor.type === "challenge" || actor.type === "journey") &&
 			actor.effects.size === 0 &&
@@ -674,6 +707,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	/* -------------------------------------------- */
 
 	async onSubmit(_event, _form, formData) {
+		this.invalidateCache();
 		const data = foundry.utils.expandObject(formData.object);
 		if (foundry.utils.isEmpty(data)) return;
 
@@ -816,9 +850,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	}
 
 	static #onRemoveTag(_event, target) {
-		const li = target.closest("[data-tag-item]");
-		if (!li) return;
-		this.removeTag(li);
+		this.removeTag(target);
 	}
 
 	static #onAddLimit(_event, _target) {
@@ -1163,6 +1195,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	}
 
 	#broadcastRender() {
+		this.invalidateCache();
 		Sockets.dispatch("storyTagsRender");
 		// Always render the sidebar instance — its render() propagates to the popout.
 		// If "this" IS the popout, we also need to tell the sidebar to render.
@@ -1184,6 +1217,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	}
 
 	async doUpdate(component, data) {
+		this.invalidateCache();
 		if (!game.user.isGM) return;
 		if (component === "tags") return this.setTags(data);
 	}

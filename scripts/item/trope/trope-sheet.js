@@ -117,7 +117,7 @@ export class TropeSheet extends LitmItemSheet {
 		const path = dropZone.dataset.path;
 		if (!path) return;
 
-		const item = await Item.implementation.fromDropData(data);
+		const item = await foundry.documents.Item.implementation.fromDropData(data);
 		if (item.type !== "theme") return;
 
 		const value = item.uuid || item.id || item.name;
