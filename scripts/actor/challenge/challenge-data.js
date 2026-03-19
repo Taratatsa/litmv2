@@ -24,6 +24,9 @@ export class ChallengeData extends foundry.abstract.TypeDataModel {
 			specialFeatures: new fields.HTMLField({ initial: "" }),
 			limits: new fields.ArrayField(
 				new fields.SchemaField({
+					id: new fields.StringField({
+						initial: () => foundry.utils.randomID(),
+					}),
 					label: new fields.StringField({ initial: "" }),
 					outcome: new fields.StringField({ initial: "" }),
 					max: new fields.StringField({ initial: "3" }),

@@ -1,40 +1,6 @@
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
+import { buildTrackCompleteContent } from "../../system/chat.js";
 import { enrichHTML, queryItemsFromPacks, toPlainObject } from "../../utils.js";
-
-const TRACK_ICONS = {
-	promise: "fa-sun",
-	improve: "fa-arrow-trend-up",
-	milestone: "fa-mountain-sun",
-	abandon: "fa-wind",
-};
-const TRACK_LABEL_KEYS = {
-	promise: "LITM.Ui.track_complete_promise",
-	improve: "LITM.Ui.track_complete_improve",
-	milestone: "LITM.Ui.track_complete_milestone",
-	abandon: "LITM.Ui.track_complete_abandon",
-};
-
-function buildTrackCompleteContent({ text, type, actorId, themeId }) {
-	const icon = TRACK_ICONS[type];
-	const label = game.i18n.localize(TRACK_LABEL_KEYS[type]);
-	const footer =
-		type === "improve" && actorId && themeId
-			? `<footer class="litm-track-complete__footer">
-				<button type="button" data-click="open-theme-advancement"
-				        data-actor-id="${actorId}" data-theme-id="${themeId}">
-					<i class="fas fa-wand-magic-sparkles"></i> ${game.i18n.localize("LITM.Ui.choose_improvement")}
-				</button>
-			</footer>`
-			: "";
-	return `<div class="litmv2 litm-track-complete litm-track-complete--${type}">
-		<header class="litm-track-complete__header">
-			<i class="fas ${icon}"></i>
-			<span>${label}</span>
-		</header>
-		<p class="litm-track-complete__body"><strong>${text}</strong></p>
-		${footer}
-	</div>`;
-}
 
 /**
  * Fellowship sheet for Legend in the Mist

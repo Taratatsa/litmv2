@@ -1,6 +1,8 @@
+import { StatusCardData } from "../data/active-effect-data.js";
+import { buildTrackCompleteContent } from "../system/chat.js";
 import { LitmSettings } from "../system/settings.js";
 import { Sockets } from "../system/sockets.js";
-import { confirmDelete, localize as t } from "../utils.js";
+import { confirmDelete, enrichHTML, localize as t } from "../utils.js";
 
 const AbstractSidebarTab = foundry.applications.sidebar.AbstractSidebarTab;
 
@@ -8,6 +10,12 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	AbstractSidebarTab,
 ) {
 	#dragDrop = null;
+
+	/** @type {Set<string>} Actor IDs whose sections are collapsed */
+	_collapsedActors = new Set();
+
+	/** @type {string|null} Tag ID to auto-focus after next render */
+	_editOnRender = null;
 
 	get _dragDrop() {
 		this.#dragDrop ??= new foundry.applications.ux.DragDrop.implementation({
@@ -39,6 +47,9 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			"toggle-effect-visibility": StoryTagSidebar.#onToggleEffectVisibility,
 			"add-actor": StoryTagSidebar.#onAddActor,
 			"remove-tag": StoryTagSidebar.#onRemoveTag,
+			"add-limit": StoryTagSidebar.#onAddLimit,
+			"remove-limit": StoryTagSidebar.#onRemoveLimit,
+			"toggle-collapse": StoryTagSidebar.#onToggleCollapse,
 		},
 	};
 
@@ -69,7 +80,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	get config() {
 		const config = LitmSettings.storyTags;
 		if (!config || foundry.utils.isEmpty(config)) {
-			return { actors: [], tags: [] };
+			return { actors: [], tags: [], limits: [] };
 		}
 		return config;
 	}
@@ -116,6 +127,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 									? (e.system?.tiers ?? new Array(6).fill(false))
 									: new Array(6).fill(false),
 								hidden: e.system?.isHidden ?? false,
+								limitId: e.system?.limitId ?? null,
 							};
 						}),
 				}))
@@ -130,8 +142,13 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				isScratched: tag.isScratched ?? false,
 				isSingleUse: tag.isSingleUse ?? false,
 				hidden: tag.hidden ?? false,
+				limitId: tag.limitId ?? null,
 			}))
 			.filter((tag) => game.user.isGM || !tag.hidden);
+	}
+
+	get storyLimits() {
+		return this.config.limits ?? [];
 	}
 
 	/* -------------------------------------------- */
@@ -151,6 +168,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		return this.#broadcastRender();
 	}
 
+	async setLimits(limits) {
+		await LitmSettings.setStoryTags({ ...this.config, limits });
+		return this.#broadcastRender();
+	}
+
 	async addTag(target, type = "tag") {
 		const isStatus = type === "status";
 		const tag = {
@@ -166,6 +188,9 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			hidden: game.user.isGM,
 			id: foundry.utils.randomID(),
 		};
+
+		// Auto-focus the new tag after render
+		this._editOnRender = tag.id;
 
 		if (target === "story") {
 			if (game.user.isGM) return this.setTags([...this.tags, tag]);
@@ -199,20 +224,68 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			return a.name.localeCompare(b.name);
 		});
 
-		// Mark the first challenge/journey so the template can insert a group divider
-		let foundFirst = false;
+		context.tags = this.tags || [];
+
+		// Partition actor tags by limit (GM only, challenges/journeys only)
 		for (const actor of context.actors) {
-			actor.isFirstChallenge = false;
-			if (
-				!foundFirst &&
-				(actor.type === "challenge" || actor.type === "journey")
-			) {
-				actor.isFirstChallenge = true;
-				foundFirst = true;
+			const actorDoc = game.actors.get(actor.id);
+			const isChallenge =
+				actor.type === "challenge" || actor.type === "journey";
+
+			if (game.user.isGM && isChallenge && actorDoc) {
+				const actorLimits = await Promise.all(
+					(actorDoc.system.limits ?? []).map(async (limit) => {
+						const groupedTags = actor.tags.filter(
+							(t) => t.limitId === limit.id,
+						);
+						const statusTierArrays = groupedTags
+							.filter((t) => t.type === "status")
+							.map((t) => t.values);
+						const computedValue = StatusCardData.stackTiers(statusTierArrays);
+						return {
+							...limit,
+							tags: groupedTags,
+							computedValue,
+							enrichedOutcome: limit.outcome
+								? await enrichHTML(limit.outcome, actorDoc)
+								: "",
+						};
+					}),
+				);
+				const groupedIds = new Set(
+					actorLimits.flatMap((l) => l.tags.map((t) => t.id)),
+				);
+				actor.limits = actorLimits;
+				actor.ungroupedTags = actor.tags.filter((t) => !groupedIds.has(t.id));
+			} else {
+				actor.limits = [];
+				actor.ungroupedTags = actor.tags;
 			}
 		}
 
-		context.tags = this.tags || [];
+		// Partition story tags by limit (GM only)
+		if (game.user.isGM) {
+			const allStoryLimits = this.storyLimits;
+			context.storyLimits = allStoryLimits.map((limit) => {
+				const groupedTags = context.tags.filter((t) => t.limitId === limit.id);
+				const statusTierArrays = groupedTags
+					.filter((t) => t.type === "status")
+					.map((t) => t.values);
+				const computedValue = StatusCardData.stackTiers(statusTierArrays);
+				return {
+					...limit,
+					tags: groupedTags,
+					computedValue,
+				};
+			});
+			const storyGroupedIds = new Set(
+				context.storyLimits.flatMap((l) => l.tags.map((t) => t.id)),
+			);
+			context.tags = context.tags.filter((t) => !storyGroupedIds.has(t.id));
+		} else {
+			context.storyLimits = [];
+		}
+
 		return context;
 	}
 
@@ -289,6 +362,131 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		this.element.querySelectorAll("[data-focus]").forEach((el) => {
 			el.addEventListener("focus", (event) => event.currentTarget.select());
 		});
+
+		// Dragover highlighting for limit headers
+		this.element.querySelectorAll(".litm--limit-header").forEach((header) => {
+			header.addEventListener("dragover", (e) => {
+				e.preventDefault();
+				header.classList.add("dragover");
+			});
+			header.addEventListener("dragleave", () => {
+				header.classList.remove("dragover");
+			});
+			header.addEventListener("drop", () => {
+				header.classList.remove("dragover");
+			});
+		});
+
+		// Double-click row to edit tag name
+		this.element.querySelectorAll("[data-tag-item]").forEach((li) => {
+			const input = li.querySelector(".litm--tag-item-name");
+			if (!input) return;
+			const source = li.dataset.type;
+			const isStory = source === "story";
+			const isOwner = !isStory && game.actors.get(source)?.isOwner;
+			if (!game.user.isGM && isStory) return;
+			if (!isStory && !isOwner) return;
+
+			li.addEventListener("dblclick", (event) => {
+				if (event.target.closest("button, label, .litm--tag-item-status"))
+					return;
+				event.preventDefault();
+				event.stopPropagation();
+				input.classList.remove("litm--locked");
+				input.focus();
+				input.select();
+			});
+			input.addEventListener("blur", () => {
+				input.classList.add("litm--locked");
+			});
+			input.addEventListener("keydown", (event) => {
+				if (event.key === "Enter") {
+					event.preventDefault();
+					input.blur();
+				}
+			});
+		});
+
+		// Double-click to edit limit label/max
+		this.element.querySelectorAll(".litm--limit-header").forEach((header) => {
+			const inputs = [...header.querySelectorAll("input.litm--locked")];
+			if (!inputs.length) return;
+
+			const enterEdit = () => {
+				for (const input of inputs) {
+					input.classList.remove("litm--locked");
+				}
+			};
+
+			const exitEdit = () => {
+				requestAnimationFrame(() => {
+					const focused = document.activeElement;
+					if (focused && inputs.includes(focused)) return;
+					for (const inp of inputs) {
+						inp.classList.add("litm--locked");
+					}
+				});
+			};
+
+			header.addEventListener("dblclick", (event) => {
+				if (event.target.closest("button")) return;
+				event.preventDefault();
+				enterEdit();
+				const target =
+					event.target.closest("input") ||
+					event.target.closest(".litm--limit-value")?.querySelector("input") ||
+					inputs[0];
+				target.focus();
+				target.select();
+			});
+
+			for (const input of inputs) {
+				input.addEventListener("blur", () => exitEdit());
+				input.addEventListener("keydown", (event) => {
+					if (event.key === "Enter") {
+						event.preventDefault();
+						input.blur();
+					}
+				});
+			}
+		});
+
+		// Restore collapsed state without triggering the transition
+		for (const id of this._collapsedActors) {
+			const section = this.element.querySelector(`[data-id="${id}"]`);
+			if (!section) continue;
+			const body = section.querySelector(".litm--section-body");
+			if (body) body.style.transition = "none";
+			section.classList.add("litm--collapsed");
+			if (body) requestAnimationFrame(() => (body.style.transition = ""));
+		}
+
+		// Auto-focus newly added tag
+		if (this._editOnRender) {
+			const tagId = this._editOnRender;
+			this._editOnRender = null;
+			const input = this.element.querySelector(
+				`[data-tag-item][data-id="${tagId}"] .litm--tag-item-name`,
+			);
+			if (input) {
+				input.classList.remove("litm--locked");
+				input.focus();
+				input.select();
+				input.addEventListener(
+					"blur",
+					() => {
+						input.classList.add("litm--locked");
+					},
+					{ once: true },
+				);
+				input.addEventListener("keydown", (event) => {
+					if (event.key === "Enter") {
+						event.preventDefault();
+						input.blur();
+					}
+				});
+			}
+		}
 	}
 
 	_onClose(options) {
@@ -352,6 +550,33 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				dropTarget?.dataset.type ||
 				dragEvent.target.closest("[data-id]")?.dataset.id;
 
+			// Check if dropping onto a limit header (not onto a tag item within the group)
+			const limitTarget = dragEvent.target.closest("[data-limit-id]");
+			if (limitTarget && !dropTarget) {
+				const limitId = limitTarget.dataset.limitId;
+				const source = limitTarget.dataset.source;
+
+				if (source === "story") {
+					// Update story tag's limitId
+					const tags = this.config.tags.map((t) =>
+						t.id === data.sourceId ? { ...t, limitId } : t,
+					);
+					if (game.user.isGM) await this.setTags(tags);
+					else await this.#broadcastUpdate("tags", tags);
+					return;
+				}
+
+				// Update actor effect's limitId
+				const actor = game.actors.get(source);
+				if (!actor?.isOwner) return;
+				if (!actor.effects.has(data.sourceId)) return;
+				await actor.updateEmbeddedDocuments("ActiveEffect", [
+					{ _id: data.sourceId, "system.limitId": limitId },
+				]);
+				await this.#recalculateChallengeLimits(source);
+				return this.#broadcastRender();
+			}
+
 			// Same-container drop → sort instead of duplicate
 			if (data.sourceContainer && data.sourceId) {
 				const isSameContainer =
@@ -359,6 +584,32 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					(!dropContainer && data.sourceContainer === "story");
 
 				if (isSameContainer) {
+					// If dragging out of a limit group, clear limitId
+					if (data.sourceContainer && data.sourceContainer !== "story") {
+						const actor = game.actors.get(data.sourceContainer);
+						const effect = actor?.effects.get(data.sourceId);
+						if (
+							effect?.system?.limitId &&
+							!dropTarget?.closest(".litm--limit-group")
+						) {
+							await actor.updateEmbeddedDocuments("ActiveEffect", [
+								{ _id: data.sourceId, "system.limitId": null },
+							]);
+							await this.#recalculateChallengeLimits(data.sourceContainer);
+							return this.#broadcastRender();
+						}
+					}
+					if (data.sourceContainer === "story") {
+						const tag = this.config.tags.find((t) => t.id === data.sourceId);
+						if (tag?.limitId && !dropTarget?.closest(".litm--limit-group")) {
+							const tags = this.config.tags.map((t) =>
+								t.id === data.sourceId ? { ...t, limitId: null } : t,
+							);
+							if (game.user.isGM) await this.setTags(tags);
+							else await this.#broadcastUpdate("tags", tags);
+							return;
+						}
+					}
 					return this.#sortTag(data, dropTarget);
 				}
 			}
@@ -426,7 +677,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		const data = foundry.utils.expandObject(formData.object);
 		if (foundry.utils.isEmpty(data)) return;
 
-		const { story, ...actors } = data;
+		const { story, limits: _limits, ...actors } = data;
 
 		const toTiers = (values = []) => {
 			if (!Array.isArray(values)) return new Array(6).fill(false);
@@ -461,16 +712,22 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 							_id: tagId,
 							name: data.name,
 							system: isStatus
-								? { tiers: toTiers(rawValues) }
+								? { tiers: toTiers(rawValues), limitId: data.limitId || null }
 								: {
 										isScratched: data.isScratched ?? false,
 										isSingleUse: data.isSingleUse ?? false,
+										limitId: data.limitId || null,
 									},
 						};
 					}),
 				});
 			}),
 		);
+
+		// Recalculate challenge limits after actor tag updates
+		for (const id of Object.keys(actors)) {
+			if (game.actors.has(id)) await this.#recalculateChallengeLimits(id);
+		}
 
 		const storyTags = Object.entries(story || {}).map(([tagId, data]) => {
 			const existing = this.config.tags.find((t) => t.id === tagId);
@@ -490,11 +747,34 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				type: existing?.type ?? "tag",
 				value: isStatus ? tiers.lastIndexOf(true) + 1 : null,
 				hidden: existing?.hidden ?? false,
+				limitId: data.limitId || existing?.limitId || null,
 			};
 		});
 
-		if (game.user.isGM) await this.setTags(storyTags);
-		else {
+		// Process limit form data
+		let updatedLimits = this.config.limits ?? [];
+		const limitsData = data.limits;
+		if (limitsData && game.user.isGM) {
+			updatedLimits = updatedLimits.map((limit) => {
+				const formLimit = limitsData[limit.id];
+				if (!formLimit) return limit;
+				return {
+					...limit,
+					label: formLimit.label ?? limit.label,
+					max: formLimit.max ?? limit.max,
+				};
+			});
+		}
+
+		// Write tags and limits together in a single setting update
+		if (game.user.isGM) {
+			await LitmSettings.setStoryTags({
+				...this.config,
+				tags: storyTags,
+				limits: updatedLimits,
+			});
+			this.#broadcastRender();
+		} else {
 			this.#broadcastUpdate("tags", storyTags);
 		}
 	}
@@ -539,6 +819,50 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		const li = target.closest("[data-tag-item]");
 		if (!li) return;
 		this.removeTag(li);
+	}
+
+	static #onAddLimit(_event, _target) {
+		const limits = [
+			...(this.config.limits ?? []),
+			{
+				id: foundry.utils.randomID(),
+				label: game.i18n.localize("LITM.Ui.new_limit"),
+				max: "3",
+				value: 0,
+			},
+		];
+		this.setLimits(limits);
+	}
+
+	static async #onRemoveLimit(_event, target) {
+		const limitId = target.dataset.limitId;
+		if (!limitId) return;
+
+		const limits = (this.config.limits ?? []).filter((l) => l.id !== limitId);
+
+		// Clear limitId on any story tags referencing this limit
+		const tags = this.config.tags.map((t) =>
+			t.limitId === limitId ? { ...t, limitId: null } : t,
+		);
+
+		if (game.user.isGM) {
+			await LitmSettings.setStoryTags({ ...this.config, limits, tags });
+			return this.#broadcastRender();
+		}
+	}
+
+	static #onToggleCollapse(_event, target) {
+		const id = target.dataset.collapseId;
+		if (!id) return;
+		const section = this.element.querySelector(`[data-id="${id}"]`);
+		if (!section) return;
+		if (this._collapsedActors.has(id)) {
+			this._collapsedActors.delete(id);
+			section.classList.remove("litm--collapsed");
+		} else {
+			this._collapsedActors.add(id);
+			section.classList.add("litm--collapsed");
+		}
 	}
 
 	/* -------------------------------------------- */
@@ -601,6 +925,55 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	/*  Tag CRUD (Private)                          */
 	/* -------------------------------------------- */
 
+	async #recalculateChallengeLimits(actorId) {
+		const actor = game.actors.get(actorId);
+		if (!actor?.isOwner) return;
+		if (actor.type !== "challenge" && actor.type !== "journey") return;
+
+		const effects = [...actor.effects]
+			.filter((e) => e.type === "status_card" && e.system?.limitId)
+			.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+
+		const limits = (actor.system.limits ?? []).map((limit) => {
+			const grouped = effects.filter((e) => e.system.limitId === limit.id);
+			const tierArrays = grouped.map((e) => e.system.tiers);
+			const computedValue = StatusCardData.stackTiers(tierArrays);
+			return { ...limit, value: computedValue };
+		});
+
+		// Detect limit-reached transitions
+		for (let i = 0; i < limits.length; i++) {
+			const oldLimit = actor.system.limits[i];
+			const newLimit = limits[i];
+			if (!oldLimit || newLimit.max === "~") continue;
+			const numericMax = Number(newLimit.max);
+			if (!Number.isFinite(numericMax)) continue;
+			if (oldLimit.value < numericMax && newLimit.value >= numericMax) {
+				this.#sendLimitReachedMessage(newLimit, actor);
+			}
+		}
+
+		await actor.update({ "system.limits": limits });
+	}
+
+	async #sendLimitReachedMessage(limit, actor) {
+		const text = limit.outcome
+			? game.i18n.format("LITM.Ui.limit_reached_with_outcome", {
+					label: limit.label,
+					actor: actor.name,
+					outcome: limit.outcome,
+				})
+			: game.i18n.format("LITM.Ui.limit_reached", {
+					label: limit.label,
+				});
+
+		await foundry.documents.ChatMessage.create({
+			content: buildTrackCompleteContent({ text, type: "limit" }),
+			whisper: foundry.documents.ChatMessage.getWhisperRecipients("GM"),
+			speaker: foundry.documents.ChatMessage.getSpeaker({ actor }),
+		});
+	}
+
 	async #removeFromSource(data) {
 		if (!data.sourceContainer || !data.sourceId) return;
 
@@ -642,13 +1015,10 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				)
 				.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
 
-			const sortUpdates = foundry.utils.SortingHelpers.performIntegerSort(
-				source,
-				{
-					target,
-					siblings,
-				},
-			);
+			const sortUpdates = foundry.utils.performIntegerSort(source, {
+				target,
+				siblings,
+			});
 			const updates = sortUpdates.map(({ target, update }) => ({
 				_id: target.id,
 				sort: update.sort,
@@ -719,7 +1089,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			: new Array(6).fill(false);
 
 		const maxSort = Math.max(0, ...actor.effects.map((e) => e.sort ?? 0));
-		await actor.createEmbeddedDocuments("ActiveEffect", [
+		const [created] = await actor.createEmbeddedDocuments("ActiveEffect", [
 			{
 				name: tag.name,
 				type: type === "status" ? "status_card" : "story_tag",
@@ -734,6 +1104,8 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 							},
 			},
 		]);
+		if (created) this._editOnRender = created.id;
+		await this.#recalculateChallengeLimits(id);
 		return this.#broadcastRender();
 	}
 
@@ -754,6 +1126,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		if (!actor.isOwner) return;
 
 		await actor.deleteEmbeddedDocuments("ActiveEffect", [id]);
+		await this.#recalculateChallengeLimits(actorId);
 		return this.#broadcastRender();
 	}
 

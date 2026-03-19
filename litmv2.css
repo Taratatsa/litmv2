@@ -2023,6 +2023,10 @@ body,
 	background: #583a3a;
 }
 
+.litm-track-complete--limit .litm-track-complete__header {
+	background: #6e3a3a;
+}
+
 /* --- Spend Power Chat Cards --- */
 
 .chat-message:has(.litm-spend-chat) {
@@ -2125,33 +2129,75 @@ body,
 	flex-direction: column;
 }
 
-/* Story Tags layout — matches Settings sidebar pattern:
-   container gap 1.5rem, section gap 0.5rem, h4.divider headers */
+/* Story Tags layout */
 .litm--story-tags form {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
-	gap: 1rem;
-	padding: 1rem 12px;
+	gap: 0;
+	padding: 0.25rem 0;
 	width: 100%;
 	scrollbar-gutter: stable;
 }
 
+/* Spacing hierarchy: categories > actors > limits > tags */
 .litm--story-tags form > section {
-	gap: 0.5rem;
+	gap: 0.15rem;
+}
+
+/* Category boundary: story → actors */
+.litm--story-tags form > section[data-id="story"] {
+	margin-bottom: 0.5rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 2px groove var(--color-light-2);
+}
+
+/* Between actors of the same category */
+.litm--story-tags form > section[data-actor-type] + section[data-actor-type] {
+	margin-top: 0.35rem;
+}
+
+/* Category boundary: hero/fellowship → challenge/journey */
+.litm--story-tags form
+	> section[data-actor-type="hero"]
+	+ section[data-actor-type="challenge"],
+.litm--story-tags
+	form
+	> section[data-actor-type="hero"]
+	+ section[data-actor-type="journey"],
+.litm--story-tags
+	form
+	> section[data-actor-type="fellowship"]
+	+ section[data-actor-type="challenge"],
+.litm--story-tags
+	form
+	> section[data-actor-type="fellowship"]
+	+ section[data-actor-type="journey"] {
+	margin-top: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 2px groove var(--color-light-2);
 }
 
 .litm--story-tags .litm--section-header {
 	margin: 0;
 }
 
+/* Tag list — negative gap to overlap the ::after background offsets */
 .litm--story-tags ul.plain {
 	display: flex;
 	flex-direction: column;
-	gap: 0.3rem;
-	margin-top: 0.25rem;
-	min-height: 2rem;
+	gap: 0;
+	margin: 0 4px;
+}
+
+.litm--story-tags ul.plain .litm--tag-item + .litm--tag-item {
+	margin-top: -0.15em;
+}
+
+/* Limit groups — small gap between them */
+.litm--limit-group + .litm--limit-group {
+	margin-top: 0.2rem;
 }
 
 .litm--story-tags .litm--story-tags-wrapper {
@@ -2160,18 +2206,24 @@ body,
 }
 
 .litm--story-tags .litm--add-actor-btn {
-	margin: 0.5rem 8px;
+	margin: 0.25rem 4px;
 	flex: none;
 }
 
-/* Individual tag/status row */
+/* Individual tag/status row — inherits litm-tag/litm-status badge styling */
 .litm--tag-item {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: 0.35rem;
-	padding: 0.1rem 0px;
-	margin: 0px;
+	gap: 0.1rem;
+	padding: 0;
+	margin: 0;
 	cursor: grab;
+	font-size: var(--font-size-18);
+
+	& > * {
+		position: relative;
+		z-index: 1;
+	}
 }
 
 /* burn-spacer removed — layout is name-first; no longer needed */
@@ -2204,6 +2256,25 @@ body,
 	opacity: 1;
 }
 
+/* Tag name wrapper — used in hero/fellowship edit sheets */
+.litm--tag-name-wrapper {
+	flex: 1;
+	min-width: 6rem;
+	white-space: normal;
+	display: flex;
+	align-items: stretch;
+
+	&::before {
+		display: none;
+	}
+
+	&::after {
+		top: 0;
+		bottom: 0;
+		right: 0;
+	}
+}
+
 .litm--burn-label:has(.litm--burn:disabled) {
 	cursor: default;
 }
@@ -2218,35 +2289,12 @@ body,
 	opacity: 0.5;
 }
 
-/* Tag name wrapper — uses litm-tag/litm-status class for enhanced-text-matching style */
-.litm--tag-name-wrapper {
-	flex: 1;
-	min-width: 6rem;
-	white-space: normal;
-	display: flex;
-	align-items: stretch;
-
-	&::before {
-		display: none;
-		/* No text-stroke; the input provides the visible text */
-	}
-
-	&::after {
-		top: 0;
-		/* Full-height background to cover the input area */
-		bottom: 0;
-		right: 0;
-	}
-}
-
-/* Name input — transparent inside the styled wrapper */
+/* Name input — transparent inside the tag badge */
 .litm--tag-item-name {
 	border: none;
 	border-radius: 0;
-	padding: 0px 0.3em;
-	font-style: italic;
-	font-family: var(--font-serif);
-	font-size: var(--font-size-14);
+	padding: 0;
+	font: inherit;
 	line-height: 1.4;
 	height: auto;
 	background: transparent;
@@ -2258,10 +2306,11 @@ body,
 	width: 100%;
 
 	&:focus-visible {
-		outline: 1px solid var(--color-cool-5);
+		outline: none;
+		box-shadow: none;
 	}
 
-	&:read-only {
+	&.litm--locked {
 		cursor: grab;
 		pointer-events: none;
 	}
@@ -2324,7 +2373,7 @@ body,
 }
 
 /* Compact button style — shared by visibility toggles, add-tag, and any tag-row buttons */
-.litm--story-tags button:not(.litm--add-actor-btn),
+.litm--story-tags button:not(.litm--add-actor-btn):not(.litm--action-bottom),
 .litm--story-tags .litm--visibility-toggle {
 	padding: 0 0.35em;
 	min-height: unset;
@@ -2337,30 +2386,49 @@ body,
 	flex: none;
 }
 
-/* Tag-row inline buttons — grouped pill-bar matching section actions */
+/* Tag-row inline buttons — ghost style, no background/border */
 .litm--story-tags .litm--tag-item button,
-.litm--story-tags .litm--tag-item .litm--visibility-toggle {
-	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
-	border: 1px solid
-		color-mix(in srgb, var(--color-text-primary) 12%, transparent);
-	border-radius: 0;
+.litm--story-tags .litm--tag-item .litm--visibility-toggle,
+.litm--story-tags .litm--limit-header .litm--tag-action-btn {
+	background: none;
+	border: none;
 	box-shadow: none;
-	color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
-	transition:
-		background 0.15s,
-		color 0.15s;
+	color: color-mix(in srgb, var(--color-text-primary) 45%, transparent);
+	transition: color 0.15s;
 }
 
 .litm--story-tags .litm--tag-item button:hover,
-.litm--story-tags .litm--tag-item .litm--visibility-toggle:hover {
-	background: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+.litm--story-tags .litm--tag-item .litm--visibility-toggle:hover,
+.litm--story-tags .litm--limit-header .litm--tag-action-btn:hover {
+	background: none;
 	color: var(--color-text-primary);
 }
 
-/* Individual tag-row buttons get full rounding (not adjacent, so no pill-bar grouping) */
+/* Tag-row buttons — hidden by default, shown on hover */
 .litm--story-tags .litm--tag-item .litm--visibility-toggle,
-.litm--story-tags .litm--tag-item .litm--tag-action-btn {
-	border-radius: var(--border-radius);
+.litm--story-tags .litm--tag-item .litm--tag-action-btn,
+.litm--story-tags .litm--tag-item .litm--single-use-label,
+.litm--story-tags .litm--header-visibility {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s;
+}
+
+.litm--story-tags .litm--tag-item:hover .litm--visibility-toggle,
+.litm--story-tags .litm--tag-item:hover .litm--tag-action-btn,
+.litm--story-tags .litm--tag-item:hover .litm--single-use-label,
+.litm--story-tags .litm--tag-item.litm--tag-hidden .litm--visibility-toggle,
+.litm--story-tags .litm--section-header:hover .litm--header-visibility,
+.litm--story-tags .litm--actor-hidden .litm--header-visibility {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* Always show single-use indicator when checked */
+.litm--story-tags .litm--tag-item:has(.litm--single-use:checked)
+	.litm--single-use-label {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 /* Section header — name only, divider lines handle decoration */
@@ -2370,41 +2438,101 @@ body,
 	align-items: center;
 }
 
-/* Section actions toolbar — grouped icon buttons below the header */
-.litm--story-tags .litm--section-actions {
-	display: flex;
-	justify-content: center;
-	gap: 2px;
-	margin-top: -2px;
-	margin-bottom: 2px;
+/* Collapse toggle & header visibility — ghost buttons */
+.litm--collapse-toggle,
+.litm--story-tags .litm--section-header .litm--visibility-toggle {
+	flex: none;
+	padding: 0 0.2em;
+	background: none;
+	border: none;
+	box-shadow: none;
+	cursor: pointer;
+	color: color-mix(in srgb, var(--color-text-primary) 45%, transparent);
 }
 
-.litm--story-tags .litm--section-actions button {
-	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
-	border: 1px solid
-		color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+.litm--collapse-toggle:hover,
+.litm--story-tags .litm--section-header .litm--visibility-toggle:hover {
+	background: none;
+	color: var(--color-text-primary);
+}
+
+.litm--collapse-chevron {
+	font-size: var(--font-size-12);
+	opacity: 0.5;
+	transition:
+		transform 0.2s,
+		opacity 0.15s;
+	color: inherit;
+}
+
+.litm--collapse-toggle:hover .litm--collapse-chevron {
+	opacity: 0.9;
+	color: inherit;
+}
+
+.litm--collapsed .litm--collapse-chevron {
+	transform: rotate(-90deg);
+}
+
+/* Section body — animated collapse via grid-template-rows */
+.litm--section-body {
+	display: grid;
+	grid-template-rows: 1fr;
+	transition: grid-template-rows 0.2s ease;
+}
+
+.litm--collapsed .litm--section-body {
+	grid-template-rows: 0fr;
+}
+
+.litm--section-body-inner {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	overflow: hidden;
+}
+
+/* Bottom action buttons — full-width row that acts as a section divider */
+.litm--section-actions-bottom {
+	display: flex;
+	gap: 0;
+	margin-top: 2px;
+}
+
+.litm--section-actions-bottom button {
+	flex: 1;
+	background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+	border: 1px dashed
+		color-mix(in srgb, var(--color-text-primary) 15%, transparent);
 	border-radius: 0;
-	color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
+	color: color-mix(in srgb, var(--color-text-primary) 40%, transparent);
+	font-size: var(--font-size-11);
+	padding: 0.2em 0.5em;
 	transition:
 		background 0.15s,
 		color 0.15s;
 }
 
-.litm--story-tags .litm--section-actions button:first-child {
+.litm--section-actions-bottom button + button {
+	border-left: none;
+}
+
+.litm--section-actions-bottom button:first-child {
 	border-radius: var(--border-radius) 0 0 var(--border-radius);
 }
 
-.litm--story-tags .litm--section-actions button:last-child {
+.litm--section-actions-bottom button:last-child {
 	border-radius: 0 var(--border-radius) var(--border-radius) 0;
 }
 
-.litm--story-tags .litm--section-actions button:only-child {
+.litm--section-actions-bottom button:only-child {
 	border-radius: var(--border-radius);
 }
 
-.litm--story-tags .litm--section-actions button:hover {
-	background: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+.litm--section-actions-bottom button:hover {
+	background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
 	color: var(--color-text-primary);
+	border-style: solid;
 }
 
 /* Actor-type section accents — color the divider lines to distinguish heroes, fellowship, and challenges */
@@ -2431,27 +2559,104 @@ body,
 	max-width: 100%;
 }
 
-/* Group divider between heroes/fellowship and challenges/journeys */
-.litm--story-tags .litm--group-divider {
+/* Limit group — group header with nested statuses */
+.litm--limit-group {
+	margin: 3px 0;
+	padding: 6px 4px;
+	background: color-mix(in srgb, #a0522d 12%, transparent);
+	border-radius: var(--border-radius);
+}
+
+.litm--limit-header {
 	display: flex;
 	align-items: center;
-	gap: 0.5em;
-	flex: none;
+	gap: 5px;
+	font-size: var(--font-size-13);
+	margin-bottom: 4px;
+}
+
+.litm--limit-icon {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+.litm--limit-header .litm--limit-label {
+	font-family: var(--font-header);
+	font-weight: 600;
+	border: none;
+	background: transparent;
+	color: inherit;
+	padding: 0 0.2em;
+	min-width: 4em;
+	font-size: inherit;
+	box-shadow: none;
+
+	&.litm--locked {
+		cursor: default;
+		pointer-events: none;
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+}
+
+.litm--limit-header .litm--limit-value {
+	margin-left: auto;
+	font-weight: 600;
+	font-size: var(--font-size-12);
+	color: #a0522d;
+	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.litm--limit-info {
+	font-size: var(--font-size-10);
+	color: #a0522d;
+	margin-left: 2px;
+	cursor: help;
+}
+
+.litm--limit-group ul.plain {
+	padding-left: 0;
+}
+
+.litm--limit-group .litm--limit-empty {
+	padding: 2px 0 2px 8px;
 	font-size: var(--font-size-11);
 	opacity: 0.5;
+	font-style: italic;
 }
 
-.litm--story-tags .litm--group-divider::before,
-.litm--story-tags .litm--group-divider::after {
-	color: var(--color-text-emphatic);
-	content: "";
-	flex: 1;
-	height: 2px;
-	background: linear-gradient(90deg, transparent, currentColor);
+/* Dragover highlight on limit headers */
+.litm--limit-header.dragover {
+	background: color-mix(in srgb, #a0522d 20%, transparent);
+	border-radius: var(--border-radius);
 }
 
-.litm--story-tags .litm--group-divider::after {
-	background: linear-gradient(90deg, currentColor, transparent);
+/* Story limit max input — compact inline */
+.litm--limit-header .litm--limit-max {
+	border: none;
+	background: transparent;
+	color: inherit;
+	padding: 0;
+	width: 1.5em;
+	text-align: center;
+	font-size: inherit;
+	font-weight: 600;
+	box-shadow: none;
+
+	&.litm--locked {
+		cursor: default;
+		pointer-events: none;
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
 }
 
 /* Portrait thumbnail next to actor name in section headers */
@@ -2478,9 +2683,8 @@ body,
 	height: 1.6em;
 	font-size: var(--font-size-11);
 	border-radius: var(--border-radius);
-	background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
-	border: 1px solid
-		color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+	background: none;
+	border: none;
 	color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
 	transition:
 		background 0.15s,
@@ -2488,7 +2692,7 @@ body,
 }
 
 .litm--single-use-label:hover {
-	background: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+	background: none;
 	color: var(--color-text-primary);
 }
 
@@ -4905,6 +5109,10 @@ body.theme-dark,
 
 	& .litm-track-complete--abandon .litm-track-complete__header {
 		background: #664444;
+	}
+
+	& .litm-track-complete--limit .litm-track-complete__header {
+		background: #7e4444;
 	}
 
 	/* Spend Power Chat Cards */

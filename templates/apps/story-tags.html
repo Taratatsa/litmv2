@@ -1,9 +1,13 @@
 {{#*inline 'tagItem' tag source editable isGM}}
 <li
-	class="litm--tag-item litm--{{ifThen (eq tag.type 'status') 'status' 'tag'}}{{#if tag.hidden}} litm--tag-hidden{{/if}}"
+	class="litm--tag-item litm--{{ifThen (eq tag.type 'status') 'status' 'tag'}}{{#if tag.hidden}} litm--tag-hidden{{/if}} litm-{{tag.type}}"
 	data-tag-item data-id="{{tag.id}}" data-type="{{source}}" draggable="true"
 	data-tooltip="{{localize (concat 'LITM.Terms.' tag.type)}}: {{tag.name}}{{#if (and (eq tag.type 'status') tag.value)}}{{concat '-' tag.value}}{{/if}}"
 	data-text="{{tag.name}}{{#if (eq tag.type 'status')}}-{{tag.value}}{{/if}}">
+	<input type="hidden" name="{{source}}.{{tag.id}}.tagType" value="{{tag.type}}" />
+	<input type="hidden" name="{{source}}.{{tag.id}}.limitId" value="{{tag.limitId}}" />
+	<input class="litm--tag-item-name {{ifThen editable 'litm--locked' ''}}" data-focus="select"
+		name="{{source}}.{{tag.id}}.name" value="{{tag.name}}" {{ifThen editable "" "readonly"}} />
 	{{#if editable}}
 	{{#if (eq source "story")}}
 	<button type="button" class="litm--visibility-toggle" data-action="toggle-visibility" data-id="{{tag.id}}"
@@ -16,10 +20,11 @@
 		<i class="fa-solid {{ifThen tag.hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
 	</button>
 	{{/if}}
+	<button type="button" class="litm--tag-action-btn" data-action="remove-tag"
+		data-tooltip="{{localize 'LITM.Ui.remove'}}">
+		<i class="fa-solid fa-xmark" aria-hidden="true"></i>
+	</button>
 	{{/if}}
-	<input type="hidden" name="{{source}}.{{tag.id}}.tagType" value="{{tag.type}}" />
-	<span class="litm--tag-name-wrapper litm-{{tag.type}}"><input class="litm--tag-item-name" data-focus="select"
-			name="{{source}}.{{tag.id}}.name" value="{{tag.name}}" {{ifThen editable "" "readonly" }} /></span>
 	{{#if (eq tag.type "tag")}}
 	<label class="litm--single-use-label" data-tooltip="{{localize 'LITM.Terms.single_use'}}">
 		<input class="litm--single-use" type="checkbox" name="{{source}}.{{tag.id}}.isSingleUse" {{disabled (not editable)}}
@@ -39,24 +44,64 @@
 		{{/each}}
 	</div>
 	{{/if}}
-	{{#if editable}}
-	<button type="button" class="litm--tag-action-btn" data-action="remove-tag"
-		data-tooltip="{{localize 'LITM.Ui.remove'}}">
-		<i class="fa-solid fa-xmark" aria-hidden="true"></i>
-	</button>
-	{{/if}}
 </li>
 {{/inline}}
 
-{{#*inline 'add-button' id}}
-<button type="button" data-action="add-tag" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_tag'}}"
-	aria-label="{{localize 'LITM.Ui.add_tag'}}">
-	<i class="fa-solid fa-scroll" aria-hidden="true"></i>
-</button>
-<button type="button" data-action="add-status" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_status'}}"
-	aria-label="{{localize 'LITM.Ui.add_status'}}">
-	<i class="fa-solid fa-droplet" aria-hidden="true"></i>
-</button>
+{{#*inline 'sectionActions' id editable showLimit}}
+{{#if editable}}
+<div class="litm--section-actions-bottom">
+	<button type="button" class="litm--action-bottom" data-action="add-tag" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_tag'}}">
+		<i class="fa-solid fa-scroll" aria-hidden="true"></i> {{localize "LITM.Terms.tag"}}
+	</button>
+	<button type="button" class="litm--action-bottom" data-action="add-status" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_status'}}">
+		<i class="fa-solid fa-droplet" aria-hidden="true"></i> {{localize "LITM.Terms.status"}}
+	</button>
+	{{#if showLimit}}
+	<button type="button" class="litm--action-bottom" data-action="add-limit" data-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.add_limit'}}">
+		<i class="fa-solid fa-shield" aria-hidden="true"></i> {{localize "LITM.Terms.limit"}}
+	</button>
+	{{/if}}
+</div>
+{{/if}}
+{{/inline}}
+
+{{#*inline 'limitGroup' limit source editable isGM isChallenge}}
+<div class="litm--limit-group" data-limit-id="{{limit.id}}" data-source="{{source}}">
+	<div class="litm--limit-header" data-limit-id="{{limit.id}}" data-source="{{source}}">
+		<img src="systems/litmv2/assets/media/icons/limit.svg" class="litm--limit-icon" aria-hidden="true" />
+		{{#if (and editable (not isChallenge))}}
+		<input class="litm--limit-label litm--locked" type="text" name="limits.{{limit.id}}.label" value="{{limit.label}}"
+			data-focus="select" />
+		{{else}}
+		<span class="litm--limit-label">{{limit.label}}</span>
+		{{/if}}
+		<span class="litm--limit-value">
+			{{limit.computedValue}} / {{#if (and editable (not isChallenge))}}<input class="litm--limit-max litm--locked" type="text"
+				name="limits.{{limit.id}}.max" value="{{limit.max}}" />{{else}}{{limit.max}}{{/if}}
+		</span>
+		{{#if (and isChallenge limit.outcome)}}
+		<i class="fa-solid fa-circle-info litm--limit-info" aria-hidden="true"
+			data-tooltip="{{limit.enrichedOutcome}}"></i>
+		{{/if}}
+		{{#if editable}}
+		{{#unless isChallenge}}
+		<button type="button" class="litm--tag-action-btn" data-action="remove-limit" data-limit-id="{{limit.id}}"
+			data-tooltip="{{localize 'LITM.Ui.remove_limit'}}">
+			<i class="fa-solid fa-xmark" aria-hidden="true"></i>
+		</button>
+		{{/unless}}
+		{{/if}}
+	</div>
+	{{#if limit.tags.length}}
+	<ul class="plain">
+		{{#each limit.tags as |tag|}}
+		{{> tagItem tag=tag source=../source editable=../editable isGM=../isGM}}
+		{{/each}}
+	</ul>
+	{{else}}
+	<div class="litm--limit-empty">{{localize "LITM.Ui.drop_statuses_here"}}</div>
+	{{/if}}
+</div>
 {{/inline}}
 
 <!--This is a really weird bug where clicking a checkbox will shift the whole container up by it's entire scroll height-->
@@ -68,57 +113,58 @@
 				{{concat (localize "LITM.Tags.story") " " (localize "LITM.Terms.tags")}}
 			</h3>
 			{{#if isGM}}
-			<div class="litm--section-actions">
-				{{> add-button id="story"}}
-			</div>
+			{{#each storyLimits as |limit|}}
+			{{> limitGroup limit=limit source="story" editable=true isGM=true isChallenge=false}}
+			{{/each}}
 			{{/if}}
 			<ul class="plain">
 				{{#each tags as |tag|}}
 				{{> tagItem tag=tag source="story" editable=../isGM isGM=../isGM}}
 				{{/each}}
 			</ul>
+			{{> sectionActions id="story" editable=isGM showLimit=true}}
 		</section>
 
 		<!-- Actor Tags -->
 		{{#each actors as |actor|}}
-		{{#if @first}}
-		<div class="litm--group-divider litm--group-divider-heroes"><i class="fa-solid fa-sun" aria-hidden="true"></i></div>
-		{{else if actor.isFirstChallenge}}
-		<div class="litm--group-divider litm--group-divider-challenges"><i class="fa-solid fa-skull" aria-hidden="true"></i>
-		</div>
-		{{else}}
-		<i class="fas fa-{{ifThen (or (eq actor.type 'hero') (eq actor.type 'fellowship')) 'sun' 'skull'}}"
-			style="text-align:center;font-size:var(--font-size-11);var(--color-text-primary);opacity:0.5;"></i>
-		{{/if}}
 		<section class="flexcol {{#if actor.hidden}}litm--actor-hidden{{/if}}" data-id="{{actor.id}}"
 			data-actor-type="{{actor.type}}">
-			<h3 class="divider litm--section-header" {{#unless actor.isUserCharacter}}data-context="remove-actor" {{/unless}}
-				data-id="{{actor.id}}">
+			<h3 class="divider litm--section-header" {{#unless actor.isUserCharacter}}data-context="remove-actor"
+				{{/unless}} data-id="{{actor.id}}">
 				<span data-action="open-sheet" data-id="{{actor.id}}"
-					data-tooltip="{{localize (ifThen actor.isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}"
-					style="cursor: pointer;">
+					data-tooltip="{{localize (ifThen actor.isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}">
 					<img class="litm--section-portrait" src="{{actor.img}}" alt="" />
 					{{actor.name}}
 				</span>
-			</h3>
-			{{#if (or ../isGM actor.isOwner)}}
-			<div class="litm--section-actions">
 				{{#if (and ../isGM (not actor.isUserCharacter))}}
-				<button type="button" class="litm--visibility-toggle" data-action="toggle-visibility" data-id="{{actor.id}}"
-					data-type="actor" data-tooltip="{{localize (ifThen actor.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
+				<button type="button" class="litm--visibility-toggle litm--header-visibility"
+					data-action="toggle-visibility" data-id="{{actor.id}}" data-type="actor"
+					data-tooltip="{{localize (ifThen actor.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
 					<i class="fa-solid {{ifThen actor.hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
 				</button>
 				{{/if}}
-				{{#if actor.isOwner}}
-				{{> add-button id=actor.id}}
-				{{/if}}
+				<button type="button" class="litm--collapse-toggle" data-action="toggle-collapse"
+					data-collapse-id="{{actor.id}}" data-tooltip="{{localize 'LITM.Ui.collapse'}}">
+					<i class="fa-solid fa-chevron-down litm--collapse-chevron" aria-hidden="true"></i>
+				</button>
+			</h3>
+			<div class="litm--section-body">
+				<div class="litm--section-body-inner">
+					{{#if (and @root.isGM actor.limits.length)}}
+					{{#each actor.limits as |limit|}}
+					{{> limitGroup limit=limit source=actor.id editable=actor.isOwner isGM=true isChallenge=true}}
+					{{/each}}
+					{{/if}}
+					<ul class="plain">
+						{{#each actor.ungroupedTags as |tag|}}
+						{{> tagItem tag=tag source=../id editable=actor.isOwner isGM=@root.isGM}}
+						{{/each}}
+					</ul>
+					{{#if actor.isOwner}}
+					{{> sectionActions id=actor.id editable=true showLimit=false}}
+					{{/if}}
+				</div>
 			</div>
-			{{/if}}
-			<ul class="plain">
-				{{#each actor.tags as |tag|}}
-				{{> tagItem tag=tag source=../id editable=actor.isOwner isGM=../../isGM}}
-				{{/each}}
-			</ul>
 		</section>
 		{{else}}
 		<div style="display: flex; flex-direction: column; align-items: center; margin-top: 2rem;padding: 12px;">
