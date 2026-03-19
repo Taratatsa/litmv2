@@ -17,7 +17,7 @@ export class JourneySheet extends LitmActorSheet {
 			clearGeneralConsequence: JourneySheet.#onClearGeneralConsequence,
 		},
 		form: {
-			handler: JourneySheet.#onSubmitJourneyForm,
+			handler: LitmActorSheet._onSubmitActorForm,
 			submitOnChange: true,
 			closeOnSubmit: false,
 		},
@@ -181,8 +181,8 @@ export class JourneySheet extends LitmActorSheet {
 	}
 
 	/** @override */
-	_onFirstRender(context, options) {
-		super._onFirstRender(context, options);
+	async _onFirstRender(context, options) {
+		await super._onFirstRender(context, options);
 		if (this.document.isOwner) {
 			this.#syncTagsAndEffects().catch((err) =>
 				console.error("litm | Failed to sync journey tags/effects", err),
@@ -272,13 +272,6 @@ export class JourneySheet extends LitmActorSheet {
 	/* -------------------------------------------- */
 	/*  Event Handlers & Actions                    */
 	/* -------------------------------------------- */
-
-	static async #onSubmitJourneyForm(_event, _form, formData) {
-		const submitData = formData.object;
-		await this._updateEmbeddedFromForm(submitData);
-		this._notifyStoryTags();
-		await this.document.update(submitData);
-	}
 
 	static async #onAddVignette(_event, _target) {
 		const [vignette] = await this.document.createEmbeddedDocuments("Item", [

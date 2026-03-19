@@ -8,14 +8,12 @@ export class Sockets {
 			);
 		}
 
-		const senderIsGM = game.user.isGM;
 		const senderId = game.user.id;
 		const id = foundry.utils.randomID();
 		game.socket.emit("system.litmv2", {
 			id,
 			data,
 			event,
-			senderIsGM,
 			senderId,
 		});
 	}
@@ -41,10 +39,6 @@ export class Sockets {
 		this.#registerRollUpdateListener();
 		this.#registerRollModerationListeners();
 		this.#registerStoryTagsListeners();
-
-		if (game.user.isGM) {
-			this.#registerGMRollListeners();
-		}
 	}
 
 	static #registerRollUpdateListener() {
@@ -105,6 +99,4 @@ export class Sockets {
 			}
 		});
 	}
-
-	static #registerGMRollListeners() {}
 }

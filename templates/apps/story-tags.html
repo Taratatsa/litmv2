@@ -21,7 +21,7 @@
 	</button>
 	{{/if}}
 	<button type="button" class="litm--tag-action-btn" data-action="remove-tag"
-		data-tooltip="{{localize 'LITM.Ui.remove'}}">
+		data-id="{{tag.id}}" data-type="{{source}}" data-tooltip="{{localize 'LITM.Ui.remove'}}">
 		<i class="fa-solid fa-xmark" aria-hidden="true"></i>
 	</button>
 	{{/if}}
@@ -104,75 +104,93 @@
 </div>
 {{/inline}}
 
-<!--This is a really weird bug where clicking a checkbox will shift the whole container up by it's entire scroll height-->
-<div class="flexcol litm--story-tags-wrapper">
-	<form class="scrollable" style="position: relative;top: 0;">
-		<!-- Story Tags -->
-		<section class="flexcol" data-id="story" data-context="remove-all-tags">
-			<h3 class="divider litm--section-header" data-tooltip="{{localize 'LITM.Ui.context_remove_all_tags'}}">
-				{{concat (localize "LITM.Tags.story") " " (localize "LITM.Terms.tags")}}
-			</h3>
-			{{#if isGM}}
-			{{#each storyLimits as |limit|}}
-			{{> limitGroup limit=limit source="story" editable=true isGM=true isChallenge=false}}
+{{#*inline 'actorSection' actor isGM}}
+{{#with actor}}
+<section class="flexcol {{#if hidden}}litm--actor-hidden{{/if}}" data-id="{{id}}"
+	data-actor-type="{{type}}">
+	<h3 class="divider litm--section-header" {{#unless isUserCharacter}}data-context="remove-actor"
+		{{/unless}} data-id="{{id}}">
+		<span data-action="open-sheet" data-id="{{id}}"
+			data-tooltip="{{localize (ifThen isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}">
+			<img class="litm--section-portrait" src="{{img}}" alt="" />
+			{{name}}
+		</span>
+		{{#if (and ../isGM (not isUserCharacter))}}
+		<button type="button" class="litm--visibility-toggle litm--header-visibility"
+			data-action="toggle-visibility" data-id="{{id}}" data-type="actor"
+			data-tooltip="{{localize (ifThen hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
+			<i class="fa-solid {{ifThen hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
+		</button>
+		{{/if}}
+		<button type="button" class="litm--collapse-toggle" data-action="toggle-collapse"
+			data-collapse-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.collapse'}}">
+			<i class="fa-solid fa-chevron-down litm--collapse-chevron" aria-hidden="true"></i>
+		</button>
+	</h3>
+	<div class="litm--section-body">
+		<div class="litm--section-body-inner">
+			{{#if (and ../isGM limits.length)}}
+			{{#each limits as |limit|}}
+			{{> limitGroup limit=limit source=../id editable=../isOwner isGM=true isChallenge=true}}
 			{{/each}}
 			{{/if}}
 			<ul class="plain">
-				{{#each tags as |tag|}}
-				{{> tagItem tag=tag source="story" editable=../isGM isGM=../isGM}}
+				{{#each ungroupedTags as |tag|}}
+				{{> tagItem tag=tag source=../id editable=../isOwner isGM=../../isGM}}
 				{{/each}}
 			</ul>
-			{{> sectionActions id="story" editable=isGM showLimit=true}}
-		</section>
+			{{#if isOwner}}
+			{{> sectionActions id=id editable=true showLimit=false}}
+			{{/if}}
+		</div>
+	</div>
+</section>
+{{/with}}
+{{/inline}}
 
-		<!-- Actor Tags -->
-		{{#each actors as |actor|}}
-		<section class="flexcol {{#if actor.hidden}}litm--actor-hidden{{/if}}" data-id="{{actor.id}}"
-			data-actor-type="{{actor.type}}">
-			<h3 class="divider litm--section-header" {{#unless actor.isUserCharacter}}data-context="remove-actor"
-				{{/unless}} data-id="{{actor.id}}">
-				<span data-action="open-sheet" data-id="{{actor.id}}"
-					data-tooltip="{{localize (ifThen actor.isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}">
-					<img class="litm--section-portrait" src="{{actor.img}}" alt="" />
-					{{actor.name}}
-				</span>
-				{{#if (and ../isGM (not actor.isUserCharacter))}}
-				<button type="button" class="litm--visibility-toggle litm--header-visibility"
-					data-action="toggle-visibility" data-id="{{actor.id}}" data-type="actor"
-					data-tooltip="{{localize (ifThen actor.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
-					<i class="fa-solid {{ifThen actor.hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
-				</button>
-				{{/if}}
-				<button type="button" class="litm--collapse-toggle" data-action="toggle-collapse"
-					data-collapse-id="{{actor.id}}" data-tooltip="{{localize 'LITM.Ui.collapse'}}">
-					<i class="fa-solid fa-chevron-down litm--collapse-chevron" aria-hidden="true"></i>
-				</button>
-			</h3>
-			<div class="litm--section-body">
-				<div class="litm--section-body-inner">
-					{{#if (and @root.isGM actor.limits.length)}}
-					{{#each actor.limits as |limit|}}
-					{{> limitGroup limit=limit source=actor.id editable=actor.isOwner isGM=true isChallenge=true}}
+<!--This is a really weird bug where clicking a checkbox will shift the whole container up by it's entire scroll height-->
+<div class="flexcol litm--story-tags-wrapper">
+	<form class="litm--grid-form" style="position: relative;top: 0;">
+		<!-- Party: heroes & fellowship -->
+		<div class="litm--grid-col litm--grid-col-party">
+			{{#each partyActors as |actor|}}
+			{{> actorSection actor=actor isGM=@root.isGM}}
+			{{else}}
+			<div style="display: flex; flex-direction: column; align-items: center; margin-top: 2rem;padding: 12px;">
+				<p>{{localize "LITM.Ui.drop_actors"}}</p>
+				<img src="systems/litmv2/assets/media/birb.webp" width="75" aria-hidden="true"
+					style="margin-top: 1rem; opacity: 0.7;" />
+			</div>
+			{{/each}}
+		</div>
+
+		<!-- Right: story tags + challenges/journeys (shared scroll in 2-col mode) -->
+		<div class="litm--grid-col-right">
+			<div class="litm--grid-col litm--grid-col-story">
+				<section class="flexcol" data-id="story" data-context="remove-all-tags">
+					<h3 class="divider litm--section-header" data-tooltip="{{localize 'LITM.Ui.context_remove_all_tags'}}">
+						{{concat (localize "LITM.Tags.story") " " (localize "LITM.Terms.tags")}}
+					</h3>
+					{{#if isGM}}
+					{{#each storyLimits as |limit|}}
+					{{> limitGroup limit=limit source="story" editable=true isGM=true isChallenge=false}}
 					{{/each}}
 					{{/if}}
 					<ul class="plain">
-						{{#each actor.ungroupedTags as |tag|}}
-						{{> tagItem tag=tag source=../id editable=actor.isOwner isGM=@root.isGM}}
+						{{#each tags as |tag|}}
+						{{> tagItem tag=tag source="story" editable=../isGM isGM=../isGM}}
 						{{/each}}
 					</ul>
-					{{#if actor.isOwner}}
-					{{> sectionActions id=actor.id editable=true showLimit=false}}
-					{{/if}}
-				</div>
+					{{> sectionActions id="story" editable=isGM showLimit=true}}
+				</section>
 			</div>
-		</section>
-		{{else}}
-		<div style="display: flex; flex-direction: column; align-items: center; margin-top: 2rem;padding: 12px;">
-			<p>{{localize "LITM.Ui.drop_actors"}}</p>
-			<img src="systems/litmv2/assets/media/birb.webp" width="75" aria-hidden="true"
-				style="margin-top: 1rem; opacity: 0.7;" />
+
+			<div class="litm--grid-col litm--grid-col-scene">
+				{{#each sceneActors as |actor|}}
+				{{> actorSection actor=actor isGM=@root.isGM}}
+				{{/each}}
+			</div>
 		</div>
-		{{/each}}
 	</form>
 
 	{{#if isGM}}

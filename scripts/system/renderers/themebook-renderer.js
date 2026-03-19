@@ -1,4 +1,4 @@
-import { localize as t } from "../../utils.js";
+import { enrichHTML, localize as t } from "../../utils.js";
 
 /**
  * Creates a section divider with a centered label and decorative lines.
@@ -42,7 +42,7 @@ function questionList(questions) {
  * @param {Item} item - A themebook item document
  * @returns {HTMLElement}
  */
-export function renderThemebook(item) {
+export async function renderThemebook(item) {
 	const sys = item.system;
 
 	const container = document.createElement("div");
@@ -76,7 +76,7 @@ export function renderThemebook(item) {
 	if (sys.description) {
 		const desc = document.createElement("div");
 		desc.classList.add("litm-render--themebook__description");
-		desc.innerHTML = sys.description;
+		desc.innerHTML = await enrichHTML(sys.description, item);
 		container.appendChild(desc);
 	}
 

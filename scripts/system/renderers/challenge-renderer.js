@@ -1,4 +1,4 @@
-import { localize as t } from "../../utils.js";
+import { enrichHTML, localize as t } from "../../utils.js";
 import { renderVignette } from "./vignette-renderer.js";
 
 const RATING_STAR_PATH =
@@ -42,7 +42,7 @@ function ratingStar(filled) {
  * @param {Actor} actor - A challenge actor document
  * @returns {HTMLElement}
  */
-export function renderChallenge(actor) {
+export async function renderChallenge(actor) {
 	const sys = actor.system;
 	const hasCustomImage = actor.img !== "icons/svg/mystery-man.svg";
 
@@ -99,7 +99,7 @@ export function renderChallenge(actor) {
 	if (sys.description) {
 		const desc = document.createElement("div");
 		desc.classList.add("litm-render--challenge__description");
-		desc.innerHTML = sys.description;
+		desc.innerHTML = await enrichHTML(sys.description, actor);
 		container.appendChild(desc);
 	}
 
@@ -190,7 +190,7 @@ export function renderChallenge(actor) {
 					"litm-render--challenge__special-features",
 					"enriched-content",
 				);
-				sf.innerHTML = sys.specialFeatures;
+				sf.innerHTML = await enrichHTML(sys.specialFeatures, actor);
 				leftCol.appendChild(sf);
 			}
 

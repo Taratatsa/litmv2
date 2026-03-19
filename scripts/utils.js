@@ -7,14 +7,6 @@ export function localize(...key) {
 	return key.map((k) => game.i18n.localize(k)).join(" ");
 }
 
-export function sortByName(a, b) {
-	return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-}
-
-export function sortTags(tags) {
-	return tags.sort(sortByName);
-}
-
 export function titleCase(str) {
 	return (
 		str.charAt(0).toUpperCase() +
@@ -22,7 +14,7 @@ export function titleCase(str) {
 			.toLowerCase()
 			.replace(/\b\w+/g, (l) => {
 				if (["and", "the", "of", "or", "a", "an"].includes(l)) return l;
-				return l.charAt(0).toUpperCase() + l.substr(1);
+				return l.charAt(0).toUpperCase() + l.slice(1);
 			})
 			.slice(1)
 	);

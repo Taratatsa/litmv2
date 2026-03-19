@@ -1,7 +1,6 @@
 import { error, warn } from "../logger.js";
 import { createSampleHero } from "../system/sample-hero.js";
 import { LitmSettings } from "../system/settings.js";
-import { registerTours } from "../system/tours.js";
 import { sleep, localize as t, toQuestionOptions } from "../utils.js";
 
 const THEME_SLOTS = 4;
@@ -2403,7 +2402,6 @@ export class WelcomeOverlay {
 	 * Called from the ready hook. Delegates to GM setup or player welcome.
 	 */
 	static async showOnReady() {
-		await registerTours();
 		if (game.user.isGM) {
 			await WelcomeOverlay.#gmSetupAndShow();
 		} else {

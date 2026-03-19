@@ -84,6 +84,7 @@ export function onRenderChatMessage(app, html, _data) {
 					break;
 				}
 				case "approve-moderation": {
+					if (!game.user.isGM) break;
 					const data = await app.getFlag("litmv2", "data");
 					const userId = await app.getFlag("litmv2", "userId");
 
@@ -115,8 +116,9 @@ export function onRenderChatMessage(app, html, _data) {
 					const roll = message.rolls[0];
 					const { sacrificeLevel, sacrificeThemeId, actorId } = roll.litm;
 					const actor = game.actors.get(actorId);
-					const theme = actor?.items?.get(sacrificeThemeId);
-					if (!theme || !actor) break;
+					if (!actor?.isOwner) break;
+					const theme = actor.items?.get(sacrificeThemeId);
+					if (!theme) break;
 
 					const confirmKey =
 						sacrificeLevel === "scarring"
@@ -145,6 +147,7 @@ export function onRenderChatMessage(app, html, _data) {
 					break;
 				}
 				case "reject-moderation": {
+					if (!game.user.isGM) break;
 					const data = await app.getFlag("litmv2", "data");
 					// Delete Message
 					app.delete();

@@ -221,8 +221,8 @@ export class ChallengeSheet extends LitmActorSheet {
 	}
 
 	/** @override */
-	_onFirstRender(context, options) {
-		super._onFirstRender(context, options);
+	async _onFirstRender(context, options) {
+		await super._onFirstRender(context, options);
 		if (this.document.isOwner) {
 			this.#syncTagsAndEffects().catch((err) =>
 				console.error("litm | Failed to sync challenge tags/effects", err),

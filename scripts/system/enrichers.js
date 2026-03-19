@@ -40,7 +40,7 @@ export class Enrichers {
 			pattern: /@render\[([^\]]+)\]/gi,
 			enricher: async ([text, uuid]) => {
 				try {
-					const doc = await fromUuid(uuid);
+					const doc = await foundry.utils.fromUuid(uuid);
 					if (!doc) return document.createTextNode(text);
 
 					const type = doc.type ?? doc.documentName;
@@ -72,7 +72,7 @@ export class Enrichers {
 			pattern: /@might\[(\w+)\]/gi,
 			enricher: ([text, might]) => {
 				const key = might.toLowerCase();
-				if (!mights.has(key)) return text;
+				if (!mights.has(key)) return document.createTextNode(text);
 				return Enrichers.#html(
 					`<img class="litm--might-icon" src="systems/litmv2/assets/media/icons/${key}.svg" alt="${Enrichers.#esc(
 						key,
@@ -98,7 +98,7 @@ export class Enrichers {
 			const id = sceneId.replace(/^Scene./, "");
 
 			const scene = game.scenes.get(id) || game.scenes.getName(id);
-			if (!scene) return text;
+			if (!scene) return document.createTextNode(text);
 
 			const label = Enrichers.#esc(flavour || scene.navName);
 			return Enrichers.#html(
