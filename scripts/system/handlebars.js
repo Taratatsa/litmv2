@@ -37,7 +37,6 @@ export class HandlebarsPartials {
 		"systems/litmv2/templates/partials/play-theme-tags.html",
 		"systems/litmv2/templates/partials/play-theme-tracks.html",
 		"systems/litmv2/templates/partials/edit-theme-tags-activatable.html",
-		"systems/litmv2/templates/partials/edit-theme-tracks.html",
 		"systems/litmv2/templates/partials/theme-special-improvements.html",
 		"systems/litmv2/templates/partials/theme-card-header.html",
 		"systems/litmv2/templates/partials/play-profile-img.html",

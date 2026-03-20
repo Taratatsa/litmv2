@@ -27,26 +27,29 @@
 		</section>
 		{{/each}}
 		{{#each data.scratchedTags as |tag|}}
-		{{> section name=tag.name value=3 flavor=(localize 'LITM.Tags.is_burnt') flavorClass="burned"}}
+		{{> section name=tag.name value=3 flavor=(localize 'LITM.Tags.is_burnt') flavorClass="flavor-burned"}}
 		{{/each}}
 		{{#each data.powerTags as |tag|}}
 		{{> section name=tag.name value=1 flavor=(ifThen (eq tag.type 'storyTag') (localize "LITM.Terms.tag") "")
-		flavorClass=(ifThen (eq tag.type "storyTag") "warning" "")}}
+		flavorClass=(ifThen (eq tag.type "storyTag") "flavor-tag" "")}}
 		{{/each}}
 		{{#if data.mitigate}}
 		{{> section name=(localize 'LITM.Effects.mitigate.key') value=1}}
 		{{/if}}
 		{{#each data.weaknessTags as |tag|}}
 		{{> section name=tag.name value=-1 flavor=(ifThen (eq tag.type 'weaknessTag') (localize 'LITM.Tags.weakness')
-		(localize 'LITM.Terms.tag')) flavorClass=(ifThen (eq tag.type 'weaknessTag') "negative" "warning")}}
+		(localize 'LITM.Terms.tag')) flavorClass=(ifThen (eq tag.type 'weaknessTag') "flavor-weakness" "flavor-tag")}}
 		{{/each}}
 		{{#each data.positiveStatuses as |tag|}}
-		{{> section name=tag.name value=tag.value flavor=(localize 'LITM.Terms.status') flavorClass="positive"}}
+		{{> section name=tag.name value=tag.value flavor=(localize 'LITM.Terms.status') flavorClass="flavor-status"}}
 		{{/each}}
 		{{#each data.negativeStatuses as |tag|}}
 		{{> section name=tag.name value=(concat "-" tag.value) flavor=(localize 'LITM.Terms.status')
-		flavorClass="negative"}}
+		flavorClass="flavor-status"}}
 		{{/each}}
+		{{#if data.mightOffset}}
+		{{> section name=(localize (concat "LITM.Ui.might_" data.might)) value=data.mightOffset flavor="" flavorClass=""}}
+		{{/if}}
 		{{#if data.modifier}}
 		{{> section name=(localize 'LITM.Ui.modifier') value=data.modifier flavor="" flavorClass=""}}
 		{{/if}}

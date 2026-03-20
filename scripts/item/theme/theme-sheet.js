@@ -203,7 +203,7 @@ export class ThemeSheet extends LitmItemSheet {
 				id: foundry.utils.randomID(),
 				name: "",
 				question: nextQuestion,
-				isActive: true,
+				isActive: false,
 				isScratched: false,
 				type: "weaknessTag",
 			});
@@ -226,7 +226,7 @@ export class ThemeSheet extends LitmItemSheet {
 				id: foundry.utils.randomID(),
 				name: "",
 				question: nextQuestion,
-				isActive: true,
+				isActive: false,
 				isScratched: false,
 				type: "powerTag",
 			});

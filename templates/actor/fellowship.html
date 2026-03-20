@@ -40,7 +40,7 @@
 
 		{{> systems/litmv2/templates/partials/theme-special-improvements.html theme}}
 
-		{{> systems/litmv2/templates/partials/edit-theme-tracks.html theme}}
+		{{> systems/litmv2/templates/partials/play-theme-tracks.html theme}}
 
 		<div class="flexcol" style="gap: 0.15rem;">
 			<blockquote style="margin: 0;">
@@ -117,11 +117,11 @@
 			<span class="flex1">{{localize "LITM.Terms.story_tags_statuses"}}</span>
 			<button type="button" class="noflex" data-action="addStoryTag" data-tag-type="tag"
 				data-tooltip="{{localize 'LITM.Ui.add_tag'}}" aria-label="{{localize 'LITM.Ui.add_tag'}}">
-				<i class="fa-solid fa-tag" aria-hidden="true"></i>
+				<i class="fa-solid fa-scroll" aria-hidden="true"></i>
 			</button>
 			<button type="button" class="noflex" data-action="addStoryTag" data-tag-type="status"
 				data-tooltip="{{localize 'LITM.Ui.add_status'}}" aria-label="{{localize 'LITM.Ui.add_status'}}">
-				<i class="fa-solid fa-heart" aria-hidden="true"></i>
+				<i class="fa-solid fa-droplet" aria-hidden="true"></i>
 			</button>
 		</legend>
 
@@ -135,11 +135,15 @@
 						placeholder="{{localize 'LITM.Ui.tag_name'}}" />
 				</span>
 				{{#if (eq tag.type "status")}}
-				<label style="max-width: fit-content; font-size: var(--font-size-14); text-align: right;">
-					{{localize "LITM.Ui.tier"}}
-				</label>
-				<input style="flex: 0;" type="number" name="effects.{{tag.id}}.system.tierValue" value="{{tag.value}}"
-					min="0" max="6" step="1" data-dtype="Number" />
+				<div class="progress-display" style="flex: 0 0 auto;" data-id="system.tiers">
+					{{#each tag.system.tiers as |checked|}}
+					<button type="button" class="progress-box {{#if checked}}checked{{/if}}"
+						data-action="adjustProgress" data-index="{{@index}}" data-effect-id="{{tag.id}}"
+						aria-pressed="{{#if checked}}true{{else}}false{{/if}}">
+						<img src="systems/litmv2/assets/media/checkbox{{ifThen checked '-c' ''}}.svg" />
+					</button>
+					{{/each}}
+				</div>
 				{{else}}
 				<label class="litm--single-use-label" data-tooltip="{{localize 'LITM.Terms.single_use'}}">
 					<input class="litm--single-use" type="checkbox" name="effects.{{tag.id}}.system.isSingleUse" {{#if
