@@ -101,13 +101,17 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		this.#cachedActors = null;
 	}
 
+	get #userCharacterIds() {
+		return new Set(
+			game.users.filter((u) => u.character).map((u) => u.character._id),
+		);
+	}
+
 	get actors() {
 		if (this.#cachedActors) return this.#cachedActors;
 		// Merge stored actors with user-assigned characters and the fellowship so they always appear
 		const storedIds = this.config.actors ?? [];
-		const userCharacterIds = new Set(
-			game.users.filter((u) => u.character).map((u) => u.character._id),
-		);
+		const userCharacterIds = this.#userCharacterIds;
 		const fellowshipId = game.litmv2?.fellowship?.id;
 		const autoIds = [...userCharacterIds];
 		if (fellowshipId) autoIds.push(fellowshipId);
@@ -178,19 +182,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			...this.config,
 			actors,
 		});
-		this.invalidateCache();
 		return this.#broadcastRender();
 	}
 
 	async setTags(tags) {
 		await LitmSettings.setStoryTags({ ...this.config, tags });
-		this.invalidateCache();
 		return this.#broadcastRender();
 	}
 
 	async setLimits(limits) {
 		await LitmSettings.setStoryTags({ ...this.config, limits });
-		this.invalidateCache();
 		return this.#broadcastRender();
 	}
 
@@ -977,10 +978,8 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		for (let i = 0; i < limits.length; i++) {
 			const oldLimit = actor.system.limits[i];
 			const newLimit = limits[i];
-			if (!oldLimit || newLimit.max === "~") continue;
-			const numericMax = Number(newLimit.max);
-			if (!Number.isFinite(numericMax)) continue;
-			if (oldLimit.value < numericMax && newLimit.value >= numericMax) {
+			if (!oldLimit || newLimit.max === 0) continue;
+			if (oldLimit.value < newLimit.max && newLimit.value >= newLimit.max) {
 				this.#sendLimitReachedMessage(newLimit, actor);
 			}
 		}
@@ -1166,10 +1165,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		if (!game.user.isGM) return;
 
 		// User-assigned characters and the fellowship can't be removed from the sidebar
-		const userCharacterIds = new Set(
-			game.users.filter((u) => u.character).map((u) => u.character._id),
-		);
-		if (userCharacterIds.has(id)) {
+		if (this.#userCharacterIds.has(id)) {
 			return ui.notifications.warn("LITM.Ui.warn_user_character", {
 				localize: true,
 			});
@@ -1217,7 +1213,6 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	}
 
 	async doUpdate(component, data) {
-		this.invalidateCache();
 		if (!game.user.isGM) return;
 		if (component === "tags") return this.setTags(data);
 	}

@@ -16,27 +16,29 @@ Legend in the Mist is a Foundry Virtual Tabletop (v13 minimum, v14 verified) sys
 
 ### Entry Point (`litmv2.js`)
 
-Runs in the `init` Foundry hook. Responsibilities in order:
+`SuperCheckbox` registers before any hooks fire. The `init` hook then runs in this order:
 
-1. Registers custom HTML elements (`SuperCheckbox`)
-2. Sets `CONFIG.Actor.dataModels`, `CONFIG.Item.dataModels`, `CONFIG.ActiveEffect.dataModels`
-3. Registers `CONFIG.Dice.terms` and `CONFIG.Dice.rolls` for the custom `DoubleSix` (d6) denomination
-4. Unregisters core Foundry sheets and registers all system sheets
-5. Calls `HandlebarsHelpers.register()`, `HandlebarsPartials.register()`, `Fonts.register()`, `KeyBindings.register()`, `LitmSettings.register()`, `LitmHooks.register()`
-6. Exposes `game.litmv2` with references to apps, roll state, and methods
+1. Exposes `game.litmv2` with references to apps (`LitmRollDialog`, `LitmRoll`, `WelcomeOverlay`, `StoryTagApp`, `SpendPowerApp`, `ThemeAdvancementApp`), data constructors (`TagData`, `StatusCardData`, `StoryTagData`), a `fellowship` getter, and `methods.calculatePower`
+2. Sets `CONFIG.Actor.dataModels`, `CONFIG.Actor.trackableAttributes.hero`, `CONFIG.Item.documentClass` (`LitmItem`), `CONFIG.Item.dataModels`, `CONFIG.ActiveEffect.dataModels`
+3. Calls `LitmSettings.register()` (must happen before dice — custom dice are gated on a setting)
+4. Conditionally registers `CONFIG.Dice.terms["6"] = DoubleSix` when `LitmSettings.customDice` is enabled; always pushes `LitmRoll` to `CONFIG.Dice.rolls`
+5. Sets `CONFIG.litmv2 = new LitmConfig()`
+6. Replaces the combat tracker sidebar with `StoryTagSidebar` (`CONFIG.ui.combat`)
+7. Unregisters core Foundry sheets and registers all system sheets (4 actor + 4 landscape + 6 item)
+8. Calls `HandlebarsHelpers.register()`, `HandlebarsPartials.register()`, `Fonts.register()`, `KeyBindings.register()`, `LitmHooks.register()`
 
 Separate hooks handle deferred registration:
 - **`i18nInit`**: `Enrichers.register()` (needs localized strings)
-- **`ready`**: `Sockets.registerListeners()` (needs game world + socket)
+- **`ready`**: `migrateWorld()`, `Sockets.registerListeners()`, aliases `game.litmv2.storyTags = ui.combat`
 
-`CONFIG.litmv2` is set to a `LitmConfig` instance (`scripts/system/config.js`) during init. It holds asset paths, roll config, tag regex, and other runtime settings.
+`CONFIG.litmv2` is a `LitmConfig` instance (`scripts/system/config.js`) holding asset paths, roll config (`formula`/`resolver` overrides), challenge/vignette type lists, theme level tiers, and tag/scene-link regex patterns.
 
 ### ApplicationV2 Pattern
 
 All apps and sheets use Foundry's **ApplicationV2 API** (not the deprecated AppV1):
 
-- Actor sheets extend `LitmActorSheet` (`scripts/sheets/base-actor-sheet.js`), which extends `HandlebarsApplicationMixin(ActorSheetV2)`
-- Item sheets extend `LitmItemSheet` (`scripts/sheets/base-item-sheet.js`)
+- Actor sheets extend `LitmActorSheet` (`scripts/sheets/base-actor-sheet.js`), which extends `LitmSheetMixin(HandlebarsApplicationMixin(ActorSheetV2))`
+- Item sheets extend `LitmItemSheet` (`scripts/sheets/base-item-sheet.js`), which extends `LitmSheetMixin(HandlebarsApplicationMixin(ItemSheetV2))`
 - Standalone apps extend `HandlebarsApplicationMixin(ApplicationV2)` directly
 - Each actor type also has a **landscape sheet variant** (e.g., `HeroSheetLandscape`) registered as a non-default alternative, defined in `scripts/sheets/landscape-sheets.js`
 
@@ -67,11 +69,11 @@ template: "systems/litmv2/templates/actor/hero.html"
 
 ### Sockets & Multiplayer
 
-`dispatch(data)` in `scripts/utils.js` emits on `"system.litmv2"`. Listeners are registered in `scripts/system/sockets.js` via `Sockets.registerListeners()`.
+`Sockets.dispatch(event, data)` in `scripts/system/sockets.js` emits on `"system.litmv2"`. `Sockets.on(event, cb)` registers per-event handlers (one handler per event, ignores messages from the sender). Listeners are registered via `Sockets.registerListeners()` in the `ready` hook.
 
 ### Roll System
 
-`LitmRollDialog` (ApplicationV2) collects tag selections and power. It calls `LitmRoll` (extends `Roll`), which uses the custom `DoubleSix` dice term (denomination `"ds"`). Roll formula and resolver can be overridden on `CONFIG.litmv2.roll`.
+`LitmRollDialog` (ApplicationV2) collects tag selections and power. It calls `LitmRoll` (extends `foundry.dice.Roll`), which uses the custom `DoubleSix` dice term (denomination `"6"`, internally a d12 mapped to 2d6 range via `Math.ceil(total / 2)`). Roll formula and resolver can be overridden on `CONFIG.litmv2.roll`.
 
 Roll dialog presence is tracked via actor flags (`actor.getFlag("litmv2", "rollDialogOwner")`) and displayed in the HUD overlay (`#litm-roll-dialog-hud`).
 
@@ -79,15 +81,7 @@ Roll dialog presence is tracked via actor flags (`actor.getFlag("litmv2", "rollD
 
 ### Localization
 
-Import and alias `localize` as `t`:
-
-```javascript
-import { localize as t } from "../utils.js";
-// Usage
-t("LITM.Ui.some_key");
-```
-
-All user-facing strings must use localization keys from `lang/en.json`. When adding new keys, add them to all language files (use `node diff.js` or `node check-keys.js` to find gaps).
+All user-facing strings must use localization keys from `lang/en.json`. Use the `localize` utility (aliased as `t`) from `scripts/utils.js` — see Utility Functions above. When adding new keys, add them to all language files (use `node diff.js` or `node check-keys.js` to find gaps).
 
 ### CSS Class Naming
 
@@ -102,9 +96,13 @@ System-specific classes use `litm--` prefix (BEM-inspired):
 
 Use Foundry's built-in utility classes for layout (`.flexrow`, `.flexcol`, `.flex1`, `.scrollable`, `.hidden`). Prefer Foundry CSS variables (`--color-text-primary`, `--border-radius`) over hardcoded values for theme compatibility. See `CSS_GUIDE.md` for the full reference of available variables and utility classes.
 
+**CSS anti-patterns — do not use:**
+- **`border-left` as a selection/active indicator.** Use background color changes instead (e.g., `background: var(--color-warm-1-10)`). Foundry uses background shifts, text emphasis, or full-border changes for active states.
+- **`dashed` or `dotted` border styles.** Use `solid` borders (with reduced-opacity color variables if subtlety is needed), or `groove`/`ridge` for decorative separators.
+
 ### Custom Elements
 
-`SuperCheckbox` (`litm-super-checkbox`) cycles through states: `""` → `"negative"` → `"positive"` → `"scratched"`. The `states` attribute can override this list.
+`SuperCheckbox` (`litm-super-checkbox`) cycles through states: `""` → `"positive"` → `"negative"` → `"scratched"`. The `states` attribute can override this list.
 
 `SuperCheckbox` is registered before the `init` hook fires.
 
@@ -162,15 +160,37 @@ Foundry's `changeTab()` handles all switching, active-class toggling, and state 
 
 Hooks are registered via `LitmHooks.register()` in `scripts/system/hooks/index.js`, which delegates to domain-specific modules: `actor-hooks.js`, `chat-hooks.js`, `compat-hooks.js`, `fellowship-hooks.js`, `item-hooks.js`, `preloads.js`, `ready-hooks.js`, `ui-hooks.js`. Add new hooks to the appropriate domain file.
 
+### Data Migrations
+
+**Prefer `static migrateData(source)` in DataModel subclasses** for data shape changes (renaming fields, coercing types, backfilling defaults). Foundry calls `migrateData` automatically whenever a document is loaded, so these migrations are transparent, idempotent, and require no version tracking. Examples exist in `ChallengeData`, `ThemeData`, and `StoryThemeData`. Always call `return super.migrateData(source)` at the end.
+
+`scripts/system/migrations.js` provides a separate sequential world-migration system for bulk operations that cannot be handled by `migrateData` alone (e.g., renaming document types, moving data between documents). `migrateWorld()` runs on the `ready` hook (GM-only) and executes pending entries from the `MIGRATIONS` array. Use this only when DataModel-level migration is insufficient.
+
+### Settings (`scripts/system/settings.js`)
+
+`LitmSettings.register()` registers world and client settings with static getter/setter accessors:
+- `welcomed` (world) — whether the welcome overlay has been shown
+- `storytags` (world) — shared story tags data
+- `systemMigrationVersion` (world) — tracks applied migration version
+- `fellowshipId` (world) — ID of the fellowship actor
+- `customDice` (client) — toggle custom dice rendering
+- `popoutTagsSidebar` (client) — tags sidebar popout preference
+
 ### Asset Preloads
 
 New `.webp` assets must be added to the `preloads` array in `LitmConfig` (`scripts/system/config.js`). Preload logic lives in `scripts/system/hooks/preloads.js`. All images use `.webp` format. Icons use `.svg`.
 
 ### Utility Functions (`scripts/utils.js`)
 
+- `localize(...key)` — wrapper around `game.i18n.localize()`. Import as `t`: `import { localize as t } from "../utils.js"`
 - `queryItemsFromPacks({ type, filter, indexFields, map })` — queries world items and compendium pack indices by type, with optional filtering and mapping. Use this instead of manually iterating packs.
+- `findThemebookByName(name)` — searches world items then compendium packs for a themebook by name.
+- `enrichHTML(text, document)` — wraps `TextEditor.enrichHTML()` with owner-aware secrets and `relativeTo` context.
+- `confirmDelete(string)` — shows a `DialogV2.confirm()` prompt; returns `false` on cancel or X-button close.
 - `toPlainObject(obj)` — safely converts Foundry documents to plain objects via `.toObject()`.
 - `toQuestionOptions(questions, skipFirst)` — maps question arrays to letter-indexed option objects (A, B, C…).
+- `titleCase(str)` — converts to title case, skipping articles (and, the, of, etc.).
+- `sleep(ms)` — Promise-based delay.
 
 ### Testing
 

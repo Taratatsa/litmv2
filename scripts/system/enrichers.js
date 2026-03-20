@@ -49,7 +49,15 @@ export class Enrichers {
 
 					return await renderer(doc);
 				} catch (err) {
-					console.warn(`@render[${uuid}] failed:`, err);
+					Hooks.onError(
+						"litmv2.enrichRender",
+						err instanceof Error ? err : new Error(String(err), { cause: err }),
+						{
+							msg: `[litmv2] @render[${uuid}] failed`,
+							log: "warn",
+							notify: null,
+						},
+					);
 					return document.createTextNode(text);
 				}
 			},

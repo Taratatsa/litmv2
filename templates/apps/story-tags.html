@@ -11,17 +11,17 @@
 	{{#if editable}}
 	{{#if (eq source "story")}}
 	<button type="button" class="litm--visibility-toggle" data-action="toggle-visibility" data-id="{{tag.id}}"
-		data-type="tag" data-tooltip="{{localize (ifThen tag.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
+		data-type="tag" data-tooltip="{{localize (ifThen tag.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}" aria-label="{{localize (ifThen tag.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
 		<i class="fa-solid {{ifThen tag.hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
 	</button>
 	{{else}}
 	<button type="button" class="litm--visibility-toggle" data-action="toggle-effect-visibility" data-id="{{tag.id}}"
-		data-actor-id="{{source}}" data-tooltip="{{localize (ifThen tag.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
+		data-actor-id="{{source}}" data-tooltip="{{localize (ifThen tag.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}" aria-label="{{localize (ifThen tag.hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
 		<i class="fa-solid {{ifThen tag.hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
 	</button>
 	{{/if}}
 	<button type="button" class="litm--tag-action-btn" data-action="remove-tag"
-		data-id="{{tag.id}}" data-type="{{source}}" data-tooltip="{{localize 'LITM.Ui.remove'}}">
+		data-id="{{tag.id}}" data-type="{{source}}" data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
 		<i class="fa-solid fa-xmark" aria-hidden="true"></i>
 	</button>
 	{{/if}}
@@ -86,7 +86,7 @@
 		{{#if editable}}
 		{{#unless isChallenge}}
 		<button type="button" class="litm--tag-action-btn" data-action="remove-limit" data-limit-id="{{limit.id}}"
-			data-tooltip="{{localize 'LITM.Ui.remove_limit'}}">
+			data-tooltip="{{localize 'LITM.Ui.remove_limit'}}" aria-label="{{localize 'LITM.Ui.remove_limit'}}">
 			<i class="fa-solid fa-xmark" aria-hidden="true"></i>
 		</button>
 		{{/unless}}
@@ -112,18 +112,18 @@
 		{{/unless}} data-id="{{id}}">
 		<span data-action="open-sheet" data-id="{{id}}"
 			data-tooltip="{{localize (ifThen isUserCharacter 'LITM.Ui.click_open_user_character' 'LITM.Ui.click_open_context_remove')}}">
-			<img class="litm--section-portrait" src="{{img}}" alt="" />
+			<img class="litm--section-portrait" src="{{img}}" alt="{{name}}" />
 			{{name}}
 		</span>
 		{{#if (and ../isGM (not isUserCharacter))}}
 		<button type="button" class="litm--visibility-toggle litm--header-visibility"
 			data-action="toggle-visibility" data-id="{{id}}" data-type="actor"
-			data-tooltip="{{localize (ifThen hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
+			data-tooltip="{{localize (ifThen hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}" aria-label="{{localize (ifThen hidden 'LITM.Ui.show' 'LITM.Ui.hide')}}">
 			<i class="fa-solid {{ifThen hidden 'fa-eye-slash' 'fa-eye'}}" aria-hidden="true"></i>
 		</button>
 		{{/if}}
 		<button type="button" class="litm--collapse-toggle" data-action="toggle-collapse"
-			data-collapse-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.collapse'}}">
+			data-collapse-id="{{id}}" data-tooltip="{{localize 'LITM.Ui.collapse'}}" aria-label="{{localize 'LITM.Ui.collapse'}}">
 			<i class="fa-solid fa-chevron-down litm--collapse-chevron" aria-hidden="true"></i>
 		</button>
 	</h3>

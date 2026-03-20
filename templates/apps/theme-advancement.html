@@ -3,7 +3,7 @@
 	<input type="hidden" name="themeId" value="{{themeId}}" />
 
 	<header class="img-name">
-		<img src="{{theme.img}}" data-tooltip="{{theme.name}}" />
+		<img src="{{theme.img}}" alt="{{theme.name}}" data-tooltip="{{theme.name}}" />
 		<div class="flexcol" style="gap: 0.25rem;">
 			<h2 style="margin: 0;">{{theme.name}}</h2>
 			{{#if themebookName}}
@@ -58,7 +58,7 @@
 				style="flex: 0 0 auto; width: fit-content;">
 				{{selectOptions powerQuestionOptions blank="—"}}
 			</select>
-			<input type="text" style="flex: 1;" placeholder="{{localize 'LITM.Ui.name_power'}}" />
+			<input type="text" style="flex: 1;" placeholder="{{localize 'LITM.Ui.name_power'}}" aria-label="{{localize 'LITM.Ui.name_power'}}" />
 			<button type="button" data-action="addPowerTag" data-tooltip="{{localize 'LITM.Ui.add_tag'}}"
 				aria-label="{{localize 'LITM.Ui.add_tag'}}">
 				<i class="fa-solid fa-plus" aria-hidden="true"></i>
@@ -89,7 +89,7 @@
 				style="flex: 0 0 auto; width: fit-content;">
 				{{selectOptions weaknessQuestionOptions blank="—"}}
 			</select>
-			<input type="text" style="flex: 1;" placeholder="{{localize 'LITM.Ui.name_weakness'}}" />
+			<input type="text" style="flex: 1;" placeholder="{{localize 'LITM.Ui.name_weakness'}}" aria-label="{{localize 'LITM.Ui.name_weakness'}}" />
 			<button type="button" data-action="addWeaknessTag"
 				data-tooltip="{{localize 'LITM.Ui.add_tag'}}" aria-label="{{localize 'LITM.Ui.add_tag'}}">
 				<i class="fa-solid fa-plus" aria-hidden="true"></i>

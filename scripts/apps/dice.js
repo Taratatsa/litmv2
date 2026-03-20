@@ -1,5 +1,3 @@
-export const DENOMINATION = "x";
-
 export class DoubleSix extends foundry.dice.terms.Die {
 	constructor(termData) {
 		super({ ...termData, faces: 12 });

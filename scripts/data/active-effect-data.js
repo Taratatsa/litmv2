@@ -1,3 +1,22 @@
+/**
+ * Schema for the `changes` array required by Foundry's ActiveEffect contract.
+ * Shared by all typed ActiveEffect data models.
+ */
+function changesSchema() {
+	const fields = foundry.data.fields;
+	return new fields.ArrayField(
+		new fields.SchemaField({
+			type: new fields.StringField({ required: true, blank: false }),
+			phase: new fields.StringField({ required: true, blank: false }),
+			key: new fields.StringField({ required: true, blank: false }),
+			value: new fields.StringField({ required: true, blank: false }),
+			mode: new fields.NumberField({ integer: true, initial: 2 }),
+			priority: new fields.NumberField(),
+		}),
+		{ initial: [] },
+	);
+}
+
 export class StoryTagData extends foundry.abstract.TypeDataModel {
 	static defineSchema() {
 		const fields = foundry.data.fields;
@@ -6,30 +25,7 @@ export class StoryTagData extends foundry.abstract.TypeDataModel {
 			isScratched: new fields.BooleanField({ initial: false }),
 			isHidden: new fields.BooleanField({ initial: false }),
 			limitId: new fields.StringField({ initial: null, nullable: true }),
-			// Required by Foundry's ActiveEffect type data model contract
-			changes: new fields.ArrayField(
-				new fields.SchemaField({
-					type: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					phase: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					key: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					value: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					mode: new fields.NumberField({ integer: true, initial: 2 }),
-					priority: new fields.NumberField(),
-				}),
-				{ initial: [] },
-			),
+			changes: changesSchema(),
 		};
 	}
 }
@@ -41,33 +37,15 @@ export class StatusCardData extends foundry.abstract.TypeDataModel {
 			isHidden: new fields.BooleanField({ initial: false }),
 			tiers: new fields.ArrayField(new fields.BooleanField(), {
 				initial: [false, false, false, false, false, false],
-				validate: (tiers) => tiers.length === 6,
+				validate: (tiers) => {
+					if (tiers.length !== 6)
+						throw new foundry.data.validation.DataModelValidationError(
+							`tiers must have exactly 6 entries, got ${tiers.length}`,
+						);
+				},
 			}),
 			limitId: new fields.StringField({ initial: null, nullable: true }),
-			// Required by Foundry's ActiveEffect type data model contract
-			changes: new fields.ArrayField(
-				new fields.SchemaField({
-					type: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					phase: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					key: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					value: new fields.StringField({
-						required: true,
-						blank: false,
-					}),
-					mode: new fields.NumberField({ integer: true, initial: 2 }),
-					priority: new fields.NumberField(),
-				}),
-				{ initial: [] },
-			),
+			changes: changesSchema(),
 		};
 	}
 

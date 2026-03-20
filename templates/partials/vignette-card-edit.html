@@ -1,0 +1,27 @@
+<fieldset class="vignette-card item draggable" data-item-id="{{vignette._id}}">
+	<legend class="flexrow gap-xs">
+		<span class="litm-banner vignette-card-label">{{vignette.name}}</span>
+		<button type="button" data-action="editVignette" data-item-id="{{vignette._id}}"
+			data-tooltip="{{localize 'LITM.Ui.edit'}}" aria-label="{{localize 'LITM.Ui.edit'}}">
+			<i class="fa-solid fa-pen" aria-hidden="true"></i>
+		</button>
+		<button type="button" data-action="removeVignette" data-item-id="{{vignette._id}}"
+			data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
+			<i class="fa-solid fa-trash" aria-hidden="true"></i>
+		</button>
+	</legend>
+
+	{{#unless vignette.system.isConsequenceOnly}}
+	{{#if vignette.system.threat}}
+	<div class="threat-text">{{{vignette.system.threat}}}</div>
+	{{/if}}
+	{{/unless}}
+
+	{{#if vignette.system.consequences.length}}
+	<ul class="consequences-list">
+		{{#each vignette.system.consequences as |consequence|}}
+		<li class="consequence-item">{{{consequence}}}</li>
+		{{/each}}
+	</ul>
+	{{/if}}
+</fieldset>

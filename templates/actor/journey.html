@@ -1,7 +1,7 @@
 <section class="standard-form scrollable">
 	<!-- Header -->
 	<header class="img-name">
-		<img src="{{document.img}}" data-edit="img" data-action="editImage" data-tooltip="{{localize 'LITM.Ui.edit_image'}}"
+		<img src="{{document.img}}" alt="{{document.name}}" data-edit="img" data-action="editImage" data-tooltip="{{localize 'LITM.Ui.edit_image'}}"
 			style="width: 100px; height: 100px; border-radius: 4px; object-fit: cover;" />
 		<div class="form-group stacked">
 			<input type="text" name="name" id="name" value="{{document.name}}" required />
@@ -61,41 +61,15 @@
 	<!-- Vignettes -->
 	<div class="flexrow gap-sm" style="align-items: center; justify-content: space-between;">
 		<h4 style="margin: 0;">{{localize "LITM.Terms.vignettes"}}</h4>
-		<button type="button" class="noflex" data-action="addVignette" data-tooltip="{{localize 'LITM.Ui.add_vignette'}}">
-			<i class="fa-solid fa-plus"></i>
+		<button type="button" class="noflex" data-action="addVignette" data-tooltip="{{localize 'LITM.Ui.add_vignette'}}" aria-label="{{localize 'LITM.Ui.add_vignette'}}">
+			<i class="fa-solid fa-plus" aria-hidden="true"></i>
 		</button>
 	</div>
 
 	{{#if displayVignettes.length}}
 	<div class="grid-2col" data-drop-zone="vignette">
 		{{#each displayVignettes as |vignette|}}
-		<fieldset class="vignette-card item draggable" data-item-id="{{vignette._id}}">
-			<legend class="flexrow gap-xs">
-				<span class="litm-banner vignette-card-label">{{vignette.name}}</span>
-				<button type="button" data-action="editVignette" data-item-id="{{vignette._id}}"
-					data-tooltip="{{localize 'LITM.Ui.edit'}}" aria-label="{{localize 'LITM.Ui.edit'}}">
-					<i class="fa-solid fa-pen" aria-hidden="true"></i>
-				</button>
-				<button type="button" data-action="removeVignette" data-item-id="{{vignette._id}}"
-					data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
-					<i class="fa-solid fa-trash" aria-hidden="true"></i>
-				</button>
-			</legend>
-
-			{{#unless vignette.system.isConsequenceOnly}}
-			{{#if vignette.system.threat}}
-			<div class="threat-text">{{{vignette.system.threat}}}</div>
-			{{/if}}
-			{{/unless}}
-
-			{{#if vignette.system.consequences.length}}
-			<ul class="consequences-list">
-				{{#each vignette.system.consequences as |consequence|}}
-				<li class="consequence-item">{{{consequence}}}</li>
-				{{/each}}
-			</ul>
-			{{/if}}
-		</fieldset>
+		{{> systems/litmv2/templates/partials/vignette-card-edit.html vignette=vignette}}
 		{{/each}}
 	</div>
 	{{else}}

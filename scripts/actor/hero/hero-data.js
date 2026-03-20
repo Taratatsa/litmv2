@@ -180,6 +180,17 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 			});
 	}
 
+	getRollData() {
+		return {
+			promise: this.promise,
+			limit: this.limit.value,
+			limitMax: this.limit.max,
+			power: this.availablePowerTags.length,
+			weakness: this.weaknessTags.filter((t) => t.isActive && !t.isScratched)
+				.length,
+		};
+	}
+
 	prepareDerivedData() {
 		const highestStatus =
 			this.statuses.sort((a, b) => b.value - a.value)[0]?.value || 0;

@@ -177,12 +177,27 @@ body {
 		transparent
 	);
 
+	/* Alpha-variant colors: --color-litm-limit-accent */
+	--color-litm-limit-accent-12: color-mix(
+		in srgb,
+		var(--color-litm-limit-accent) 12%,
+		transparent
+	);
+	--color-litm-limit-accent-20: color-mix(
+		in srgb,
+		var(--color-litm-limit-accent) 20%,
+		transparent
+	);
+
 	/* Alpha-variant colors: --color-data-background */
 	--color-data-background-40: color-mix(
 		in srgb,
 		var(--color-data-background) 40%,
 		transparent
 	);
+
+	/* Layout */
+	--border-radius: 4px;
 
 	/* Foundry Styles */
 	--font-h1: var(--font-blackletter);
@@ -209,6 +224,7 @@ body,
 	--color-litm-tag: #efd693;
 	--color-litm-status: #bcceb1;
 	--color-litm-limit: #d9b2a9;
+	--color-litm-limit-accent: #a0522d;
 	--color-litm-weakness: #edbb89;
 	--color-litm-banner: #c4b5a8;
 	--underline-url: url(assets/media/underline.webp) center / contain no-repeat;
@@ -603,7 +619,12 @@ body,
 	text-align: center;
 }
 
-.litm-render--challenge__description p:last-child {
+:is(
+		.litm-render--challenge__description,
+		.litm-render--trope__description,
+		.litm-render--themebook__description
+	)
+	p:last-child {
 	margin-bottom: 0;
 }
 
@@ -696,10 +717,6 @@ body,
 	line-height: 1.5;
 }
 
-.litm-render--trope__description p:last-child {
-	margin-bottom: 0;
-}
-
 .litm-render--trope__kits {
 	display: flex;
 	flex-direction: column;
@@ -779,10 +796,6 @@ body,
 	font-family: var(--font-serif);
 	font-size: var(--font-size-14);
 	line-height: 1.5;
-}
-
-.litm-render--themebook__description p:last-child {
-	margin-bottom: 0;
 }
 
 .litm-render--themebook__questions {
@@ -1008,8 +1021,7 @@ body,
 		.challenge-play-mode,
 		.fellowship-play-mode,
 		.hero-play-mode,
-		.journey-play-mode,
-		.fellowship-play-mode
+		.journey-play-mode
 	)
 	.profile-img {
 	width: 100px;
@@ -1024,11 +1036,10 @@ body,
 :is(
 		.challenge-play-mode,
 		.fellowship-play-mode,
-		.journey-play-mode,
-		.fellowship-play-mode
+		.hero-play-mode,
+		.journey-play-mode
 	)
-	.profile-img:hover,
-.hero-play-mode .profile-img:hover {
+	.profile-img:hover {
 	transform: scale(1.05);
 }
 
@@ -1036,8 +1047,7 @@ body,
 		.challenge-play-mode,
 		.fellowship-play-mode,
 		.hero-play-mode,
-		.journey-play-mode,
-		.fellowship-play-mode
+		.journey-play-mode
 	)
 	.enriched-content
 	> p:first-child {
@@ -1832,12 +1842,15 @@ body,
    Roll results, outcome colors, spend-power cards.
 ======================================== */
 
-.chat-message:has(.litm.dice-roll) {
+.chat-message:has(
+		:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)
+	) {
 	padding: 0;
 	contain: layout style;
 }
 
-.chat-message:has(.litm.dice-roll) .message-header {
+.chat-message:has(:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat))
+	.message-header {
 	padding: 4px 10px;
 	border-bottom: var(--hr-border);
 }
@@ -1974,7 +1987,7 @@ body,
 	margin-block: 0.5rem 1rem;
 	border-radius: 4px;
 	background: rgba(255, 255, 255, 0.25);
-	border: 1px dashed var(--chat-message-border-color);
+	border: 1px solid var(--chat-message-border-color);
 }
 
 .litm.dice-roll .tooltip-part {
@@ -2033,7 +2046,7 @@ body,
 	border-radius: 4px;
 	line-height: 1.4;
 	background: rgba(255, 255, 255, 0.25);
-	border: 1px dashed var(--chat-message-border-color);
+	border: 1px solid var(--chat-message-border-color);
 }
 
 .litm.dice-roll .litm--dice-roll-subtle .reference {
@@ -2054,15 +2067,6 @@ body,
 }
 
 /* --- Track Completion Chat Cards --- */
-
-.chat-message:has(.litm-track-complete) {
-	padding: 0;
-}
-
-.chat-message:has(.litm-track-complete) .message-header {
-	padding: 4px 10px;
-	border-bottom: var(--hr-border);
-}
 
 .litm-track-complete {
 	padding: 0;
@@ -2129,15 +2133,6 @@ body,
 }
 
 /* --- Spend Power Chat Cards --- */
-
-.chat-message:has(.litm-spend-chat) {
-	padding: 0;
-}
-
-.chat-message:has(.litm-spend-chat) .message-header {
-	padding: 4px 10px;
-	border-bottom: var(--hr-border);
-}
 
 .litm-spend-chat {
 	padding: 0.5rem 0.75rem;
@@ -2505,7 +2500,7 @@ body,
 
 	&:focus-visible {
 		outline: none;
-		box-shadow: none;
+		box-shadow: 0 1px 0 var(--color-warm-1);
 	}
 
 	&.litm--locked {
@@ -2555,18 +2550,9 @@ body,
 	opacity: 0.5;
 }
 
-/* Hidden actor section — visible to GM only, dimmed */
-.litm--story-tags .litm--actor-hidden {
-	opacity: 0.4;
-}
-
-/* Hidden story tag row — visible to GM only, dimmed */
-.litm--story-tags .litm--tag-item.litm--tag-hidden {
-	opacity: 0.4;
-}
-
-/* Hidden tag/status row in actor sheets (play and edit mode) */
-.litm--tag-hidden {
+/* Hidden elements — visible to GM only, dimmed */
+.litm--tag-hidden,
+.litm--actor-hidden {
 	opacity: 0.4;
 }
 
@@ -2700,7 +2686,7 @@ body,
 .litm--section-actions-bottom button {
 	flex: 1;
 	background: var(--color-text-primary-5);
-	border: 1px dashed var(--color-text-primary-15);
+	border: 1px solid var(--color-text-primary-15);
 	border-radius: 0;
 	color: var(--color-text-primary-40);
 	font-size: var(--font-size-13);
@@ -2729,7 +2715,6 @@ body,
 .litm--section-actions-bottom button:hover {
 	background: var(--color-text-primary-12);
 	color: var(--color-text-primary);
-	border-style: solid;
 }
 
 /* Actor-type section accents — color the divider lines to distinguish heroes, fellowship, and challenges */
@@ -2760,7 +2745,7 @@ body,
 .litm--limit-group {
 	margin: 3px 0;
 	padding: 6px 4px;
-	background: color-mix(in srgb, #a0522d 12%, transparent);
+	background: var(--color-litm-limit-accent-12);
 	border-radius: var(--border-radius);
 }
 
@@ -2796,6 +2781,7 @@ body,
 
 	&:focus-visible {
 		outline: none;
+		box-shadow: 0 1px 0 var(--color-litm-limit-accent);
 	}
 }
 
@@ -2803,7 +2789,7 @@ body,
 	margin-left: auto;
 	font-weight: 600;
 	font-size: var(--font-size-13);
-	color: #a0522d;
+	color: var(--color-litm-limit-accent);
 	white-space: nowrap;
 	display: flex;
 	align-items: center;
@@ -2812,7 +2798,7 @@ body,
 
 .litm--limit-info {
 	font-size: var(--font-size-11);
-	color: #a0522d;
+	color: var(--color-litm-limit-accent);
 	margin-left: 2px;
 	cursor: help;
 }
@@ -2830,7 +2816,7 @@ body,
 
 /* Dragover highlight on limit headers */
 .litm--limit-header.dragover {
-	background: color-mix(in srgb, #a0522d 20%, transparent);
+	background: var(--color-litm-limit-accent-20);
 	border-radius: var(--border-radius);
 }
 
@@ -2853,6 +2839,7 @@ body,
 
 	&:focus-visible {
 		outline: none;
+		box-shadow: 0 1px 0 var(--color-litm-limit-accent);
 	}
 }
 
@@ -2987,12 +2974,9 @@ body,
 	flex-direction: column;
 	gap: 0.25rem;
 	padding: 0.6rem 0.75rem;
-	border-left: 3px solid transparent;
 	border-bottom: 1px solid var(--color-border);
 	cursor: pointer;
-	transition:
-		border-color 0.15s ease,
-		background 0.15s ease;
+	transition: background 0.15s ease;
 }
 
 .litm-spend-power .litm-spend-power__option:last-child {
@@ -3004,8 +2988,7 @@ body,
 }
 
 .litm-spend-power .litm-spend-power__option:has(input:checked) {
-	border-left-color: var(--color-warm-2);
-	background: rgb(255 255 255 / 7%);
+	background: var(--color-warm-1-10);
 }
 
 /* --- Option row --- */
@@ -3110,7 +3093,7 @@ body,
 	padding: 0.25rem 0.6rem;
 	font-size: var(--font-size-14);
 	background: transparent;
-	border: 1px dashed var(--color-border);
+	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 	cursor: pointer;
 	color: var(--color-text-secondary);
@@ -3217,6 +3200,12 @@ body,
 
 /* --- Overlay Shell --- */
 .litm--welcome-overlay {
+	/* Shared hover background for interactive cards */
+	--hover-bg: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
 	position: fixed;
 	inset: 0;
 	z-index: 1201;
@@ -3486,11 +3475,7 @@ body,
 }
 
 .litm--welcome-overlay__tour-btn:hover {
-	background: color-mix(
-		in srgb,
-		var(--color-data-background) 80%,
-		var(--color-text-primary)
-	);
+	background: var(--hover-bg);
 	border-color: var(--color-text-subtle);
 }
 
@@ -3635,11 +3620,7 @@ body,
 }
 
 .litm--welcome-overlay__mode-card:hover {
-	background: color-mix(
-		in srgb,
-		var(--color-data-background) 80%,
-		var(--color-text-primary)
-	);
+	background: var(--hover-bg);
 	border-color: var(--color-text-subtle);
 }
 
@@ -4006,27 +3987,23 @@ body,
 	min-height: auto;
 	background: transparent;
 	border: none;
-	border-left: 3px solid transparent;
-	border-radius: 0;
+	border-radius: var(--border-radius);
 	color: var(--color-text-primary);
 	font-size: var(--font-size-13);
 	text-align: left;
 	cursor: pointer;
 	transition:
 		background 0.15s ease,
-		border-color 0.15s ease,
 		color 0.15s ease;
 }
 
 .hero-creation__trope-button:hover {
 	background: var(--color-text-subtle-8);
-	border-left-color: var(--color-warm-1-40);
 	color: var(--color-text-emphatic);
 }
 
 .hero-creation__trope-button.active {
 	background: var(--color-warm-1-10);
-	border-left-color: var(--color-warm-1);
 	color: var(--color-text-emphatic);
 	font-weight: 600;
 }
@@ -4076,11 +4053,7 @@ body,
 }
 
 .litm--welcome-overlay__wizard-body .trope-optional-kit:hover {
-	background: color-mix(
-		in srgb,
-		var(--color-data-background) 80%,
-		var(--color-text-primary)
-	);
+	background: var(--hover-bg);
 }
 
 .litm--welcome-overlay__wizard-body .trope-optional-kit span {
@@ -4249,11 +4222,7 @@ body,
 }
 
 .hero-creation__custom-theme-btn:hover {
-	background: color-mix(
-		in srgb,
-		var(--color-data-background) 80%,
-		var(--color-text-primary)
-	);
+	background: var(--hover-bg);
 	border-color: var(--color-border-15);
 }
 
@@ -4345,7 +4314,6 @@ body,
 	min-height: auto;
 	background: var(--color-data-background-40);
 	border: 1px solid var(--color-border-30);
-	border-left: 3px solid transparent;
 	border-radius: var(--border-radius);
 	color: var(--color-text-primary);
 	cursor: pointer;
@@ -4362,7 +4330,7 @@ body,
 		var(--color-data-background) 70%,
 		var(--color-text-primary)
 	);
-	border-left-color: var(--color-warm-1-50);
+	border-color: var(--color-text-subtle);
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
@@ -4433,22 +4401,19 @@ body,
 	min-height: auto;
 	background: transparent;
 	border: none;
-	border-left: 3px solid transparent;
-	border-radius: 0;
+	border-radius: var(--border-radius);
 	color: var(--color-text-secondary);
 	font-size: var(--font-size-13);
 	cursor: pointer;
 	text-align: left;
 	transition:
 		background 0.15s ease,
-		border-color 0.15s ease,
 		color 0.15s ease;
 	text-decoration: none;
 }
 
 .litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link:hover {
 	background: var(--color-text-subtle-8);
-	border-left-color: var(--color-warm-1-40);
 	color: var(--color-text-primary);
 }
 
@@ -4456,7 +4421,6 @@ body,
 	.custom-themekit-list
 	.themekit-link.active {
 	background: var(--color-warm-1-10);
-	border-left-color: var(--color-warm-1);
 	color: var(--color-text-emphatic);
 	font-weight: 600;
 }
@@ -4572,11 +4536,7 @@ body,
 }
 
 .litm--welcome-overlay__wizard-body .checkbox:hover {
-	background: color-mix(
-		in srgb,
-		var(--color-data-background) 80%,
-		var(--color-text-primary)
-	);
+	background: var(--hover-bg);
 }
 
 .litm--welcome-overlay__wizard-body .checkbox input[type="radio"] {
@@ -4750,15 +4710,11 @@ body,
 	padding: 0.5rem 0.75rem;
 	background: var(--color-data-background-40);
 	border-radius: var(--border-radius);
-	border-left: 3px solid transparent;
-	transition:
-		background 0.15s ease,
-		border-color 0.15s ease;
+	transition: background 0.15s ease;
 }
 
 .backpack-slot--active {
-	border-left-color: var(--color-warm-1);
-	background: var(--color-warm-1-6);
+	background: var(--color-warm-1-10);
 }
 
 .backpack-slot input[type="radio"] {
@@ -4872,7 +4828,7 @@ body,
 ======================================== */
 
 .litm-trope-sheet .theme-kit-drop {
-	border: 1px dashed var(--color-border);
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
 	padding: 0.75rem;
 	text-align: center;
@@ -5076,6 +5032,7 @@ body.theme-dark,
 	--color-litm-tag: #88621c;
 	--color-litm-status: #3f5a3f;
 	--color-litm-limit: #7a3e34;
+	--color-litm-limit-accent: #c47a5a;
 	--color-litm-weakness: #8d4320;
 	--color-litm-banner: #4a403a;
 
@@ -5140,8 +5097,11 @@ body.theme-dark,
 		color: rgba(255, 255, 255, 0.7);
 	}
 
-	/* Chat message container override */
-	& .chat-message:has(.litm.dice-roll) {
+	/* Chat message container overrides — shared across all chat card types */
+	&
+		.chat-message:has(
+			:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)
+		) {
 		--color-scheme: dark;
 		--chat-message-border-color: var(--color-cool-4);
 		--color-text-primary: var(--color-light-2);
@@ -5150,7 +5110,11 @@ body.theme-dark,
 		color-scheme: var(--color-scheme);
 	}
 
-	& .chat-message:has(.litm.dice-roll) .message-header {
+	&
+		.chat-message:has(
+			:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)
+		)
+		.message-header {
 		border-bottom: 1px solid var(--color-cool-4);
 		text-shadow: 0 0 2px black;
 		color: var(--color-light-3);
@@ -5193,7 +5157,7 @@ body.theme-dark,
 
 	& .litm.dice-roll.expanded .dice-tooltip {
 		background: rgba(0, 0, 0, 0.4);
-		border: 1px dashed var(--color-cool-4);
+		border: 1px solid var(--color-cool-4);
 	}
 
 	& .litm.dice-roll .part-flavor {
@@ -5202,7 +5166,7 @@ body.theme-dark,
 
 	& .litm.dice-roll .part-header {
 		color: var(--color-text-primary);
-		border-bottom-style: dashed;
+		border-bottom-style: solid;
 		border-bottom-color: var(--color-cool-4);
 	}
 
@@ -5237,7 +5201,7 @@ body.theme-dark,
 	/* UI Hints */
 	& .litm.dice-roll .litm--dice-roll-subtle {
 		color: var(--color-light-5);
-		border: 1px dashed var(--color-light-5);
+		border: 1px solid var(--color-light-5);
 		background: rgba(255, 255, 255, 0.03);
 	}
 
@@ -5248,19 +5212,6 @@ body.theme-dark,
 	}
 
 	/* Track Completion Chat Cards */
-	& .chat-message:has(.litm-track-complete) {
-		--chat-message-border-color: var(--color-cool-4);
-		--color-text-primary: var(--color-light-2);
-		background: var(--color-cool-5);
-		color: var(--color-light-2);
-	}
-
-	& .chat-message:has(.litm-track-complete) .message-header {
-		border-bottom: 1px solid var(--color-cool-4);
-		text-shadow: 0 0 2px black;
-		color: var(--color-light-3);
-	}
-
 	& .litm-track-complete__header {
 		color: #fff;
 	}
@@ -5308,20 +5259,6 @@ body.theme-dark,
 	}
 
 	/* Spend Power Chat Cards */
-	& .chat-message:has(.litm-spend-chat) {
-		--chat-message-border-color: var(--color-cool-4);
-		--color-text-primary: var(--color-light-2);
-		background: var(--color-cool-5);
-		color: var(--color-light-2);
-		color-scheme: var(--color-scheme);
-	}
-
-	& .chat-message:has(.litm-spend-chat) .message-header {
-		border-bottom: 1px solid var(--color-cool-4);
-		text-shadow: 0 0 2px black;
-		color: var(--color-light-3);
-	}
-
 	& .litm-spend-chat__header img {
 		border-color: var(--color-cool-4);
 	}
