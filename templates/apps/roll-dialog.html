@@ -37,7 +37,7 @@
 		{{#if isOwner}}
 		<div class="litm--roll-dialog-settings">
 		<!-- Title -->
-		<input type="text" name="title" value="{{title}}" placeholder="{{localize 'LITM.Ui.roll_title_placeholder'}}" class="litm--roll-title-input" />
+		<input type="text" name="title" value="{{title}}" placeholder="{{localize 'LITM.Ui.roll_title_placeholder'}}" aria-label="{{localize 'LITM.Ui.roll_title_placeholder'}}" class="litm--roll-title-input" />
 
 		<!-- Sacrifice Level & Theme -->
 		<fieldset class="litm--sacrifice-level-fieldset hidden">
@@ -61,13 +61,13 @@
 					{{selectOptions mightOptions selected=might localize=true}}
 				</select>
 				<div class="litm--modifier-stepper">
-					<button type="button" data-adjust="modifier" data-delta="-1" data-tooltip="{{localize 'LITM.Ui.decrease'}}">
-						<i class="fa-solid fa-minus"></i>
+					<button type="button" data-adjust="modifier" data-delta="-1" data-tooltip="{{localize 'LITM.Ui.decrease'}}" aria-label="{{localize 'LITM.Ui.decrease'}}">
+						<i class="fa-solid fa-minus" aria-hidden="true"></i>
 					</button>
 					<input id="modifier-input" type="number" name="modifier" value="{{modifier}}"
-						data-update="modifier" />
-					<button type="button" data-adjust="modifier" data-delta="1" data-tooltip="{{localize 'LITM.Ui.increase'}}">
-						<i class="fa-solid fa-plus"></i>
+						data-update="modifier" aria-label="{{localize 'LITM.Ui.modifiers'}}" />
+					<button type="button" data-adjust="modifier" data-delta="1" data-tooltip="{{localize 'LITM.Ui.increase'}}" aria-label="{{localize 'LITM.Ui.increase'}}">
+						<i class="fa-solid fa-plus" aria-hidden="true"></i>
 					</button>
 				</div>
 			</div>

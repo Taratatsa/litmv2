@@ -53,9 +53,16 @@ export async function migrateWorld() {
 			await migrate();
 			info(`Migration to version ${version} complete`);
 		} catch (err) {
-			console.error(`litm | Migration to version ${version} failed`, err);
+			const error =
+				err instanceof Error ? err : new Error(String(err), { cause: err });
+			Hooks.onError("litmv2.migrateWorld", error, {
+				msg: `[litmv2] Migration to version ${version} failed`,
+				log: "error",
+				notify: null,
+			});
 			ui.notifications.error(t("LITM.Ui.migration_failed"), {
 				permanent: true,
+				console: false,
 			});
 			// Stop running further migrations on failure
 			return;

@@ -1,10 +1,7 @@
 <section class="fellowship-play-mode standard-form scrollable">
 	<!-- Header -->
 	<div class="flexrow gap-md fellowship-play-header">
-		{{#if hasCustomImage}}
-		<img class="profile-img noflex" src="{{document.img}}" data-action="showPortraitArtwork"
-			data-tooltip="{{localize 'LITM.Ui.view_image'}}" />
-		{{/if}}
+		{{> systems/litmv2/templates/partials/play-profile-img.html}}
 
 		<div class="flex1 flexcol gap-sm">
 			<h1>{{document.name}}</h1>
@@ -22,15 +19,7 @@
 		<fieldset class="theme-card item" data-id="{{theme._id}}">
 			{{#if theme.system.themebook}}<legend class="litm-banner theme-card__book">{{theme.system.themebook}}</legend>
 			{{/if}}
-			<div class="theme-card-header">
-				<div class="flexrow noflex gap-sm">
-					<img class="noflex icon-md" src="{{theme.img}}"
-						data-tooltip="{{localize (concat 'LITM.Terms.' theme.system.level)}}" />
-					{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
-					noBurn=true
-					}}
-				</div>
-			</div>
+			{{> systems/litmv2/templates/partials/theme-card-header.html theme noBurn=true}}
 
 			{{> systems/litmv2/templates/partials/play-theme-tags.html theme
 			noBurn=true
@@ -53,8 +42,8 @@
 		{{else}}
 		<div class="empty-state" data-tour="fellowship-cta">
 			<button type="button" class="plain hint" data-action="browseThemes"
-				data-tooltip="{{localize 'LITM.Ui.fellowship_browse_title'}}">
-				<img height="128" width="128" src="systems/litmv2/assets/media/icons/book.svg" />
+				data-tooltip="{{localize 'LITM.Ui.fellowship_browse_title'}}" aria-label="{{localize 'LITM.Ui.fellowship_browse_title'}}">
+				<img height="128" width="128" src="systems/litmv2/assets/media/icons/book.svg" alt="" aria-hidden="true" />
 			</button>
 			<p class="hint">{{{localize "LITM.Ui.fellowship_setup_cta"}}}</p>
 		</div>

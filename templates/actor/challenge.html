@@ -1,7 +1,7 @@
 <section class="standard-form scrollable">
 	<!-- Header -->
 	<header class="img-name">
-		<img src="{{document.img}}" data-edit="img" data-action="editImage" data-tooltip="{{localize 'LITM.Ui.edit_image'}}" />
+		<img src="{{document.img}}" alt="{{document.name}}" data-edit="img" data-action="editImage" data-tooltip="{{localize 'LITM.Ui.edit_image'}}" />
 
 		<input type="text" name="name" id="name" value="{{document.name}}" required
 			style="padding: 0.5rem; border: 1px solid var(--color-border); border-radius: 3px;" />
@@ -39,8 +39,8 @@
 	<fieldset>
 		<legend class="control flexrow gap-sm">
 			<span class="flex1">{{localize "LITM.Terms.limits"}}</span>
-			<button type="button" class="noflex" data-action="addLimit" data-tooltip="{{localize 'LITM.Ui.add_limit'}}">
-				<i class="fa-solid fa-plus"></i>
+			<button type="button" class="noflex" data-action="addLimit" data-tooltip="{{localize 'LITM.Ui.add_limit'}}" aria-label="{{localize 'LITM.Ui.add_limit'}}">
+				<i class="fa-solid fa-plus" aria-hidden="true"></i>
 			</button>
 		</legend>
 
@@ -52,17 +52,17 @@
 					<input class="flex2" type="text" name="system.limits.{{@index}}.label" value="{{limit.label}}"
 						placeholder="{{localize 'LITM.Ui.limit_label'}}" />
 
-					<input class="flex0" type="text" name="system.limits.{{@index}}.max" value="{{limit.max}}"
-						style="width: 4.5rem;" placeholder="{{localize 'LITM.Terms.max'}}" />
+					<input class="flex0" type="number" name="system.limits.{{@index}}.max" value="{{limit.max}}"
+						min="0" step="1" style="width: 4.5rem;" placeholder="{{localize 'LITM.Terms.max'}}" />
 
 					<button type="button" class="noflex" data-action="removeLimit" data-index="{{@index}}"
-						data-tooltip="{{localize 'LITM.Ui.remove_limit'}}">
-						<i class="fa-solid fa-trash"></i>
+						data-tooltip="{{localize 'LITM.Ui.remove_limit'}}" aria-label="{{localize 'LITM.Ui.remove_limit'}}">
+						<i class="fa-solid fa-trash" aria-hidden="true"></i>
 					</button>
 				</div>
 
 				<div class="flexrow gap-sm" style="align-items: center;">
-					<i class="fa-solid fa-arrow-right noflex"></i>
+					<i class="fa-solid fa-arrow-right noflex" aria-hidden="true"></i>
 					<input class="flex1" type="text" name="system.limits.{{@index}}.outcome" value="{{limit.outcome}}"
 						placeholder="{{localize 'LITM.Ui.limit_outcome_placeholder'}}" />
 				</div>
@@ -86,8 +86,8 @@
 	<fieldset>
 		<legend class="control flexrow gap-sm">
 			<span class="flex1">{{localize "LITM.Terms.might"}}</span>
-			<button type="button" class="noflex" data-action="addMight" data-tooltip="{{localize 'LITM.Ui.add_might'}}">
-				<i class="fa-solid fa-plus"></i>
+			<button type="button" class="noflex" data-action="addMight" data-tooltip="{{localize 'LITM.Ui.add_might'}}" aria-label="{{localize 'LITM.Ui.add_might'}}">
+				<i class="fa-solid fa-plus" aria-hidden="true"></i>
 			</button>
 		</legend>
 
@@ -101,8 +101,8 @@
 				<input class="flex1" type="text" name="system.might.{{@index}}.description" value="{{entry.description}}"
 					placeholder="{{localize 'LITM.Terms.description'}}" />
 				<button type="button" class="noflex" data-action="removeMight" data-index="{{@index}}"
-					data-tooltip="{{localize 'LITM.Ui.remove'}}">
-					<i class="fa-solid fa-trash"></i>
+					data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
+					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
 			</li>
 			{{/each}}
@@ -115,41 +115,15 @@
 	<!-- Threats & Consequences -->
 	<div class="flexrow gap-sm" style="align-items: center; justify-content: space-between;">
 		<h4 style="margin: 0;">{{localize "LITM.Terms.threats_consequences"}}</h4>
-		<button type="button" class="noflex" data-action="addVignette" data-tooltip="{{localize 'LITM.Ui.add_vignette'}}">
-			<i class="fa-solid fa-plus"></i>
+		<button type="button" class="noflex" data-action="addVignette" data-tooltip="{{localize 'LITM.Ui.add_vignette'}}" aria-label="{{localize 'LITM.Ui.add_vignette'}}">
+			<i class="fa-solid fa-plus" aria-hidden="true"></i>
 		</button>
 	</div>
 
 	{{#if displayVignettes.length}}
 	<div class="grid-2col" data-drop-zone="vignette">
 		{{#each displayVignettes as |vignette|}}
-		<fieldset class="vignette-card item draggable" data-item-id="{{vignette._id}}">
-			<legend class="flexrow gap-xs">
-				<span class="litm-banner vignette-card-label">{{vignette.name}}</span>
-				<button type="button" data-action="editVignette" data-item-id="{{vignette._id}}"
-					data-tooltip="{{localize 'LITM.Ui.edit'}}" aria-label="{{localize 'LITM.Ui.edit'}}">
-					<i class="fa-solid fa-pen" aria-hidden="true"></i>
-				</button>
-				<button type="button" data-action="removeVignette" data-item-id="{{vignette._id}}"
-					data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
-					<i class="fa-solid fa-trash" aria-hidden="true"></i>
-				</button>
-			</legend>
-
-			{{#unless vignette.system.isConsequenceOnly}}
-			{{#if vignette.system.threat}}
-			<div class="threat-text">{{{vignette.system.threat}}}</div>
-			{{/if}}
-			{{/unless}}
-
-			{{#if vignette.system.consequences.length}}
-			<ul class="consequences-list">
-				{{#each vignette.system.consequences as |consequence|}}
-				<li class="consequence-item">{{{consequence}}}</li>
-				{{/each}}
-			</ul>
-			{{/if}}
-		</fieldset>
+		{{> systems/litmv2/templates/partials/vignette-card-edit.html vignette=vignette}}
 		{{/each}}
 	</div>
 	{{else}}

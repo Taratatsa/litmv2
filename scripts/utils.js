@@ -23,22 +23,18 @@ export function titleCase(str) {
 export async function findThemebookByName(name) {
 	if (!name) return null;
 
+	// Check world items first (already loaded, no cost)
 	const worldMatch = game.items.find(
 		(item) => item.type === "themebook" && item.name === name,
 	);
 	if (worldMatch) return worldMatch;
 
-	const compendiumPacks = game.packs.filter(
-		(pack) =>
-			pack.documentName === "Item" && pack.metadata?.label === "Themebooks",
-	);
-
-	for (const pack of compendiumPacks) {
-		const docs = await pack.getDocuments();
-		const match = docs.find(
-			(item) => item.type === "themebook" && item.name === name,
-		);
-		if (match) return match;
+	// Search compendium indices (lightweight) and load only the matching document
+	const packs = game.packs.filter((pack) => pack.documentName === "Item");
+	for (const pack of packs) {
+		const index = await pack.getIndex({ fields: ["type"] });
+		const entry = index.find((e) => e.type === "themebook" && e.name === name);
+		if (entry) return pack.getDocument(entry._id);
 	}
 
 	return null;
@@ -122,12 +118,17 @@ export async function queryItemsFromPacks({
 
 export async function confirmDelete(string = "Item") {
 	const thing = game.i18n.localize(string);
-	return foundry.applications.api.DialogV2.confirm({
-		window: {
-			title: game.i18n.format("LITM.Ui.confirm_delete_title", { thing }),
-		},
-		content: game.i18n.format("LITM.Ui.confirm_delete_content", { thing }),
-		no: { default: true },
-		classes: ["litm", "litm--confirm-delete"],
-	});
+	try {
+		return await foundry.applications.api.DialogV2.confirm({
+			window: {
+				title: game.i18n.format("LITM.Ui.confirm_delete_title", { thing }),
+			},
+			content: game.i18n.format("LITM.Ui.confirm_delete_content", { thing }),
+			no: { default: true },
+			classes: ["litm", "litm--confirm-delete"],
+		});
+	} catch {
+		// DialogV2 throws when closed via the X button — treat as rejection
+		return false;
+	}
 }

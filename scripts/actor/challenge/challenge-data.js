@@ -29,7 +29,7 @@ export class ChallengeData extends foundry.abstract.TypeDataModel {
 					}),
 					label: new fields.StringField({ initial: "" }),
 					outcome: new fields.StringField({ initial: "" }),
-					max: new fields.StringField({ initial: "3" }),
+					max: new fields.NumberField({ initial: 3, min: 0, integer: true }),
 					value: new fields.NumberField({ initial: 0, min: 0, integer: true }),
 				}),
 			),
@@ -37,6 +37,20 @@ export class ChallengeData extends foundry.abstract.TypeDataModel {
 				initial: "",
 			}),
 		};
+	}
+
+	static migrateData(source) {
+		if (Array.isArray(source.limits)) {
+			for (const limit of source.limits) {
+				if (typeof limit.max === "string") {
+					const parsed = Number(limit.max);
+					limit.max =
+						Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+					if (limit.max === 0) limit.value = 0;
+				}
+			}
+		}
+		return super.migrateData(source);
 	}
 
 	get challenges() {

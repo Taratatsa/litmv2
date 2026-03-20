@@ -6,7 +6,7 @@ import { HeroData } from "./scripts/actor/hero/hero-data.js";
 import { HeroSheet } from "./scripts/actor/hero/hero-sheet.js";
 import { JourneyData } from "./scripts/actor/journey/journey-data.js";
 import { JourneySheet } from "./scripts/actor/journey/journey-sheet.js";
-import { DENOMINATION, DoubleSix } from "./scripts/apps/dice.js";
+import { DoubleSix } from "./scripts/apps/dice.js";
 import { LitmRoll } from "./scripts/apps/roll.js";
 import { LitmRollDialog } from "./scripts/apps/roll-dialog.js";
 import { SpendPowerApp } from "./scripts/apps/spend-power.js";
@@ -88,7 +88,7 @@ Hooks.once("init", () => {
 	CONFIG.Actor.trackableAttributes.hero = HeroData.getTrackableAttributes();
 	LitmSettings.register();
 	if (LitmSettings.customDice) {
-		CONFIG.Dice.terms[DENOMINATION] = DoubleSix;
+		CONFIG.Dice.terms[DoubleSix.DENOMINATION] = DoubleSix;
 	}
 	CONFIG.Dice.rolls.push(LitmRoll);
 	CONFIG.Item.documentClass = LitmItem;
@@ -211,8 +211,6 @@ Hooks.once("init", () => {
 	Fonts.register();
 	KeyBindings.register();
 	LitmHooks.register();
-
-	success("Successfully initialized Legend in the Mist!");
 });
 
 // i18nInit Hook — needs localized strings
@@ -228,4 +226,6 @@ Hooks.once("ready", async () => {
 
 	// Alias game.litmv2.storyTags to the sidebar tab instance
 	game.litmv2.storyTags = ui.combat;
+
+	success("Successfully initialized Legend in the Mist!");
 });

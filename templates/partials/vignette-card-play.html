@@ -1,0 +1,25 @@
+<fieldset class="vignette-card item" data-item-id="{{vignette._id}}">
+	<legend class="litm-banner vignette-card-label">{{vignette.name}}</legend>
+	{{#if vignette.system.isConsequenceOnly}}
+	{{#if vignette.system.consequences.length}}
+	<ul class="consequences-list">
+		{{#each vignette.system.consequences as |consequence|}}
+		<li class="consequence-item">{{{consequence}}}</li>
+		{{/each}}
+	</ul>
+	{{/if}}
+	{{else}}
+	{{#if (or vignette.system.threat vignette.system.consequences.length)}}
+	{{#if vignette.system.threat}}
+	<div class="threat-text">{{{vignette.system.threat}}}</div>
+	{{/if}}
+	{{#if vignette.system.consequences.length}}
+	<ul class="consequences-list">
+		{{#each vignette.system.consequences as |consequence|}}
+		<li class="consequence-item">{{{consequence}}}</li>
+		{{/each}}
+	</ul>
+	{{/if}}
+	{{/if}}
+	{{/if}}
+</fieldset>

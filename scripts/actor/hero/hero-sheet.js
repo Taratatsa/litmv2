@@ -244,12 +244,6 @@ export class HeroSheet extends LitmActorSheet {
 		// Prepare enriched fields for the editor helper
 		const fields = this.document.schema.getField("system");
 
-		// Tag type options for story tags/statuses dropdown
-		const tagTypeOptions = [
-			{ value: "tag", label: "LITM.Terms.tag" },
-			{ value: "status", label: "LITM.Terms.status" },
-		];
-
 		return {
 			...context,
 			system: this.system,
@@ -271,7 +265,6 @@ export class HeroSheet extends LitmActorSheet {
 			momentsOfFulfillment,
 			momentOfFulfillmentEntries,
 			momentOfFulfillmentVisible,
-			tagTypeOptions,
 
 			rollTags: this.#rollDialog?.characterTags ?? this._buildAllRollTags(),
 			limit: this.system.limit,

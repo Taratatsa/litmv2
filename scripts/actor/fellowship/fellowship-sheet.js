@@ -85,7 +85,6 @@ export class FellowshipSheet extends LitmActorSheet {
 
 		return {
 			...context,
-			isGM: game.user.isGM,
 			isOwner: this.document.isOwner,
 			isEditMode: this._isEditMode,
 			enriched: {
@@ -94,10 +93,6 @@ export class FellowshipSheet extends LitmActorSheet {
 			theme,
 			storyThemes,
 			storyTags: this._prepareStoryTags(),
-			tagTypeOptions: {
-				tag: "LITM.Terms.tag",
-				status: "LITM.Terms.status",
-			},
 			party,
 		};
 	}

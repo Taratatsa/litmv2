@@ -34,18 +34,7 @@
 				<i class="fa-solid fa-trash" aria-hidden="true"></i>
 			</button>
 		</legend>
-		<div class="theme-card-header">
-			<div class="flexrow noflex gap-sm">
-				<img class="noflex icon-md" src="{{theme.img}}"
-					data-tooltip="{{localize (concat 'LITM.Terms.' theme.system.level)}}" />
-				{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
-				action="toggleTagActive"
-				tooltip=(localize "LITM.Ui.click_to_scratch_tag")
-				}}
-			</div>
-			<div class="noflex flexrow gap-xs">
-			</div>
-		</div>
+		{{> systems/litmv2/templates/partials/theme-card-header.html theme action="toggleTagActive" tooltip=(localize "LITM.Ui.click_to_scratch_tag")}}
 
 		{{> systems/litmv2/templates/partials/edit-theme-tags-activatable.html theme}}
 

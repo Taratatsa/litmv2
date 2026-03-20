@@ -39,6 +39,12 @@ export class HandlebarsPartials {
 		"systems/litmv2/templates/partials/edit-theme-tags-activatable.html",
 		"systems/litmv2/templates/partials/edit-theme-tracks.html",
 		"systems/litmv2/templates/partials/theme-special-improvements.html",
+		"systems/litmv2/templates/partials/theme-card-header.html",
+		"systems/litmv2/templates/partials/play-profile-img.html",
+		"systems/litmv2/templates/partials/vignette-card-edit.html",
+		"systems/litmv2/templates/partials/vignette-card-play.html",
+		"systems/litmv2/templates/partials/rating-star.html",
+		"systems/litmv2/templates/partials/icon-fellowship-hint.html",
 		"systems/litmv2/templates/apps/welcome-overlay/wizard-footer.html",
 	];
 

@@ -1,5 +1,6 @@
 import { Sockets } from "../system/sockets.js";
 import { confirmDelete, enrichHTML, toPlainObject } from "../utils.js";
+import { LitmSheetMixin } from "./litm-sheet-mixin.js";
 
 const { ActorSheetV2 } = foundry.applications.sheets;
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -8,7 +9,9 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
  * Base actor sheet class for Legend in the Mist
  * Provides common functionality for all actor sheet types
  */
-export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
+export class LitmActorSheet extends LitmSheetMixin(
+	HandlebarsApplicationMixin(ActorSheetV2),
+) {
 	/**
 	 * Available sheet modes
 	 * @static
@@ -38,6 +41,9 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 		},
 	};
 
+	/** @type {ReturnType<typeof setTimeout>|null} */
+	#notifyStoryTagsTimer = null;
+
 	/**
 	 * Current sheet mode
 	 * @type {number}
@@ -51,15 +57,6 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 	 */
 	get _isEditMode() {
 		return this._mode === LitmActorSheet.MODES.EDIT;
-	}
-
-	/**
-	 * Convenient reference to the actor's system data
-	 * @type {TypeDataModel}
-	 * @protected
-	 */
-	get system() {
-		return this.document.system;
 	}
 
 	/** @override */
@@ -98,70 +95,9 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 	/** @override */
 	async _prepareContext(options) {
 		const context = await super._prepareContext(options);
+		context.isGM = game.user.isGM;
 		context.hasCustomImage = this.document.img !== "icons/svg/mystery-man.svg";
 		return context;
-	}
-
-	/** Whether to suppress the next change-triggered form submit (set by pointerdown pre-submit) */
-	_suppressNextChange = false;
-
-	/**
-	 * When the user clicks an action button while an input is focused, the browser
-	 * fires: pointerdown → blur → change → pointerup → click.
-	 * The blur/change triggers a form re-render that would detach the button before
-	 * click fires. Fix: on pointerdown, submit the form immediately and suppress
-	 * the duplicate change-triggered submit. By the time click fires the document
-	 * data is already locally updated (Foundry applies optimistic updates synchronously).
-	 * @override
-	 */
-	_onChangeForm(formConfig, event) {
-		if (this._suppressNextChange) {
-			this._suppressNextChange = false;
-			return;
-		}
-		super._onChangeForm(formConfig, event);
-	}
-
-	/** @override */
-	async _onFirstRender(context, options) {
-		await super._onFirstRender(context, options);
-
-		// Prevent click from firing (per Pointer Events spec, preventDefault on
-		// pointerdown suppresses the subsequent click). We submit the form and
-		// execute the action manually, since rAF-deferred renders still fire
-		// before the click event in practice.
-		this.element.addEventListener(
-			"pointerdown",
-			(event) => {
-				const actionBtn = event.target.closest("[data-action]");
-				if (!actionBtn) return;
-
-				const form = this.form;
-				if (!form) return;
-
-				const focused = document.activeElement;
-				if (!focused || !form.contains(focused)) return;
-				if (!["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName)) return;
-
-				event.preventDefault();
-
-				const action = actionBtn.dataset.action;
-				const dataset = { ...actionBtn.dataset };
-
-				this._suppressNextChange = true;
-				this.submit()
-					.then(() => {
-						const handler = this.options.actions[action];
-						const fn = typeof handler === "object" ? handler.handler : handler;
-						if (!fn) return;
-						const syntheticTarget = document.createElement("button");
-						Object.assign(syntheticTarget.dataset, dataset);
-						fn.call(this, event, syntheticTarget);
-					})
-					.catch(console.error);
-			},
-			{ capture: true },
-		);
 	}
 
 	/** @override */
@@ -440,6 +376,7 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 			type: "themeTag",
 			isScratched: data.system.isScratched,
 		};
+		data.levelLabel = game.i18n.localize(`LITM.Terms.${data.system.level}`);
 		return data;
 	}
 
@@ -536,16 +473,21 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 	}
 
 	/**
-	 * Notify the story tags app and other clients that story tags changed.
+	 * Debounced: notify the story tags app and other clients that story tags changed.
 	 * @protected
 	 */
-	/** Debounced: notify the story tags app and other clients that story tags changed. */
 	_notifyStoryTags() {
-		clearTimeout(this._notifyStoryTagsTimer);
-		this._notifyStoryTagsTimer = setTimeout(() => {
+		clearTimeout(this.#notifyStoryTagsTimer);
+		this.#notifyStoryTagsTimer = setTimeout(() => {
 			game.litmv2.storyTags?.render();
 			Sockets.dispatch("storyTagsRender");
 		}, 150);
+	}
+
+	/** @override */
+	_onClose(options) {
+		clearTimeout(this.#notifyStoryTagsTimer);
+		super._onClose(options);
 	}
 
 	/**
@@ -643,6 +585,48 @@ export class LitmActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
 		if (!(await confirmDelete(`TYPES.Item.${item.type}`))) return;
 		await item.delete();
+	}
+
+	/**
+	 * Create a new embedded vignette item and open its sheet.
+	 * @param {Event} _event
+	 * @param {HTMLElement} _target
+	 * @protected
+	 */
+	static async _onAddVignette(_event, _target) {
+		const [vignette] = await this.document.createEmbeddedDocuments("Item", [
+			{
+				name: game.i18n.localize("LITM.Ui.new_vignette"),
+				type: "vignette",
+			},
+		]);
+		vignette.sheet.render(true);
+	}
+
+	/**
+	 * Open an embedded vignette item's sheet for editing.
+	 * @param {Event} _event
+	 * @param {HTMLElement} target
+	 * @protected
+	 */
+	static _onEditVignette(_event, target) {
+		const itemId = target.dataset.itemId;
+		const item = this.document.items.get(itemId);
+		item?.sheet.render(true);
+	}
+
+	/**
+	 * Delete an embedded vignette item after user confirmation.
+	 * @param {Event} _event
+	 * @param {HTMLElement} target
+	 * @protected
+	 */
+	static async _onRemoveVignette(_event, target) {
+		if (!(await confirmDelete("TYPES.Item.vignette"))) return;
+
+		const itemId = target.dataset.itemId;
+		const item = this.document.items.get(itemId);
+		await item?.delete();
 	}
 
 	/**

@@ -131,7 +131,7 @@ export async function renderChallenge(actor) {
 					badge.dataset.text = limit.label;
 					badge.textContent = limit.label;
 
-					const isImpossible = limit.max === "~";
+					const isImpossible = limit.max === 0;
 					const icon = document.createElement("img");
 					icon.src = "systems/litmv2/assets/media/icons/limit.svg";
 					icon.classList.add("litm-render--challenge__limit-icon");
