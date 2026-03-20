@@ -206,6 +206,8 @@ export class LitmRoll extends foundry.dice.Roll {
 			positiveStatuses: this.litm.positiveStatuses,
 			negativeStatuses: this.litm.negativeStatuses,
 			modifier: this.modifier,
+			mightOffset: this.litm.mightOffset || 0,
+			might: this.litm.might || "equal",
 		};
 	}
 }

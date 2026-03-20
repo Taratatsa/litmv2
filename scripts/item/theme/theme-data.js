@@ -28,11 +28,11 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 					initial: () =>
 						Array(2)
 							.fill()
-							.map((_, i) => ({
+							.map(() => ({
 								id: foundry.utils.randomID(),
 								name: "",
 								question: "",
-								isActive: i < 2,
+								isActive: false,
 								isScratched: false,
 								type: "powerTag",
 							})),
@@ -48,7 +48,7 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 								id: foundry.utils.randomID(),
 								name: "",
 								question: "",
-								isActive: true,
+								isActive: false,
 								isScratched: false,
 								type: "weaknessTag",
 							})),

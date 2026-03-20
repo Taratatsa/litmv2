@@ -226,6 +226,9 @@ body,
 	--color-litm-limit: #d9b2a9;
 	--color-litm-limit-accent: #a0522d;
 	--color-litm-weakness: #edbb89;
+	--color-litm-tag-text: #88621c;
+	--color-litm-status-text: #3f5a3f;
+	--color-litm-weakness-text: #8d4320;
 	--color-litm-banner: #c4b5a8;
 	--underline-url: url(assets/media/underline.webp) center / contain no-repeat;
 }
@@ -415,12 +418,13 @@ body,
 		content: "";
 		position: absolute;
 		z-index: -2;
-		left: 0em;
+		left: -0.1em;
 		right: -0.1em;
-		top: 0.4em;
+		top: 0.2em;
 		bottom: 0.2em;
 		background: var(--tag-color, var(--color-cool-5));
-		border-radius: 0px;
+		border-radius: 2px;
+		transform: skewX(-3deg);
 	}
 }
 
@@ -1301,9 +1305,9 @@ body,
 
 :is(
 		.challenge-play-mode .limit-track,
-		.hero-play-mode .promise-display,
-		.hero-play-mode .progress-display,
-		.fellowship-play-mode .progress-display
+		.litm-hero-sheet .promise-display,
+		.litm-hero-sheet .progress-display,
+		.litm-fellowship-sheet .progress-display
 	) {
 	display: flex;
 }
@@ -2411,7 +2415,7 @@ body,
 	padding: 0;
 	margin: 0;
 	cursor: grab;
-	font-size: var(--font-size-18);
+	font-size: var(--font-size-16);
 
 	& > * {
 		position: relative;
@@ -2500,7 +2504,7 @@ body,
 
 	&:focus-visible {
 		outline: none;
-		box-shadow: 0 1px 0 var(--color-warm-1);
+		box-shadow: 0 1px 0 var(--input-background-color);
 	}
 
 	&.litm--locked {
@@ -2606,6 +2610,7 @@ body,
 .litm--story-tags .litm--actor-hidden .litm--header-visibility {
 	opacity: 1;
 	pointer-events: auto;
+	cursor: pointer;
 }
 
 /* Always show single-use indicator when checked */
@@ -2613,6 +2618,7 @@ body,
 	.litm--single-use-label {
 	opacity: 1;
 	pointer-events: auto;
+	cursor: pointer;
 }
 
 /* Section header — name only, divider lines handle decoration */
@@ -2975,6 +2981,7 @@ body,
 	gap: 0.25rem;
 	padding: 0.6rem 0.75rem;
 	border-bottom: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -2988,7 +2995,7 @@ body,
 }
 
 .litm-spend-power .litm-spend-power__option:has(input:checked) {
-	background: var(--color-warm-1-10);
+	background: var(--table-row-color-even);
 }
 
 /* --- Option row --- */
@@ -5034,6 +5041,9 @@ body.theme-dark,
 	--color-litm-limit: #7a3e34;
 	--color-litm-limit-accent: #c47a5a;
 	--color-litm-weakness: #8d4320;
+	--color-litm-tag-text: #efd693;
+	--color-litm-status-text: #bcceb1;
+	--color-litm-weakness-text: #edbb89;
 	--color-litm-banner: #4a403a;
 
 	& .hint img {
@@ -5160,8 +5170,20 @@ body.theme-dark,
 		border: 1px solid var(--color-cool-4);
 	}
 
-	& .litm.dice-roll .part-flavor {
-		color: hsl(75.88 48.31% 42.3%);
+	& .litm.dice-roll .part-flavor.flavor-tag {
+		color: var(--color-litm-tag-text);
+	}
+
+	& .litm.dice-roll .part-flavor.flavor-status {
+		color: var(--color-litm-status-text);
+	}
+
+	& .litm.dice-roll .part-flavor.flavor-weakness {
+		color: var(--color-litm-weakness-text);
+	}
+
+	& .litm.dice-roll .part-flavor.flavor-burned {
+		color: var(--color-litm-weakness-text);
 	}
 
 	& .litm.dice-roll .part-header {

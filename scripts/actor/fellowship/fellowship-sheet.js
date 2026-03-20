@@ -416,6 +416,21 @@ export class FellowshipSheet extends LitmActorSheet {
 		const attrib = container.dataset.id;
 		if (!attrib) return;
 
+		// Handle effect tiers (story tags / status cards)
+		const effectId = button.dataset.effectId;
+		if (effectId) {
+			const effect = this.document.effects.get(effectId);
+			if (!effect) return;
+			const currentTiers = foundry.utils.getProperty(effect, "system.tiers");
+			if (!Array.isArray(currentTiers)) return;
+			const isStatus = effect.type === "status_card";
+			const newTiers = isStatus
+				? currentTiers.map((v, idx) => (idx === boxIndex ? !v : v))
+				: currentTiers.map((_, idx) => idx <= boxIndex);
+			await effect.update({ "system.tiers": newTiers });
+			return;
+		}
+
 		const itemElement = button.closest(".item");
 		const item = itemElement
 			? this.document.items.get(itemElement.dataset.id)

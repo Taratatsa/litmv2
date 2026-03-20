@@ -242,9 +242,6 @@ export class LitmActorSheet extends LitmSheetMixin(
 			}
 			if (effectType === "status_card") {
 				effect.system ??= {};
-				if (!Array.isArray(effect.system.tiers)) {
-					effect.system.tiers = new Array(6).fill(false);
-				}
 			}
 		}
 		if (effectsToUpdate.length) {

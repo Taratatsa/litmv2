@@ -1117,10 +1117,20 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 
 	getFilteredArrayFromFormData(formData) {
 		const allTags = [...this.tagState, ...this.characterTags];
-		return Object.entries(formData)
+		const formKeys = new Set();
+		const fromForm = Object.entries(formData)
 			.filter(([_, v]) => !!v)
-			.map(([key]) => allTags.find((t) => t.id === key))
+			.map(([key]) => {
+				formKeys.add(key);
+				return allTags.find((t) => t.id === key);
+			})
 			.filter(Boolean);
+		// Include tagState entries contributed by other users that have no form field
+		// (e.g., GM-selected Journey/Challenge tags not rendered for the owner)
+		const contributed = this.tagState.filter(
+			(t) => t.state && !formKeys.has(t.id),
+		);
+		return [...fromForm, ...contributed];
 	}
 
 	reset() {
