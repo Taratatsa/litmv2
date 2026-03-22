@@ -726,13 +726,17 @@ export class HeroSheet extends LitmActorSheet {
 	 * @param {object} tag The weakness tag
 	 */
 	async gainImprovement(tag) {
-		const parentTheme = this.document.items.find(
+		const owner = tag.fromFellowship
+			? this.system.fellowshipActor
+			: this.document;
+		if (!owner) return;
+		const parentTheme = owner.items.find(
 			(i) =>
 				["theme", "story_theme"].includes(i.type) &&
 				i.system.weaknessTags?.some((t) => t.id === tag.id),
 		);
 		if (parentTheme) {
-			await this.document.updateEmbeddedDocuments("Item", [
+			await owner.updateEmbeddedDocuments("Item", [
 				{
 					_id: parentTheme.id,
 					"system.improve.value": parentTheme.system.improve.value + 1,

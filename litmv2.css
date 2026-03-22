@@ -4753,7 +4753,7 @@ input[type="text"].litm--quick-add-input,
 .litm--welcome-overlay__wizard-body .tag-questions-details > summary::before {
 	content: "\f059";
 	/* fa-circle-question */
-	font-family: "Font Awesome 6 Free";
+	font-family: var(--font-awesome);
 	font-weight: 900;
 	font-size: var(--font-size-11);
 	color: var(--color-warm-1);
