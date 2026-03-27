@@ -74,8 +74,10 @@
 }
 
 /* --- Foundry Variable Overrides --- */
-body {
+body,
+.application {
 	--background-url: url("assets/media/sheet-background.webp");
+	--background: url("/systems/litmv2/assets/media/sheet-background.webp") repeat;
 	--main-logo: url("assets/media/logo.svg");
 	--font-blackletter: Ysgarth, "Modesto Condensed", "Arial Narrow Bold", sans-serif;
 	--font-packard: PackardAntique, "Garamond Premier Pro", "Palatino Linotype", Palatino, serif;
@@ -161,6 +163,11 @@ body,
 	--color-litm-weakness-text: #8d4320;
 	--color-litm-banner: #c4b5a8;
 	--underline-url: url(assets/media/underline.webp) center / contain no-repeat;
+	--sidebar-background: var(--background);
+}
+
+.chat-message {
+	--chat-message-background: url("/systems/litmv2/assets/media/sheet-background.webp") repeat;
 }
 
 /* ========================================
@@ -3540,7 +3547,7 @@ input[type="text"].litm--quick-add-input,
 .litm--welcome-overlay__tours h3 {
 	font-size: var(--font-size-13, 0.8125rem);
 	font-weight: bold;
-	color: var(--color-form-label);
+	color: var(--color-light-4);
 	text-align: center;
 	margin: 0 0 0.25rem;
 }
@@ -3556,10 +3563,10 @@ input[type="text"].litm--quick-add-input,
 	min-height: auto;
 	flex: 1;
 	min-width: 0;
-	background: var(--color-data-background);
-	border: 1px solid var(--color-border);
+	background: rgba(0, 0, 0, 0.35);
+	border: 1px solid rgba(255, 255, 255, 0.12);
 	border-radius: 4px;
-	color: var(--color-text-primary);
+	color: var(--color-light-2);
 	cursor: pointer;
 	transition:
 		background 0.2s ease,
@@ -3568,19 +3575,19 @@ input[type="text"].litm--quick-add-input,
 }
 
 .litm--welcome-overlay__tour-btn:hover {
-	background: var(--hover-bg);
-	border-color: var(--color-text-subtle);
+	background: rgba(0, 0, 0, 0.5);
+	border-color: rgba(255, 255, 255, 0.25);
 }
 
 .litm--welcome-overlay__tour-btn .litm--welcome-overlay__tour-title {
 	font-size: var(--font-size-16, 1rem);
 	font-weight: 600;
-	color: var(--color-text-emphatic);
+	color: var(--color-light-1);
 }
 
 .litm--welcome-overlay__tour-btn .litm--welcome-overlay__tour-desc {
 	font-size: var(--font-size-13, 0.8125rem);
-	color: var(--color-text-secondary);
+	color: rgba(255, 255, 255, 0.55);
 	line-height: 1.4;
 }
 
@@ -3590,7 +3597,7 @@ input[type="text"].litm--quick-add-input,
 	border: none;
 	height: auto;
 	min-height: auto;
-	color: var(--color-text-subtle);
+	color: var(--color-light-5);
 	font-size: var(--font-size-14);
 	cursor: pointer;
 	padding: 0.75rem 1rem;
@@ -3599,7 +3606,7 @@ input[type="text"].litm--quick-add-input,
 }
 
 .litm--welcome-overlay__dismiss:hover {
-	color: var(--color-text-primary);
+	color: rgba(255, 255, 255, 0.7);
 	opacity: 1;
 }
 
@@ -5096,6 +5103,7 @@ fieldset.litm-party-overview {
    and .themed.theme-dark on interface elements (Interface: Dark) */
 body.theme-dark,
 .themed.theme-dark {
+	--background: var(--color-cool-5-90);
 	--underline-url: url(assets/media/underline-w.webp) center / contain no-repeat;
 	--litm-icon-filter: none;
 	--color-litm-tag: #88621c;
@@ -5128,25 +5136,6 @@ body.theme-dark,
 		border-color: var(--color-border);
 	}
 
-	& .litm--welcome-overlay__tour-btn {
-		background: rgba(0, 0, 0, 0.35);
-		border-color: rgba(255, 255, 255, 0.12);
-		color: var(--color-light-2);
-	}
-
-	& .litm--welcome-overlay__tour-btn:hover {
-		background: rgba(0, 0, 0, 0.5);
-		border-color: rgba(255, 255, 255, 0.25);
-	}
-
-	& .litm--welcome-overlay__tour-title {
-		color: var(--color-light-1);
-	}
-
-	& .litm--welcome-overlay__tour-desc {
-		color: rgba(255, 255, 255, 0.55);
-	}
-
 	& .hero-created__flourish i {
 		color: var(--color-warm-1-50);
 	}
@@ -5154,14 +5143,6 @@ body.theme-dark,
 	& .hero-created__line {
 		background: linear-gradient(90deg, transparent, var(--color-warm-1-30) 50%, transparent);
 		opacity: 1;
-	}
-
-	& .litm--welcome-overlay__dismiss {
-		color: var(--color-light-5);
-	}
-
-	& .litm--welcome-overlay__dismiss:hover {
-		color: rgba(255, 255, 255, 0.7);
 	}
 
 	/* Chat message container overrides — shared across all chat card types */
