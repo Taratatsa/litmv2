@@ -11,12 +11,30 @@
 					{{> systems/litmv2/templates/partials/rating-star.html cssClass=(ifThen @checked "filled" "empty")}}
 					{{/progress-buttons}}
 				</div>
-				{{#if source.system.category}}
-				<span class="category">{{source.system.category}}</span>
+				{{#if derivedCategories.length}}
+				<span class="category">{{join derivedCategories ", "}}</span>
 				{{/if}}
 			</div>
 		</div>
 	</div>
+
+	<!-- Active Add-On Badges -->
+	{{#if addons.length}}
+	<div class="addon-badges">
+		{{#each addons as |addon|}}
+		<span class="addon-badge">
+			<span class="addon-badge__name">{{addon.name}}</span>
+			{{#if addon.stars.length}}
+			<span class="addon-badge__stars">
+				{{#each addon.stars}}
+				{{> systems/litmv2/templates/partials/rating-star.html cssClass="filled"}}
+				{{/each}}
+			</span>
+			{{/if}}
+		</span>
+		{{/each}}
+	</div>
+	{{/if}}
 
 	<!-- Description + Special Features -->
 	{{#if (or enriched.description enriched.specialFeatures)}}

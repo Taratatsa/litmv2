@@ -25,6 +25,9 @@ function _prepareThemeOnCreate() {
 				img = `systems/litmv2/assets/media/icons/${tbLevel}.svg`;
 				break;
 			}
+			case "addon":
+				img += icons.vignette;
+				break;
 			case "vignette":
 				img += icons.vignette;
 				break;

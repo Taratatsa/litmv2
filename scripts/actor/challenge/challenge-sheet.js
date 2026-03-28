@@ -7,6 +7,8 @@ import { confirmDelete, enrichHTML } from "../../utils.js";
  * Represents NPCs, obstacles, and challenges for heroes to overcome
  */
 export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
+	_expandedAddons = new Set();
+
 	/** @override */
 	static DEFAULT_OPTIONS = {
 		classes: ["litm", "litm-challenge-sheet"],
@@ -22,6 +24,9 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 			adjustRating: ChallengeSheet.#onAdjustRating,
 			addMight: ChallengeSheet.#onAddMight,
 			removeMight: ChallengeSheet.#onRemoveMight,
+			editAddon: ChallengeSheet.#onEditAddon,
+			removeAddon: ChallengeSheet.#onRemoveAddon,
+			toggleAddonDetail: ChallengeSheet.#onToggleAddonDetail,
 		},
 		form: {
 			handler: ChallengeSheet.#onSubmitChallengeForm,
@@ -62,24 +67,54 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 	async _prepareContext(options) {
 		const context = await super._prepareContext(options);
 
-		// Enrich HTML fields for display (but not for editing)
+		const sys = this.system;
+
+		// Enrich HTML fields for display
 		const enrichedSpecialFeatures = await enrichHTML(
-			this.system.specialFeatures,
+			sys.specialFeatures,
 			this.document,
 		);
 		const enrichedDescription = await enrichHTML(
-			this.system.description,
+			sys.description,
 			this.document,
 		);
 
-		// Enrich the tags string for play mode display
+		// Use derived fields in play mode, base fields in edit mode
+		const isPlay = !this._isEditMode;
+
+		// Enrich the tags string for display
 		const enrichedTags = await enrichHTML(
-			this.system.tags || "",
+			isPlay ? (sys.derivedTags || sys.tags || "") : (sys.tags || ""),
 			this.document,
 		);
 
 		// Prepare vignette items
 		const { vignettes, vignettesByType } = await this._prepareVignettes();
+
+		// Prepare addon threats with enriched HTML
+		const addonThreats = await Promise.all(
+			(sys.addonThreats || []).map(async (t) => ({
+				...t,
+				threat: await enrichHTML(t.threat, this.document),
+				consequences: await Promise.all(
+					t.consequences.map((c) => enrichHTML(c, this.document)),
+				),
+			})),
+		);
+
+		// Combined display vignettes: own vignettes + addon threats
+		const displayVignettes = [
+			...vignettes,
+			...addonThreats.map((t) => ({
+				_id: null,
+				name: t.name,
+				system: {
+					threat: t.threat,
+					consequences: t.consequences,
+					isConsequenceOnly: t.isConsequenceOnly,
+				},
+			})),
+		];
 
 		return {
 			...context,
@@ -90,27 +125,33 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 				specialFeatures: enrichedSpecialFeatures,
 				tags: enrichedTags,
 			},
-			tagsString: this.system.tags || "",
+			tagsString: sys.tags || "",
 			vignettes,
 			vignettesByType,
-			displayVignettes: vignettes,
-			challenges: this.system.challenges,
+			displayVignettes,
+			challenges: sys.challenges,
 			limits: await Promise.all(
-				(this.system.limits || []).map(async (limit) => {
-					const hasGroupedStatuses = this.document.effects.some(
-						(e) => e.type === "status_card" && e.system?.limitId === limit.id,
-					);
-					return {
-						...limit,
-						isImpossible: limit.max === 0,
-						isAutoManaged: hasGroupedStatuses,
-						enrichedOutcome: await enrichHTML(limit.outcome, this.document),
-					};
-				}),
+				(isPlay ? (sys.derivedLimits || sys.limits) : sys.limits || []).map(
+					async (limit) => {
+						const hasGroupedStatuses = this.document.effects.some(
+							(e) => e.type === "status_card" && e.system?.limitId === limit.id,
+						);
+						const isFromAddon = isPlay &&
+							!sys.limits.some((l) => l.id === limit.id);
+						return {
+							...limit,
+							isImpossible: limit.max === 0,
+							isAutoManaged: hasGroupedStatuses || isFromAddon,
+							enrichedOutcome: await enrichHTML(limit.outcome, this.document),
+						};
+					},
+				),
 			),
-			rating: this.system.rating,
+			rating: isPlay ? (sys.derivedRating ?? sys.rating) : sys.rating,
 			might: await Promise.all(
-				(this.system.might || []).map(async (entry) => ({
+				(isPlay ? (sys.derivedMight || sys.might) : sys.might || []).map(async (
+					entry,
+				) => ({
 					...entry,
 					enrichedDescription: await enrichHTML(
 						entry.description,
@@ -119,10 +160,31 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 				})),
 			),
 			mightOptions: {
-				origin: "LITM.Terms.origin",
 				adventure: "LITM.Terms.adventure",
 				greatness: "LITM.Terms.greatness",
 			},
+			// Addon data for edit mode
+			addons: await Promise.all((sys.activeAddons || []).map(async (a) => {
+				const item = this.document.items.get(a.id);
+				const expanded = this._expandedAddons.has(a.id);
+				return {
+					...a,
+					categorySummary: item?.system.categories.join(", ") || "",
+					stars: Array(a.ratingBonus || 0).fill(true),
+					expanded,
+					enrichedDescription: expanded
+						? await enrichHTML(item?.system.description, this.document)
+						: "",
+					enrichedTags: expanded
+						? await enrichHTML(item?.system.tags, this.document)
+						: "",
+					enrichedSpecialFeatures: expanded
+						? await enrichHTML(item?.system.specialFeatures, this.document)
+						: "",
+				};
+			})),
+			// Derived categories for play mode display
+			derivedCategories: sys.derivedCategories || [],
 		};
 	}
 
@@ -138,10 +200,17 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 		const limitsNeedingIds = this.system.limits.filter((l) => !l.id);
 		if (limitsNeedingIds.length && this.document.isOwner) {
 			const limits = this.system.limits.map((l) =>
-				l.id ? l : { ...l, id: foundry.utils.randomID() },
+				l.id ? l : { ...l, id: foundry.utils.randomID() }
 			);
 			this.document.update({ "system.limits": limits });
 		}
+
+		// Watch for addon item updates to re-sync their effects
+		this._addonUpdateHookId = Hooks.on("updateItem", (item) => {
+			if (item.parent !== this.document) return;
+			if (item.type !== "addon") return;
+			this._resyncAddonEffects(item);
+		});
 	}
 
 	/* -------------------------------------------- */
@@ -172,7 +241,7 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 		const might = foundry.utils.getProperty(submitData, "system.might");
 		if (Array.isArray(might)) {
 			submitData["system.might"] = might.map((entry) => ({
-				level: entry.level || "origin",
+				level: entry.level || "adventure",
 				description: entry.description || "",
 			}));
 		}
@@ -244,7 +313,7 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 	static async #onAddMight(_event, _target) {
 		const might = [
 			...(this.system.might || []),
-			{ level: "origin", description: "" },
+			{ level: "adventure", description: "" },
 		];
 		await this.document.update({ "system.might": might });
 	}
@@ -255,13 +324,123 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 		await this.document.update({ "system.might": might });
 	}
 
+	static #onToggleAddonDetail(_event, target) {
+		const itemId = target.dataset.itemId;
+		if (this._expandedAddons.has(itemId)) {
+			this._expandedAddons.delete(itemId);
+		} else {
+			this._expandedAddons.add(itemId);
+		}
+		this.render();
+	}
+
+	static #onEditAddon(_event, target) {
+		const itemId = target.dataset.itemId;
+		const item = this.document.items.get(itemId);
+		item?.sheet.render(true);
+	}
+
+	static async #onRemoveAddon(_event, target) {
+		if (!(await confirmDelete("TYPES.Item.addon"))) return;
+
+		const itemId = target.dataset.itemId;
+
+		// Delete ActiveEffects contributed by this addon
+		const addonEffects = this.document.effects
+			.filter((e) => e.getFlag("litmv2", "addonId") === itemId)
+			.map((e) => e.id);
+		if (addonEffects.length) {
+			await this.document.deleteEmbeddedDocuments("ActiveEffect", addonEffects);
+		}
+
+		// Delete the addon item
+		await this.document.deleteEmbeddedDocuments("Item", [itemId]);
+		this._notifyStoryTags();
+	}
+
 	/* -------------------------------------------- */
 	/*  Drag & Drop                                 */
 	/* -------------------------------------------- */
 
 	/** @override */
 	async _onDropItem(event, item) {
-		if (item.type !== "vignette") return;
-		return super._onDropItem(event, item);
+		if (item.type === "vignette") return super._onDropItem(event, item);
+		if (item.type === "addon") return this._onDropAddon(event, item);
+	}
+
+	/**
+	 * Handle dropping an addon item onto the challenge sheet.
+	 * Clones the addon as an embedded item and stores the source UUID.
+	 * @param {DragEvent} event  The drop event
+	 * @param {Item} item        The dropped addon item
+	 * @returns {Promise<void>}
+	 * @protected
+	 */
+	async _onDropAddon(_event, item) {
+		const addonData = item.toObject();
+		addonData.system.sourceId = item.uuid;
+		const [created] = await this.document.createEmbeddedDocuments("Item", [
+			addonData,
+		]);
+
+		// Sync addon tags to ActiveEffects on the parent actor
+		if (created?.system.tags) {
+			await this._syncAddonEffects(created);
+		}
+	}
+
+	/**
+	 * Re-sync ActiveEffects from an addon's tag string after the addon is updated.
+	 * Deletes old effects for this addon, then creates new ones from the current tags.
+	 * @param {Item} addonItem  The updated addon item
+	 * @returns {Promise<void>}
+	 * @protected
+	 */
+	async _resyncAddonEffects(addonItem) {
+		// Delete existing effects from this addon
+		const toDelete = this.document.effects
+			.filter((e) => e.getFlag("litmv2", "addonId") === addonItem.id)
+			.map((e) => e.id);
+		if (toDelete.length) {
+			await this.document.deleteEmbeddedDocuments("ActiveEffect", toDelete);
+		}
+
+		// Create new effects from current tags
+		await this._syncAddonEffects(addonItem);
+	}
+
+	/** @override */
+	_onClose(options) {
+		if (this._addonUpdateHookId !== undefined) {
+			Hooks.off("updateItem", this._addonUpdateHookId);
+		}
+		return super._onClose(options);
+	}
+
+	async _syncAddonEffects(addonItem) {
+		const tags = addonItem.system.tags;
+		if (!tags) return;
+
+		const matches = Array.from(tags.matchAll(CONFIG.litmv2.tagStringRe));
+		if (!matches.length) return;
+
+		const effects = matches.map(([_, name, separator, value]) => {
+			const isStatus = separator === "-";
+			return {
+				name,
+				type: isStatus ? "status_card" : "story_tag",
+				system: isStatus
+					? {
+						tiers: Array(6)
+							.fill(false)
+							.map((_, i) => i + 1 === Number(value)),
+					}
+					: { isScratched: false, isSingleUse: false },
+				flags: { litmv2: { addonId: addonItem.id } },
+			};
+		});
+
+		await this.document.createEmbeddedDocuments("ActiveEffect", effects);
+		this._notifyStoryTags();
 	}
 }

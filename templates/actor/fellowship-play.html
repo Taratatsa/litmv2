@@ -51,34 +51,35 @@
 
 		<!-- Story Themes -->
 		{{#if storyThemes.length}}
-		<fieldset>
-			<legend>{{localize "LITM.Terms.story_themes"}}</legend>
-
+		<div class="grid-2col">
 			{{#each storyThemes as |theme|}}
-			<div class="theme-card item" data-id="{{theme._id}}">
-				<div class="theme-card-header">
-					<div class="flexrow noflex gap-sm">
-						{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
+			<fieldset class="theme-card story-theme-card item" data-id="{{theme._id}}">
+				<legend>
+					<span class="litm-banner theme-card__book">{{localize "LITM.Terms.story"}}</span>
+				</legend>
+
+				<div class="story-theme-card__header">
+					{{#if theme.hasCustomImage}}
+					<img class="story-theme-card__portrait" src="{{theme.img}}" alt="{{theme.name}}" />
+					{{/if}}
+					<div class="flexcol gap-xs">
+						<div class="flexrow noflex gap-sm">
+							<img class="noflex icon-md" src="{{theme.levelIcon}}"
+								alt="{{theme.levelLabel}}" data-tooltip="{{theme.levelLabel}}" />
+							{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
+							noBurn=true
+							}}
+						</div>
+						{{> systems/litmv2/templates/partials/play-theme-tags.html theme
 						noBurn=true
 						}}
 					</div>
 				</div>
 
-				{{#if theme.hasCustomImage}}
-				<img class="theme-card__img" src="{{theme.img}}" alt="{{theme.name}}" />
-				{{/if}}
-
-				{{> systems/litmv2/templates/partials/play-theme-tags.html theme
-				noBurn=true
-				}}
-
 				<div>{{{ theme.system.description }}}</div>
-			</div>
-			{{#unless @last}}
-			<hr class="theme-separator" />
-			{{/unless}}
+			</fieldset>
 			{{/each}}
-		</fieldset>
+		</div>
 		{{/if}}
 
 		<!-- Story Tags & Statuses -->

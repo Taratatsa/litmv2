@@ -45,6 +45,7 @@ export class StoryThemeSheet extends LitmItemSheet {
 			},
 			system: this.system,
 			item: this.document,
+			levels: this.system.levels,
 		};
 	}
 

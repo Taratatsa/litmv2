@@ -32,6 +32,8 @@ import { TropeData } from "./scripts/item/trope/trope-data.js";
 import { TropeSheet } from "./scripts/item/trope/trope-sheet.js";
 import { VignetteData } from "./scripts/item/vignette/vignette-data.js";
 import { VignetteSheet } from "./scripts/item/vignette/vignette-sheet.js";
+import { AddonData } from "./scripts/item/addon/addon-data.js";
+import { AddonSheet } from "./scripts/item/addon/addon-sheet.js";
 import { info, success } from "./scripts/logger.js";
 import {
 	ChallengeSheetLandscape,
@@ -96,6 +98,7 @@ Hooks.once("init", () => {
 	CONFIG.Item.dataModels.theme = ThemeData;
 	CONFIG.Item.dataModels.themebook = ThemebookData;
 	CONFIG.Item.dataModels.vignette = VignetteData;
+	CONFIG.Item.dataModels.addon = AddonData;
 	CONFIG.Item.dataModels.story_theme = StoryThemeData;
 	CONFIG.Item.dataModels.trope = TropeData;
 	CONFIG.ActiveEffect.dataModels.story_tag = StoryTagData;
@@ -196,6 +199,11 @@ Hooks.once("init", () => {
 	foundry.documents.collections.Items.registerSheet("litmv2", VignetteSheet, {
 		types: ["vignette"],
 		makeDefault: true,
+	});
+	foundry.documents.collections.Items.registerSheet("litmv2", AddonSheet, {
+		types: ["addon"],
+		makeDefault: true,
+		label: "LITM.Sheets.addon",
 	});
 	foundry.documents.collections.Items.registerSheet("litmv2", StoryThemeSheet, {
 		types: ["story_theme"],

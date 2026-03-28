@@ -172,50 +172,48 @@
 
 	<!-- Story Themes -->
 	{{#if storyThemes.length}}
-	<fieldset>
-		<legend class="litm-banner theme-card__book">{{localize "LITM.Terms.story_themes"}}</legend>
-		<div class="grid-2col">
-			{{#each storyThemes as |theme|}}
-			<div class="theme-card item draggable" data-item-id="{{theme._id}}">
-				<div class="theme-card-header">
-					<div class="flexrow noflex gap-sm">
-						{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
-					action="toggleTagActive"
-					tooltip=(localize "LITM.Ui.click_to_scratch_tag")
-					}}
-					</div>
-					{{#unless theme.isFellowship}}
-					<div class="noflex flexrow gap-xs">
-						<button type="button" data-action="editItem" data-item-id="{{theme._id}}"
-							data-tooltip="{{localize 'LITM.Ui.click_to_edit_story_theme'}}"
-							aria-label="{{localize 'LITM.Ui.click_to_edit_story_theme'}}">
-							<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-						</button>
-						<button type="button" data-action="removeItem" data-item-id="{{theme._id}}"
-							data-tooltip="{{localize 'LITM.Ui.remove_story_theme'}}"
-							aria-label="{{localize 'LITM.Ui.remove_story_theme'}}">
-							<i class="fa-solid fa-trash" aria-hidden="true"></i>
-						</button>
-					</div>
-					{{/unless}}
-				</div>
+	<div class="grid-2col">
+		{{#each storyThemes as |theme|}}
+		<fieldset class="theme-card story-theme-card item draggable" data-item-id="{{theme._id}}">
+			<legend class="flexrow gap-xs">
+				<span class="litm-banner theme-card__book">{{localize "LITM.Terms.story"}}</span>
+				{{#unless theme.isFellowship}}
+				<button type="button" data-action="editItem" data-item-id="{{theme._id}}"
+					data-tooltip="{{localize 'LITM.Ui.click_to_edit_story_theme'}}"
+					aria-label="{{localize 'LITM.Ui.click_to_edit_story_theme'}}">
+					<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+				</button>
+				<button type="button" data-action="removeItem" data-item-id="{{theme._id}}"
+					data-tooltip="{{localize 'LITM.Ui.remove_story_theme'}}"
+					aria-label="{{localize 'LITM.Ui.remove_story_theme'}}">
+					<i class="fa-solid fa-trash" aria-hidden="true"></i>
+				</button>
+				{{/unless}}
+			</legend>
 
+			<div class="story-theme-card__header">
 				{{#if theme.hasCustomImage}}
-				<img class="theme-card__img" src="{{theme.img}}" alt="{{theme.name}}" />
+				<img class="story-theme-card__portrait" src="{{theme.img}}" alt="{{theme.name}}" />
 				{{/if}}
-
-				{{> systems/litmv2/templates/partials/edit-theme-tags-activatable.html theme}}
-
-				<div>
-					{{{ theme.system.description }}}
+				<div class="flexcol gap-xs">
+					<div class="flexrow noflex gap-sm">
+						<img class="noflex icon-md" src="{{theme.levelIcon}}"
+							alt="{{theme.levelLabel}}" data-tooltip="{{theme.levelLabel}}" />
+						{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
+						action="toggleTagActive"
+						tooltip=(localize "LITM.Ui.click_to_scratch_tag")
+						}}
+					</div>
+					{{> systems/litmv2/templates/partials/edit-theme-tags-activatable.html theme}}
 				</div>
 			</div>
-			{{#unless @last}}
-			<hr class="theme-separator" />
-			{{/unless}}
-			{{/each}}
-		</div>
-	</fieldset>
+
+			<div>
+				{{{ theme.system.description }}}
+			</div>
+		</fieldset>
+		{{/each}}
+	</div>
 	{{/if}}
 
 	<div class="grid-2col">

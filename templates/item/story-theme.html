@@ -6,6 +6,14 @@
 			placeholder="{{localize 'LITM.Ui.story_theme_name'}}" />
 	</header>
 
+	<!-- Level -->
+	<div class="form-field">
+		<label for="level">{{localize "LITM.Ui.theme_level"}}</label>
+		<select id="level" name="system.level">
+			{{selectOptions levels selected=system.level localize=true}}
+		</select>
+	</div>
+
 	<!-- Description -->
 	<fieldset>
 		<legend>{{localize "LITM.Terms.description"}}</legend>

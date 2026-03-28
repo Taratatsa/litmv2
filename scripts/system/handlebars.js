@@ -24,6 +24,11 @@ export class HandlebarsHelpers {
 		);
 
 		Handlebars.registerHelper("toJSON", (obj) => JSON.stringify(obj ?? {}));
+
+		Handlebars.registerHelper("join", (array, separator) => {
+			if (!Array.isArray(array)) return "";
+			return array.join(typeof separator === "string" ? separator : ", ");
+		});
 	}
 }
 

@@ -77,6 +77,71 @@
 			placeholder="{{localize 'LITM.Ui.tags_format_hint'}}">{{tagsString}}</textarea>
 	</fieldset>
 
+	<!-- Add-Ons -->
+	<fieldset>
+		<legend>{{localize "LITM.Terms.addons"}}</legend>
+		{{#if addons.length}}
+		<ul class="plain">
+			{{#each addons as |addon|}}
+			<li class="flexcol addon-card">
+				<div class="flexrow gap-sm" style="align-items: center; padding: 0.25rem 0;">
+					<button type="button" class="noflex addon-chevron" data-action="toggleAddonDetail" data-item-id="{{addon.id}}"
+						aria-label="{{localize 'LITM.Ui.collapse'}}">
+						<i class="fa-solid {{#if addon.expanded}}fa-chevron-down{{else}}fa-chevron-right{{/if}}" aria-hidden="true"></i>
+					</button>
+					<div class="flex1 flexcol">
+						<div class="flexrow gap-xs" style="align-items: center;">
+							<strong>{{addon.name}}</strong>
+							{{#if addon.ratingBonus}}
+							<span class="hint addon-rating-bonus" data-tooltip="+{{addon.ratingBonus}} {{localize 'LITM.Terms.rating'}}">+{{addon.ratingBonus}} {{> systems/litmv2/templates/partials/rating-star.html cssClass="filled"}}</span>
+							{{/if}}
+						</div>
+						{{#if addon.categorySummary}}
+						<span class="hint" style="font-size: var(--font-size-11);">{{addon.categorySummary}}</span>
+						{{/if}}
+					</div>
+					<button type="button" class="noflex" data-action="editAddon" data-item-id="{{addon.id}}"
+						data-tooltip="{{localize 'LITM.Ui.edit'}}" aria-label="{{localize 'LITM.Ui.edit'}}">
+						<i class="fa-solid fa-pen" aria-hidden="true"></i>
+					</button>
+					<button type="button" class="noflex" data-action="removeAddon" data-item-id="{{addon.id}}"
+						data-tooltip="{{localize 'LITM.Ui.remove_addon'}}" aria-label="{{localize 'LITM.Ui.remove_addon'}}">
+						<i class="fa-solid fa-trash" aria-hidden="true"></i>
+					</button>
+				</div>
+				{{#if addon.expanded}}
+				<div class="addon-detail">
+					{{#if addon.enrichedDescription}}
+					<div class="addon-detail__section">
+						<strong class="addon-detail__label">{{localize "LITM.Terms.description"}}</strong>
+						<div class="enriched-content">{{{addon.enrichedDescription}}}</div>
+					</div>
+					{{/if}}
+					{{#if addon.enrichedTags}}
+					<div class="addon-detail__section">
+						<strong class="addon-detail__label">{{localize "LITM.Terms.tags_statuses"}}</strong>
+						<div class="litm--play-tags">{{{addon.enrichedTags}}}</div>
+					</div>
+					{{/if}}
+					{{#if addon.enrichedSpecialFeatures}}
+					<div class="addon-detail__section">
+						<strong class="addon-detail__label">{{localize "LITM.Terms.special_features"}}</strong>
+						<div class="enriched-content">{{{addon.enrichedSpecialFeatures}}}</div>
+					</div>
+					{{/if}}
+				</div>
+				{{/if}}
+			</li>
+			{{#unless @last}}
+			<hr style="margin:0;"/>
+			{{/unless}}
+			{{/each}}
+		</ul>
+		{{else}}
+		<p class="hint" data-drop-zone="addon">{{localize "LITM.Ui.no_addons"}}</p>
+		{{/if}}
+	</fieldset>
+
 	<!-- Might -->
 	<fieldset>
 		{{> systems/litmv2/templates/partials/control-legend.html label="LITM.Terms.might" action="addMight" tooltip="LITM.Ui.add_might"}}
@@ -110,9 +175,9 @@
 		</button>
 	</div>
 
-	{{#if displayVignettes.length}}
+	{{#if vignettes.length}}
 	<div class="grid-2col" data-drop-zone="vignette">
-		{{#each displayVignettes as |vignette|}}
+		{{#each vignettes as |vignette|}}
 		{{> systems/litmv2/templates/partials/vignette-card-edit.html vignette=vignette}}
 		{{/each}}
 	</div>
