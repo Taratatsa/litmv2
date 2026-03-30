@@ -48,7 +48,10 @@
 			"trope": {
 				"htmlFields": ["description"]
 			},
-			"vignette": {}
+			"vignette": {},
+			"addon": {
+				"htmlFields": ["description", "specialFeatures"]
+			}
 		}
 	},
 	"languages": [

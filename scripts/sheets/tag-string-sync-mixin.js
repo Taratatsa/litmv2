@@ -21,7 +21,9 @@ export function TagStringSyncMixin(Base) {
 
 		_effectsToTagString() {
 			const effects = this.document.effects.filter(
-				(e) => e.type === "story_tag" || e.type === "status_card",
+				(e) =>
+					(e.type === "story_tag" || e.type === "status_card") &&
+					!e.getFlag("litmv2", "addonId"),
 			);
 			return effects
 				.map((e) => {
@@ -45,7 +47,11 @@ export function TagStringSyncMixin(Base) {
 			}));
 
 			const toDelete = this.document.effects
-				.filter((e) => e.type === "story_tag" || e.type === "status_card")
+				.filter(
+					(e) =>
+						(e.type === "story_tag" || e.type === "status_card") &&
+						!e.getFlag("litmv2", "addonId"),
+				)
 				.map((e) => e.id);
 
 			if (toDelete.length) {
@@ -93,7 +99,9 @@ export function TagStringSyncMixin(Base) {
 			// Ensure effects exist from string
 			if (this.system.tags?.length && !this._syncing) {
 				const hasEffects = this.document.effects.some(
-					(e) => e.type === "story_tag" || e.type === "status_card",
+					(e) =>
+						(e.type === "story_tag" || e.type === "status_card") &&
+						!e.getFlag("litmv2", "addonId"),
 				);
 				if (!hasEffects) {
 					this._syncing = true;
@@ -128,6 +136,7 @@ export function TagStringSyncMixin(Base) {
 					if (!this.document.isOwner) return;
 					if (effect.type !== "story_tag" && effect.type !== "status_card")
 						return;
+					if (effect.getFlag("litmv2", "addonId")) return;
 					const tag =
 						effect.type === "status_card"
 							? `[${effect.name}-${effect.system?.currentTier ?? 1}]`
@@ -162,6 +171,7 @@ export function TagStringSyncMixin(Base) {
 					if (!this.document.isOwner) return;
 					if (effect.type !== "story_tag" && effect.type !== "status_card")
 						return;
+					if (effect.getFlag("litmv2", "addonId")) return;
 					const name = effect.name;
 					const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 					let tags = this.system.tags || "";

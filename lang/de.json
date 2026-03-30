@@ -114,7 +114,8 @@
 			"hero_landscape": "Hero Sheet (Landscape)",
 			"challenge_landscape": "Challenge Sheet (Landscape)",
 			"journey_landscape": "Journey Sheet (Landscape)",
-			"fellowship_landscape": "Fellowship Sheet (Landscape)"
+			"fellowship_landscape": "Fellowship Sheet (Landscape)",
+			"addon": "Add-On Sheet"
 		},
 		"Settings": {
 			"custom_dice": "Thematische Würfel",
@@ -169,7 +170,11 @@
 			"vignette": "Szenario",
 			"vignettes": "Vignettes",
 			"transfer": "Übertragen",
-			"unnamed": "Unbenannt"
+			"unnamed": "Unbenannt",
+			"addon": "Add-On",
+			"addons": "Add-Ons",
+			"categories": "Categories",
+			"rating_bonus": "Rating Bonus"
 		},
 		"Editor": {
 			"ingress": "Ingress"
@@ -385,7 +390,17 @@
 			"hero_creation_store_medicinal": "Medicinal",
 			"hero_creation_store_personal": "Personal",
 			"hero_creation_store_notes": "Notes",
-			"hero_creation_store_trinkets": "Trinkets"
+			"hero_creation_store_trinkets": "Trinkets",
+			"addon_name": "Add-On Name",
+			"add_addon": "Add Add-On",
+			"add_category": "Add Category",
+			"add_threat": "Add Threat",
+			"category_placeholder": "e.g. pursuer",
+			"no_addons": "No add-ons applied. Drop one here from the compendium.",
+			"no_categories": "No categories yet.",
+			"no_threats": "No threats yet.",
+			"remove_addon": "Remove Add-On",
+			"threat_name_placeholder": "e.g. APPARATE"
 		}
 	},
 	"Notes": "Notizen",
@@ -404,7 +419,8 @@
 			"theme": "Thema",
 			"themebook": "Themenbuch",
 			"trope": "Trope",
-			"vignette": "Szenario"
+			"vignette": "Szenario",
+			"addon": "Add-On"
 		}
 	}
 }

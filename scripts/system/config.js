@@ -76,6 +76,7 @@ export class LitmConfig {
 			fellowship: "fellowship.svg",
 			trope: "book.svg",
 			vignette: "cracked-skull.svg",
+			addon: "cracked-skull.svg",
 			default: "icons/svg/item-bag.svg",
 		},
 		preloads: [],

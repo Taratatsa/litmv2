@@ -74,19 +74,23 @@ export async function renderChallenge(actor) {
 	const meta = document.createElement("div");
 	meta.classList.add("litm-render--challenge__meta");
 
-	if (sys.rating) {
+	const displayRating = sys.derivedRating ?? sys.rating;
+	if (displayRating) {
 		const stars = document.createElement("span");
 		stars.classList.add("litm-render--challenge__stars");
 		for (let i = 1; i <= 5; i++) {
-			stars.appendChild(ratingStar(i <= sys.rating));
+			stars.appendChild(ratingStar(i <= displayRating));
 		}
 		meta.appendChild(stars);
 	}
 
-	if (sys.category) {
+	const displayCategories = sys.derivedCategories?.length
+		? sys.derivedCategories.join(", ")
+		: sys.category;
+	if (displayCategories) {
 		const cat = document.createElement("span");
 		cat.classList.add("litm-render--challenge__category");
-		cat.textContent = sys.category;
+		cat.textContent = displayCategories;
 		meta.appendChild(cat);
 	}
 
@@ -104,12 +108,14 @@ export async function renderChallenge(actor) {
 	}
 
 	// ── Two-column grid: (Limits + Tags/Might) | Vignettes ──
-	const limits = sys.limits?.filter((l) => l.label) ?? [];
+	const limits = (sys.derivedLimits ?? sys.limits)?.filter((l) => l.label) ?? [];
 	const vignettes = actor.items.filter((i) => i.type === "vignette");
-	const might = sys.might?.filter((m) => m.description) ?? [];
+	const might = (sys.derivedMight ?? sys.might)?.filter((m) => m.description) ?? [];
+	const displayTags = sys.derivedTags || sys.tags;
 	const hasLeft =
-		limits.length || sys.tags || might.length || sys.specialFeatures;
-	const hasRight = vignettes.length > 0;
+		limits.length || displayTags || might.length || sys.specialFeatures;
+	const addonThreats = sys.addonThreats || [];
+	const hasRight = vignettes.length > 0 || addonThreats.length > 0;
 
 	if (hasLeft || hasRight) {
 		const grid = document.createElement("div");
@@ -155,13 +161,13 @@ export async function renderChallenge(actor) {
 			}
 
 			// Tags & Statuses + Might (combined)
-			if (sys.tags || might.length) {
+			if (displayTags || might.length) {
 				leftCol.appendChild(sectionHeader(t("LITM.Terms.tags_statuses")));
 
-				if (sys.tags) {
+				if (displayTags) {
 					const tags = document.createElement("div");
 					tags.classList.add("litm-render--challenge__tags");
-					tags.textContent = sys.tags;
+					tags.textContent = displayTags;
 					leftCol.appendChild(tags);
 				}
 
@@ -203,6 +209,17 @@ export async function renderChallenge(actor) {
 			rightCol.appendChild(sectionHeader(t("LITM.Terms.threats_consequences")));
 			for (const v of vignettes) {
 				rightCol.appendChild(renderVignette(v));
+			}
+			for (const threat of addonThreats) {
+				const mockItem = {
+					name: threat.name,
+					system: {
+						threat: threat.threat,
+						consequences: threat.consequences,
+						isConsequenceOnly: threat.isConsequenceOnly,
+					},
+				};
+				rightCol.appendChild(renderVignette(mockItem));
 			}
 			grid.appendChild(rightCol);
 		}
