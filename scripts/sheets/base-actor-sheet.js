@@ -1,6 +1,6 @@
 import { buildTrackCompleteContent, detectTrackCompletion } from "../system/chat.js";
 import { Sockets } from "../system/sockets.js";
-import { confirmDelete, enrichHTML, levelIcon, parseEmbeddedFormKeys, statusCardEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
+import { confirmDelete, enrichHTML, levelIcon, parseEmbeddedFormKeys, statusTagEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
 import { LitmSheetMixin } from "./litm-sheet-mixin.js";
 
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -227,7 +227,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 				}
 				effect.system.isScratched ??= false;
 			}
-			if (effectType === "status_card") {
+			if (effectType === "status_tag") {
 				effect.system ??= {};
 			}
 		}
@@ -341,12 +341,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 		const data = item.toObject();
 		data.system.powerTags = item.system.powerTags;
 		data.system.weaknessTags = item.system.weaknessTags;
-		data.themeTag = {
-			id: data._id,
-			name: data.name,
-			type: "themeTag",
-			isScratched: data.system.isScratched,
-		};
+		data.themeTag = item.system.themeTag;
 		data.levelLabel = game.i18n.localize(`LITM.Terms.${data.system.level}`);
 		data.levelIcon = levelIcon(data.system.level);
 		data.hasCustomImage = data.img !== CONFIG.litmv2.assets.icons.default;
@@ -360,10 +355,12 @@ export class LitmActorSheet extends LitmSheetMixin(
 	 * @protected
 	 */
 	_prepareStoryTags() {
-		return this.document.system.effectTags
+		const tags = this.document.system.storyTags ?? [];
+		const statuses = this.document.system.statusEffects ?? [];
+		return [...tags, ...statuses]
 			.filter((e) => game.user.isGM || !(e.system?.isHidden ?? false))
 			.map((e) => {
-				const isStatus = e.type === "status_card";
+				const isStatus = e.type === "status_tag";
 				return {
 					id: e.id,
 					name: e.name,
@@ -432,7 +429,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 		if (isStatus && droppedName) {
 			const existing = this.document.effects.find(
 				(e) =>
-					e.type === "status_card" &&
+					e.type === "status_tag" &&
 					e.name.toLowerCase() === droppedName.toLowerCase(),
 			);
 			if (existing) {
@@ -454,7 +451,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 			: game.i18n.localize("LITM.Terms.tag");
 		const name = data.name ?? localizedName;
 		const effectData = isStatus
-			? statusCardEffect({ name, tiers, isHidden: game.user.isGM, limitId: data.limitId })
+			? statusTagEffect({ name, tiers, isHidden: game.user.isGM, limitId: data.limitId })
 			: storyTagEffect({ name, isScratched: data.isScratched ?? false, isSingleUse: data.isSingleUse, isHidden: game.user.isGM });
 
 		await this.document.createEmbeddedDocuments("ActiveEffect", [effectData]);
@@ -506,7 +503,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 			: game.i18n.localize("LITM.Terms.tag");
 		await this.document.createEmbeddedDocuments("ActiveEffect", [
 			isStatus
-				? statusCardEffect({ name: localizedName })
+				? statusTagEffect({ name: localizedName })
 				: storyTagEffect({ name: localizedName }),
 		]);
 
@@ -671,7 +668,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 			if (!effect) return;
 			const currentTiers = foundry.utils.getProperty(effect, "system.tiers");
 			if (!Array.isArray(currentTiers)) return;
-			const isStatus = effect.type === "status_card";
+			const isStatus = effect.type === "status_tag";
 			const newTiers = isStatus
 				? currentTiers.map((v, idx) => (idx === boxIndex ? !v : v))
 				: currentTiers.map((_, idx) => idx <= boxIndex);
