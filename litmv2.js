@@ -14,6 +14,7 @@ import { StoryTagSidebar } from "./scripts/apps/story-tag-sidebar.js";
 import { ThemeAdvancementApp } from "./scripts/apps/theme-advancement.js";
 import { WelcomeOverlay } from "./scripts/apps/welcome-overlay.js";
 import { SuperCheckbox } from "./scripts/components/super-checkbox.js";
+import { LitmTokenHUD } from "./scripts/hud/litm-token-hud.js";
 import {
 	PowerTagData,
 	WeaknessTagData,
@@ -116,6 +117,7 @@ Hooks.once("init", () => {
 	CONFIG.ActiveEffect.dataModels.story_tag = StoryTagData;
 	CONFIG.ActiveEffect.dataModels.status_tag = StatusTagData;
 	CONFIG.litmv2 = new LitmConfig();
+	CONFIG.Token.hudClass = LitmTokenHUD;
 
 	// Replace the combat tracker sidebar tab with Story Tags
 	CONFIG.ui.combat = StoryTagSidebar;

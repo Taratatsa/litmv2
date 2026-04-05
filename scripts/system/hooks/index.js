@@ -6,6 +6,7 @@ import { registerFellowshipHooks } from "./fellowship-hooks.js";
 import { registerItemHooks } from "./item-hooks.js";
 import { registerPreloads } from "./preloads.js";
 import { registerReadyHooks } from "./ready-hooks.js";
+import { registerTokenHooks } from "./token-hooks.js";
 import { registerUiHooks } from "./ui-hooks.js";
 
 export class LitmHooks {
@@ -19,5 +20,6 @@ export class LitmHooks {
 		registerActorHooks();
 		registerFellowshipHooks();
 		registerReadyHooks();
+		registerTokenHooks();
 	}
 }

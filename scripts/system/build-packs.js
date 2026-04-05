@@ -17,6 +17,33 @@ function id() {
 	return randomUUID().replace(/-/g, "").slice(0, 16);
 }
 
+/** Map status names to Foundry SVG icons (icons/svg/) or Font Awesome classes. */
+const STATUS_ICONS = {
+	wounded: "icons/svg/blood.svg",
+	poisoned: "icons/svg/poison.svg",
+	burned: "icons/svg/fire.svg",
+	stunned: "icons/svg/daze.svg",
+	paralyzed: "icons/svg/paralysis.svg",
+	crushed: "icons/svg/stoned.svg",
+	exhausted: "icons/svg/unconscious.svg",
+	hungry: "icons/svg/tankard.svg",
+	scared: "icons/svg/terror.svg",
+	confused: "icons/svg/daze.svg",
+	convinced: "icons/svg/book.svg",
+	intimidated: "icons/svg/cowled.svg",
+	humiliated: "icons/svg/down.svg",
+	prone: "icons/svg/falling.svg",
+	exposed: "icons/svg/eye.svg",
+	surprised: "icons/svg/explosion.svg",
+	drained: "icons/svg/degen.svg",
+	cursed: "icons/svg/skull.svg",
+	warded: "icons/svg/holy-shield.svg",
+	alert: "icons/svg/eye.svg",
+	hidden: "icons/svg/invisible.svg",
+	inspired: "icons/svg/angel.svg",
+	invigorated: "icons/svg/regen.svg",
+};
+
 function statusCard(name, tier = 1) {
 	const tiers = [false, false, false, false, false, false];
 	for (let i = 0; i < Math.min(tier, 6); i++) tiers[i] = true;
@@ -26,9 +53,9 @@ function statusCard(name, tier = 1) {
 		_key: `!effects!${_id}`,
 		name,
 		type: "status_tag",
-		img: "systems/litmv2/assets/media/icons/consequences.svg",
+		img: STATUS_ICONS[name] ?? "icons/svg/circle.svg",
 		disabled: false,
-		showIcon: 2, // ALWAYS
+		showIcon: foundry.CONST.ACTIVE_EFFECT_SHOW_ICON.NONE,
 		system: {
 			isHidden: false,
 			tiers,
@@ -37,46 +64,43 @@ function statusCard(name, tier = 1) {
 	};
 }
 
-// Common consequences from the Action Grimoire
+// Curated statuses from the Action Grimoire and Core Book.
+// Each covers a distinct condition space — GMs create custom
+// statuses on the fly for more specific variants.
 const statuses = [
-	// Battle
+	// Physical harm
 	"wounded",
+	"poisoned",
+	"burned",
+	"stunned",
+	"paralyzed",
+	"crushed",
+	// Fatigue & needs
+	"exhausted",
+	"hungry",
+	// Mental & emotional
+	"scared",
+	"confused",
+	// Social
+	"convinced",
+	"intimidated",
+	"humiliated",
+	// Positional
 	"prone",
-	"off-balance",
-	"distracted",
-	"surprised",
 	"exposed",
-	"cornered",
-	"restrained",
-	"knocked-back",
-	// Magic
+	"surprised",
+	// Magical
 	"drained",
 	"cursed",
-	// Social
-	"scared",
-	"angered",
-	"charmed",
-	"convinced",
-	"embarrassed",
-	"indebted",
-	"intoxicated",
-	// Travel & Survival
-	"exhausted",
-	"poisoned",
-	"hungry",
-	"thirsty",
-	"lost",
-	"sickened",
-	"frostbite",
-	"sunburned",
-	// General
-	"panicked",
-	"confused",
-	"blinded",
-	"marked",
+	"warded",
+	// Beneficial
+	"alert",
+	"hidden",
+	"inspired",
+	"invigorated",
 ];
 
-const dir = join(PACKS, "status-effects", "_source");
+const dir = join(PACKS, "statuses", "_source");
 mkdirSync(dir, { recursive: true });
 
 for (const name of statuses) {
@@ -85,4 +109,4 @@ for (const name of statuses) {
 	writeFileSync(join(dir, filename), JSON.stringify(data, null, "\t") + "\n");
 }
 
-console.log(`Created ${statuses.length} status card source files in ${dir}`);
+console.log(`Created ${statuses.length} status source files in ${dir}`);

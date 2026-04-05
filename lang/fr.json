@@ -113,6 +113,10 @@
 			"promise": "Promesse",
 			"moment_of_fulfillment": "Moments d'Accomplissement"
 		},
+		"Hud": {
+			"toggle_sidebar": "Toggle Tags Sidebar",
+			"sidebar_locked": "Permanently in Tags Sidebar"
+		},
 		"Name": "Legend in the Mist",
 		"Sheets": {
 			"hero": "Fiche de Héros",

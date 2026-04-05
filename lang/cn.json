@@ -105,6 +105,10 @@
 			"promise": "潜力",
 			"moment_of_fulfillment": "Moments of Fulfillment"
 		},
+		"Hud": {
+			"toggle_sidebar": "Toggle Tags Sidebar",
+			"sidebar_locked": "Permanently in Tags Sidebar"
+		},
 		"Name": "Legend in the Mist",
 		"Sheets": {
 			"hero": "Hero Sheet",

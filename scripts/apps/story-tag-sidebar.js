@@ -1272,7 +1272,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		return this.#broadcastRender();
 	}
 
-	async _toggleActorVisibility(id) {
+	async _toggleActorVisibility(id, { syncTokens = true } = {}) {
 		const hidden = new Set(this.config.hiddenActors ?? []);
 		if (hidden.has(id)) hidden.delete(id);
 		else hidden.add(id);
@@ -1280,6 +1280,17 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			...this.config,
 			hiddenActors: [...hidden],
 		});
+		// Sync token visibility on the canvas
+		if (syncTokens) {
+			const isHidden = hidden.has(id);
+			const tokens = canvas.scene?.tokens?.filter((t) => t.actorId === id) ?? [];
+			if (tokens.length) {
+				await canvas.scene.updateEmbeddedDocuments(
+					"Token",
+					tokens.map((t) => ({ _id: t.id, hidden: isHidden })),
+				);
+			}
+		}
 		return this.#broadcastRender();
 	}
 

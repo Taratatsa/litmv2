@@ -1,5 +1,6 @@
 import { detectTrackCompletion, buildTrackCompleteContent } from "../../system/chat.js";
 import { LitmSettings } from "../../system/settings.js";
+import { statusTagEffect } from "../../utils.js";
 
 export class HeroData extends foundry.abstract.TypeDataModel {
 	static defineSchema() {
@@ -74,10 +75,33 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 			.filter((e) => e.type === "story_tag");
 	}
 
+	get backpackItem() {
+		return this.parent.items.find((i) => i.type === "backpack") ?? null;
+	}
+
 	get backpack() {
-		const backpack = this.parent.items.find((i) => i.type === "backpack");
-		if (!backpack) return [];
-		return backpack.system.tags;
+		return this.backpackItem?.system.tags ?? [];
+	}
+
+	/** @override — route status creation to the backpack item. */
+	get statusParent() {
+		return this.backpackItem ?? this.parent;
+	}
+
+	async addStatus(name, { tiers, img } = {}) {
+		const data = statusTagEffect({ name });
+		if (tiers) data.system.tiers = tiers;
+		if (img) data.img = img;
+		const parent = this.statusParent;
+		if (parent !== this.parent) data.transfer = true;
+		return parent.createEmbeddedDocuments("ActiveEffect", [data]);
+	}
+
+	async removeStatus(effectId) {
+		for (const e of this.parent.allApplicableEffects()) {
+			if (e.id !== effectId) continue;
+			return e.parent.deleteEmbeddedDocuments("ActiveEffect", [effectId]);
+		}
 	}
 
 	/**
@@ -110,12 +134,11 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 	}
 
 	/**
-	 * Status tag AEs on the hero actor only (not fellowship).
-	 * Overrides the mixin — hero statuses are actor-direct only.
+	 * Status tag AEs on the hero's backpack (transferred to actor).
 	 * @returns {ActiveEffect[]}
 	 */
 	get statuses() {
-		return [...this.parent.effects]
+		return [...this.parent.allApplicableEffects()]
 			.filter((e) => e.type === "status_tag");
 	}
 

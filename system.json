@@ -100,9 +100,9 @@
 	},
 	"packs": [
 		{
-			"name": "status-effects",
-			"label": "Status Effects",
-			"path": "packs/status-effects",
+			"name": "statuses",
+			"label": "Statuses",
+			"path": "packs/statuses",
 			"type": "ActiveEffect",
 			"system": "litmv2"
 		}

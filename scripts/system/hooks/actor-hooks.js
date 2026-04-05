@@ -7,6 +7,7 @@ export function registerActorHooks() {
 	_enforceHeroItemLimits();
 	_setStatusTagIcon();
 	_validateEffectType();
+	_syncUiOnEffectChange();
 }
 
 function _prepareCharacterOnCreate() {
@@ -153,7 +154,7 @@ function _setStatusTagIcon() {
 		if (!icon) return;
 		effect.updateSource({
 			img: icon,
-			showIcon: foundry.CONST.ACTIVE_EFFECT_SHOW_ICON.ALWAYS,
+			showIcon: foundry.CONST.ACTIVE_EFFECT_SHOW_ICON.NONE,
 		});
 	});
 }
@@ -171,6 +172,32 @@ function _validateEffectType() {
 		ui.notifications.warn("LITM.Ui.warn_invalid_effect_target", { localize: true });
 		return false;
 	});
+}
+
+/**
+ * Re-render all tag-aware UI (sidebar, roll dialogs, hero sheets) when effects change.
+ * Centralized here so the HUD, sidebar, macros, etc. don't each need their own hooks.
+ */
+function _syncUiOnEffectChange() {
+	const TAG_TYPES = new Set(["status_tag", "story_tag"]);
+	const sync = (effect) => {
+		if (!TAG_TYPES.has(effect.type)) return;
+		// Sidebar
+		const sidebar = ui.combat;
+		if (sidebar) {
+			sidebar.invalidateCache();
+			sidebar.render();
+			sidebar.refreshRollDialogs();
+		}
+		// Actor sheet — find the owning actor and re-render
+		const actor = effect.parent?.documentName === "Actor"
+			? effect.parent
+			: effect.parent?.parent;
+		if (actor?.sheet?.rendered) actor.sheet.render();
+	};
+	Hooks.on("createActiveEffect", sync);
+	Hooks.on("updateActiveEffect", sync);
+	Hooks.on("deleteActiveEffect", sync);
 }
 
 function _enforceHeroItemLimits() {
