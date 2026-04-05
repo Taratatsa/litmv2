@@ -60,6 +60,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			"toggle-effect-visibility": StoryTagSidebar.#onToggleEffectVisibility,
 			"add-actor": StoryTagSidebar.#onAddActor,
 			"remove-tag": StoryTagSidebar.#onRemoveTag,
+			"deactivate-tag": StoryTagSidebar.#onDeactivateTag,
 			"add-limit": StoryTagSidebar.#onAddLimit,
 			"remove-limit": StoryTagSidebar.#onRemoveLimit,
 			"toggle-collapse": StoryTagSidebar.#onToggleCollapse,
@@ -859,11 +860,10 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					system: isStatus
 						? {
 								tiers: toTiers(data.values),
-								isScratched: data.isScratched === "true",
 							}
 						: {
-								isScratched: data.isScratched === "true",
-								isSingleUse: data.isSingleUse === "true",
+								isScratched: !!data.isScratched,
+								isSingleUse: !!data.isSingleUse,
 								limitId: data.limitId || null,
 							},
 				};
@@ -1104,6 +1104,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 
 	static #onRemoveTag(_event, target) {
 		this.removeTag(target);
+	}
+
+	static async #onDeactivateTag(_event, target) {
+		const id = target.dataset.id;
+		const actorId = target.dataset.actorId;
+		const actor = game.actors.get(actorId);
+		if (!actor?.isOwner) return;
+		await updateEffectsByParent(actor, [{ _id: id, disabled: true }]);
+		this.invalidateCache();
+		return this.#broadcastRender();
 	}
 
 	static async #onAddLimit(_event, target) {
@@ -1567,7 +1577,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					}), transfer: true, sort: maxSort + 1000 },
 				]);
 				if (created) this._editOnRender = created.id;
-				await this.#recalculateChallengeLimits(id);
+				await this.#recalculateActorLimits(id);
 				return this.#broadcastRender();
 			}
 		}
@@ -1607,7 +1617,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			const backpack = actor.items.find((i) => i.type === "backpack");
 			if (backpack?.effects.has(id)) {
 				await backpack.deleteEmbeddedDocuments("ActiveEffect", [id]);
-				await this.#recalculateChallengeLimits(actorId);
+				await this.#recalculateActorLimits(actorId);
 				return this.#broadcastRender();
 			}
 		}
