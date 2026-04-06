@@ -1,3 +1,5 @@
+import { THEME_TAG_TYPES } from "../system/config.js";
+
 /**
  * Custom Item document class for Legend in the Mist.
  *
@@ -37,9 +39,7 @@ export class LitmItem extends foundry.documents.Item {
 		if (!powerTags.length && !weaknessTags.length) return;
 
 		const effects = source.effects ?? [];
-		if (effects.some((e) =>
-			e.type === "power_tag" || e.type === "weakness_tag" || e.type === "fellowship_tag"
-		)) return;
+		if (effects.some((e) => THEME_TAG_TYPES.has(e.type))) return;
 
 		source.flags ??= {};
 		source.flags.litmv2 ??= {};

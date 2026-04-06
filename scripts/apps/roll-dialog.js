@@ -1,6 +1,6 @@
 import { LitmRoll } from "./roll.js";
 import { Sockets } from "../system/sockets.js";
-import { localize as t } from "../utils.js";
+import { localize as t, resolveEffect } from "../utils.js";
 
 const sortByTypeThenName = (tags, typeOrder) =>
 	[...tags].sort((a, b) => {
@@ -442,36 +442,15 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	 */
 	#resolveEffect(effectId, entry) {
 		if (entry.effect) return entry.effect;
-		// Search rolling actor (direct + item-embedded effects)
 		const actor = this.actor;
-		if (actor) {
-			const direct = actor.effects.get(effectId);
-			if (direct) { entry.effect = direct; return direct; }
-			for (const item of actor.items) {
-				const e = item.effects.get(effectId);
-				if (e) { entry.effect = e; return e; }
-			}
-		}
-		// Search fellowship actor
-		const fellowship = actor?.system?.fellowshipActor;
-		if (fellowship) {
-			const direct = fellowship.effects.get(effectId);
-			if (direct) { entry.effect = direct; return direct; }
-			for (const item of fellowship.items) {
-				const e = item.effects.get(effectId);
-				if (e) { entry.effect = e; return e; }
-			}
-		}
-		// Search contributor actor
+		const effect = actor ? resolveEffect(effectId, actor) : null;
+		if (effect) { entry.effect = effect; return effect; }
+		// Search contributor actor (other hero contributing tags to this roll)
 		if (entry.contributorActorId) {
 			const contrib = game.actors.get(entry.contributorActorId);
 			if (contrib) {
-				const direct = contrib.effects.get(effectId);
-				if (direct) { entry.effect = direct; return direct; }
-				for (const item of contrib.items) {
-					const e = item.effects.get(effectId);
-					if (e) { entry.effect = e; return e; }
-				}
+				const ce = resolveEffect(effectId, contrib, { fellowship: false });
+				if (ce) { entry.effect = ce; return ce; }
 			}
 		}
 		return null;
@@ -713,7 +692,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				// Backpack
 				const backpackTags = sys.backpack.filter((e) => e.active).map(withSelection);
 				if (backpackTags.length) {
-					const backpackItem = this.actor.items.find((i) => i.type === "backpack");
+					const backpackItem = this.actor.system.backpackItem;
 					characterTagGroups.push({
 						themeName: backpackItem?.name ?? t("LITM.Terms.backpack"),
 						themeImg: backpackItem?.img ?? null,
@@ -881,6 +860,39 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		};
 	}
 
+	_onFirstRender(context, options) {
+		super._onFirstRender(context, options);
+
+		// Delegated listener for checkbox changes
+		this.element.addEventListener("change", (event) => {
+			if (event.target.tagName === "LITM-SUPER-CHECKBOX") {
+				this._onTagChange(event);
+			}
+		});
+
+		// Delegated click handler for tag label interactions (click to toggle, shift-click to scratch)
+		this.element.addEventListener("click", (event) => {
+			const label = event.target.closest("label.litm--roll-dialog-tag");
+			if (!label || event.target.tagName === "LITM-SUPER-CHECKBOX") return;
+			event.preventDefault();
+			const checkbox = label.querySelector("litm-super-checkbox");
+			if (!checkbox) return;
+
+			if (event.shiftKey && !checkbox.disabled) {
+				const tagType = label.dataset.tagType;
+				const canScratch = !["weakness_tag", "status_tag"].includes(tagType);
+				if (canScratch) {
+					const newValue =
+						checkbox.value === "scratched" ? "" : "scratched";
+					checkbox.value = newValue;
+					checkbox.dispatchEvent(new Event("change"));
+					return;
+				}
+			}
+			checkbox.click();
+		});
+	}
+
 	_onRender(context, options) {
 		super._onRender(context, options);
 		this.#totalPowerEl = null;
@@ -904,34 +916,6 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				game.tooltip.deactivate();
 			});
 		}
-
-		// Delegated listener for checkbox changes and label clicks
-		this.element.addEventListener("change", (event) => {
-			if (event.target.tagName === "LITM-SUPER-CHECKBOX") {
-				this._onTagChange(event);
-			}
-		});
-
-		this.element.addEventListener("click", (event) => {
-			const label = event.target.closest("label.litm--roll-dialog-tag");
-			if (!label || event.target.tagName === "LITM-SUPER-CHECKBOX") return;
-			event.preventDefault();
-			const checkbox = label.querySelector("litm-super-checkbox");
-			if (!checkbox) return;
-
-			if (event.shiftKey && !checkbox.disabled) {
-				const tagType = label.dataset.tagType;
-				const canScratch = !["weakness_tag", "status_tag"].includes(tagType);
-				if (canScratch) {
-					const newValue =
-						checkbox.value === "scratched" ? "" : "scratched";
-					checkbox.value = newValue;
-					checkbox.dispatchEvent(new Event("change"));
-					return;
-				}
-			}
-			checkbox.click();
-		});
 
 		// Setup trade power change listener
 		this.element

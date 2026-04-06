@@ -1,4 +1,5 @@
 import { error } from "../../logger.js";
+import { THEME_TAG_TYPES } from "../config.js";
 import { localize as t } from "../../utils.js";
 
 export function registerActorHooks() {
@@ -165,8 +166,7 @@ function _setStatusTagIcon() {
  */
 function _validateEffectType() {
 	Hooks.on("preCreateActiveEffect", (effect) => {
-		const themeTagTypes = new Set(["power_tag", "weakness_tag", "fellowship_tag"]);
-		if (!themeTagTypes.has(effect.type)) return;
+		if (!THEME_TAG_TYPES.has(effect.type)) return;
 		const parent = effect.parent;
 		if (parent?.documentName === "Item" && ["theme", "story_theme"].includes(parent.type)) return;
 		ui.notifications.warn("LITM.Ui.warn_invalid_effect_target", { localize: true });

@@ -1,3 +1,4 @@
+import { THEME_TAG_TYPES, POWER_TAG_TYPES } from "../../system/config.js";
 import { levelIcon, localize as t } from "../../utils.js";
 
 export class StoryThemeData extends foundry.abstract.TypeDataModel {
@@ -39,7 +40,7 @@ export class StoryThemeData extends foundry.abstract.TypeDataModel {
 
 	get powerTags() {
 		return this.parent.effects
-			.filter((e) => (e.type === "power_tag" || e.type === "fellowship_tag") && !e.system.isTitleTag);
+			.filter((e) => POWER_TAG_TYPES.has(e.type) && !e.system.isTitleTag);
 	}
 
 	get weaknessTags() {
@@ -65,7 +66,7 @@ export class StoryThemeData extends foundry.abstract.TypeDataModel {
 
 	get allTags() {
 		return [...this.parent.effects]
-			.filter((e) => e.type === "power_tag" || e.type === "fellowship_tag" || e.type === "weakness_tag");
+			.filter((e) => THEME_TAG_TYPES.has(e.type));
 	}
 
 	get availablePowerTags() {

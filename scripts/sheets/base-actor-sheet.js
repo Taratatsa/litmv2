@@ -1,6 +1,6 @@
 import { buildTrackCompleteContent, detectTrackCompletion } from "../system/chat.js";
 import { Sockets } from "../system/sockets.js";
-import { confirmDelete, enrichHTML, levelIcon, parseEmbeddedFormKeys, statusTagEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
+import { confirmDelete, enrichHTML, levelIcon, parseEmbeddedFormKeys, resolveEffect, statusTagEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
 import { LitmSheetMixin } from "./litm-sheet-mixin.js";
 
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -210,15 +210,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 					.map((_, index) => index < value);
 				delete system.tierValue;
 			}
-			let existingEffect = this.document.effects.get(effect._id);
-			if (!existingEffect && this.document.type === "hero") {
-				const backpack = this.document.items.find((i) => i.type === "backpack");
-				existingEffect = backpack?.effects.get(effect._id);
-				if (!existingEffect) {
-					const fellowship = this.document.system.fellowshipActor;
-					existingEffect = [...(fellowship?.allApplicableEffects() ?? [])].find((e) => e.id === effect._id);
-				}
-			}
+			const existingEffect = resolveEffect(effect._id, this.document);
 			const effectType = existingEffect?.type;
 			if (effectType === "story_tag") {
 				effect.system ??= {};
@@ -406,7 +398,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 
 		// For heroes, route tags (not statuses) to the backpack item
 		if (this.document.type === "hero" && !isStatus) {
-			const backpack = this.document.items.find((i) => i.type === "backpack");
+			const backpack = this.document.system.backpackItem;
 			if (!backpack) {
 				ui.notifications.warn(game.i18n.localize("LITM.Ui.warn_no_backpack"));
 				return;
@@ -488,7 +480,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 
 		// For heroes, route tags (not statuses) to the backpack item
 		if (this.document.type === "hero" && !isStatus) {
-			const backpack = this.document.items.find((i) => i.type === "backpack");
+			const backpack = this.document.system.backpackItem;
 			if (backpack) {
 				await backpack.createEmbeddedDocuments("ActiveEffect", [
 					{ ...storyTagEffect({ name: game.i18n.localize("LITM.Terms.tag") }), transfer: true },
@@ -532,11 +524,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 	 */
 	static async _onRemoveEffect(_event, target) {
 		const effectId = target.dataset.id;
-		let effect = this.document.effects.get(effectId);
-		if (!effect && this.document.type === "hero") {
-			const backpack = this.document.items.find((i) => i.type === "backpack");
-			effect = backpack?.effects.get(effectId);
-		}
+		const effect = resolveEffect(effectId, this.document, { fellowship: false });
 		await effect?.delete();
 
 		this._notifyStoryTags();
@@ -664,7 +652,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 		// Handle effect tiers (story tags / status cards)
 		const effectId = button.dataset.effectId;
 		if (effectId) {
-			const effect = this.document.effects.get(effectId);
+			const effect = resolveEffect(effectId, this.document);
 			if (!effect) return;
 			const currentTiers = foundry.utils.getProperty(effect, "system.tiers");
 			if (!Array.isArray(currentTiers)) return;

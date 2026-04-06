@@ -4,7 +4,7 @@ Tooltip auto-selects based on type: power_tag = full (or no-burn if noBurn set),
 Tooltips and pointer cursor are suppressed for non-owners (uses @root.isOwner). --}}
 <span
 	class="noflex litm-{{type}} {{ifThen (or system.isScratched isScratched) 'scratched' ''}}{{#if extraClass}} {{extraClass}}{{/if}}"
-	{{#if @root.isOwner}}data-action="{{#if action}}{{action}}{{else}}selectTag{{/if}}"{{/if}}
+	{{#if @root.isOwner}}data-action="{{#if action}}{{action}}{{else}}selectTag{{/if}}" role="button" tabindex="0"{{/if}}
 	data-tag-type="{{type}}"
 	data-tag-id="{{_id}}"
 	{{#if @root.isOwner}}data-tooltip="{{#if tooltip}}{{tooltip}}{{else}}{{#if (or (eq type 'weakness_tag') (eq type 'status_tag'))}}{{localize 'LITM.Ui.click_to_add_tag_only'}}{{else if (or (eq type 'power_tag') (eq type 'fellowship_tag'))}}{{#if noBurn}}{{localize 'LITM.Ui.click_to_add_tag_no_burn'}}{{else}}{{localize 'LITM.Ui.click_to_add_tag'}}{{/if}}{{else}}{{localize 'LITM.Ui.click_to_add_tag_no_burn'}}{{/if}}{{/if}}"{{/if}}

@@ -55,7 +55,7 @@ function statusCard(name, tier = 1) {
 		type: "status_tag",
 		img: STATUS_ICONS[name] ?? "icons/svg/circle.svg",
 		disabled: false,
-		showIcon: foundry.CONST.ACTIVE_EFFECT_SHOW_ICON.NONE,
+		showIcon: 0, // ACTIVE_EFFECT_SHOW_ICON.NONE — foundry globals unavailable in Node
 		system: {
 			isHidden: false,
 			tiers,

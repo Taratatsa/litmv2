@@ -276,3 +276,32 @@ export async function confirmDelete(string = "Item") {
 		return false;
 	}
 }
+
+/**
+ * Find an ActiveEffect by ID, searching the actor's own effects,
+ * then all embedded item effects, then optionally the fellowship actor.
+ * @param {string} effectId
+ * @param {Actor} actor
+ * @param {{ fellowship?: boolean }} [options]
+ * @returns {ActiveEffect|null}
+ */
+export function resolveEffect(effectId, actor, { fellowship = true } = {}) {
+	const direct = actor.effects.get(effectId);
+	if (direct) return direct;
+	for (const item of actor.items) {
+		const e = item.effects.get(effectId);
+		if (e) return e;
+	}
+	if (fellowship) {
+		const f = actor.system?.fellowshipActor;
+		if (f) {
+			const fe = f.effects.get(effectId);
+			if (fe) return fe;
+			for (const item of f.items) {
+				const e = item.effects.get(effectId);
+				if (e) return e;
+			}
+		}
+	}
+	return null;
+}

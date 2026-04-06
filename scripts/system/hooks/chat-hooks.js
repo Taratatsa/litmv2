@@ -1,4 +1,5 @@
 import { WelcomeOverlay } from "../../apps/welcome-overlay.js";
+import { POWER_TAG_TYPES } from "../config.js";
 import { localize as t } from "../../utils.js";
 import { Sockets } from "../sockets.js";
 
@@ -197,7 +198,7 @@ async function _applySacrificeConsequence(actor, level, themeId) {
 	if (level === "painful") {
 		// Scratch all power tags and the theme tag
 		const powerEffects = theme.effects.filter(
-			(e) => e.type === "power_tag" || e.type === "fellowship_tag",
+			(e) => POWER_TAG_TYPES.has(e.type),
 		);
 		if (powerEffects.length) {
 			await theme.updateEmbeddedDocuments(

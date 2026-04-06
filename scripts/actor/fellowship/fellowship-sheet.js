@@ -1,4 +1,5 @@
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
+import { THEME_TAG_TYPES } from "../../system/config.js";
 import { enrichHTML, levelIcon, queryItemsFromPacks } from "../../utils.js";
 
 /**
@@ -231,7 +232,7 @@ export class FellowshipSheet extends LitmActorSheet {
 		}
 
 		const effect = item.effects.get(tagId)
-			?? [...item.effects].find((e) => e.name === tagName && (e.type === "power_tag" || e.type === "weakness_tag" || e.type === "fellowship_tag"));
+			?? [...item.effects].find((e) => e.name === tagName && THEME_TAG_TYPES.has(e.type));
 		if (!effect) return;
 
 		if (scratch) {

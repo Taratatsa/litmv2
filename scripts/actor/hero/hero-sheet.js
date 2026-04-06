@@ -1,4 +1,5 @@
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
+import { THEME_TAG_TYPES } from "../../system/config.js";
 import { Sockets } from "../../system/sockets.js";
 import { enrichHTML, relationshipTagEffect } from "../../utils.js";
 
@@ -237,7 +238,7 @@ export class HeroSheet extends LitmActorSheet {
 		}
 
 		// Prepare backpack
-		const backpackItem = this.document.items.find((i) => i.type === "backpack");
+		const backpackItem = this.document.system.backpackItem;
 		const backpack = backpackItem
 			? {
 					name: backpackItem.name,
@@ -257,9 +258,10 @@ export class HeroSheet extends LitmActorSheet {
 			entry.tag.trim(),
 		);
 
-		// Get scratched tags for display (only if dialog already exists)
+		// Build roll tags once and derive scratched subset
+		const rollTags = this._buildAllRollTags();
 		const scratchedTags = this.#rollDialog
-			? this._buildAllRollTags().filter((t) => {
+			? rollTags.filter((t) => {
 					const sel = this.#rollDialog.getSelection(t.id);
 					return t.system?.isScratched || sel.state === "scratched";
 				})
@@ -291,7 +293,7 @@ export class HeroSheet extends LitmActorSheet {
 			momentOfFulfillmentEntries,
 			momentOfFulfillmentVisible,
 
-			rollTags: this._buildAllRollTags(),
+			rollTags,
 			limit: this.system.limit,
 		};
 	}
@@ -494,7 +496,7 @@ export class HeroSheet extends LitmActorSheet {
 				});
 			}
 			case "backpack": {
-				const backpack = this.document.items.find((i) => i.type === "backpack");
+				const backpack = this.document.system.backpackItem;
 				if (!backpack) return;
 				const effect = backpack.effects.get(tagId);
 				if (!effect || effect.disabled) return;
@@ -545,7 +547,7 @@ export class HeroSheet extends LitmActorSheet {
 
 		// Theme tag effects — find and update the effect directly
 		const effect = item.effects.get(tagId)
-			?? [...item.effects].find((e) => e.name === tagName && (e.type === "power_tag" || e.type === "weakness_tag" || e.type === "fellowship_tag"));
+			?? [...item.effects].find((e) => e.name === tagName && THEME_TAG_TYPES.has(e.type));
 		if (!effect) return;
 
 		if (scratch) {
@@ -742,7 +744,7 @@ export class HeroSheet extends LitmActorSheet {
 
 		if (!chosenLoot?.length) return;
 
-		const backpack = this.document.items.find((i) => i.type === "backpack");
+		const backpack = this.document.system.backpackItem;
 
 		if (!backpack) {
 			ui.notifications.error(game.i18n.localize("LITM.Ui.error_no_backpack"));

@@ -1,8 +1,14 @@
 import { detectTrackCompletion, buildTrackCompleteContent } from "../../system/chat.js";
+<<<<<<< HEAD
 import { LitmSettings } from "../../system/settings.js";
 import { statusTagEffect } from "../../utils.js";
+=======
+import { THEME_TAG_TYPES } from "../../system/config.js";
+import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { resolveEffect } from "../../utils.js";
+>>>>>>> ffcf973 (refactor: Code Quality)
 
-export class HeroData extends foundry.abstract.TypeDataModel {
+export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	static defineSchema() {
 		const fields = foundry.data.fields;
 		return {
@@ -60,7 +66,7 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 			.map((theme) => ({
 				theme,
 				tags: [...theme.effects]
-					.filter((e) => e.type === "power_tag" || e.type === "weakness_tag" || e.type === "fellowship_tag")
+					.filter((e) => THEME_TAG_TYPES.has(e.type))
 					.sort((a, b) => (b.system.isTitleTag ? 1 : 0) - (a.system.isTitleTag ? 1 : 0)),
 			}));
 	}
@@ -88,22 +94,6 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 		return this.backpackItem ?? this.parent;
 	}
 
-	async addStatus(name, { tiers, img } = {}) {
-		const data = statusTagEffect({ name });
-		if (tiers) data.system.tiers = tiers;
-		if (img) data.img = img;
-		const parent = this.statusParent;
-		if (parent !== this.parent) data.transfer = true;
-		return parent.createEmbeddedDocuments("ActiveEffect", [data]);
-	}
-
-	async removeStatus(effectId) {
-		for (const e of this.parent.allApplicableEffects()) {
-			if (e.id !== effectId) continue;
-			return e.parent.deleteEmbeddedDocuments("ActiveEffect", [effectId]);
-		}
-	}
-
 	/**
 	 * Everything from the fellowship actor: theme groups + story tags/statuses.
 	 * @returns {{ themes: { theme: Item, tags: ActiveEffect[] }[], tags: ActiveEffect[] }}
@@ -116,7 +106,7 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 			.map((theme) => ({
 				theme,
 				tags: [...theme.effects]
-					.filter((e) => e.type === "power_tag" || e.type === "weakness_tag" || e.type === "fellowship_tag")
+					.filter((e) => THEME_TAG_TYPES.has(e.type))
 					.sort((a, b) => (b.system.isTitleTag ? 1 : 0) - (a.system.isTitleTag ? 1 : 0)),
 			}));
 		const tags = [...actor.allApplicableEffects()]
@@ -203,17 +193,7 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 	}
 
 	#findEffect(effectId) {
-		for (const effect of this.parent.allApplicableEffects()) {
-			if (effect.id === effectId) return effect;
-		}
-		const fellowship = this.fellowshipActor;
-		if (fellowship) {
-			for (const item of fellowship.items) {
-				const effect = item.effects.get(effectId);
-				if (effect) return effect;
-			}
-		}
-		return null;
+		return resolveEffect(effectId, this.parent);
 	}
 
 	/**

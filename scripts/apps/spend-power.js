@@ -1,4 +1,4 @@
-import { localize as t } from "../utils.js";
+import { localize as t, resolveEffect } from "../utils.js";
 
 export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicationMixin(
 	foundry.applications.api.ApplicationV2,
@@ -521,13 +521,9 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 
 				const names = [];
 				for (const chip of selectedChips) {
-					const { tagId, tagName, itemId } = chip.dataset;
+					const { tagId, tagName } = chip.dataset;
 					names.push(tagName);
-					let effect = actor.effects.get(tagId);
-					if (!effect && itemId) {
-						const item = actor.items.get(itemId);
-						effect = item?.effects.get(tagId);
-					}
+					const effect = resolveEffect(tagId, actor, { fellowship: false });
 					if (effect) await effect.update({ "system.isScratched": false });
 				}
 

@@ -3,7 +3,7 @@
 	{{#each statusEffects as |status|}}
 	<img class="effect-control {{status.cssClass}}" src="{{status.src}}" data-action="effect"
 		data-status-id="{{status.id}}"
-		{{#if status.title}}data-tooltip-text="{{status.title}}"{{/if}}>
+		{{#if status.title}}data-tooltip-text="{{status.title}}" alt="{{status.title}}"{{else}}alt=""{{/if}}>
 	{{/each}}
 </div>
 {{#each statusEffects as |status|}}

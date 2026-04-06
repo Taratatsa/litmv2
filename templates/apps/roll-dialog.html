@@ -5,7 +5,7 @@
 		for="rd-{{tag.id}}" data-tag-type="{{tag.type}}">
 		<span class="litm--sro">{{localize "LITM.Ui.select"}}</span>
 		<litm-super-checkbox name="{{tag.id}}" id="rd-{{tag.id}}" value="{{tag.state}}" data-type="{{tag.type}}"
-			states="{{tag.states}}" {{#if tag.locked}}disabled aria-disabled="true" data-locked="true"
+			states="{{tag.states}}" aria-label="{{tag.displayName}}" {{#if tag.locked}}disabled aria-disabled="true" data-locked="true"
 			{{/if}}></litm-super-checkbox>
 		<span class="litm--roll-dialog-badge litm-{{tag.type}}"
 			data-text="{{tag.displayName}}{{ifThen (eq tag.type 'status_tag') (ifThen tag.value (concat '-' tag.value) '') ''}}">{{tag.displayName}}{{ifThen

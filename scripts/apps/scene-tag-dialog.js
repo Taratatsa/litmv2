@@ -88,7 +88,7 @@ export class SceneTagDialog extends foundry.applications.api.HandlebarsApplicati
 	}
 
 	async onSubmit() {
-		const formData = new FormDataExtended(this.element);
+		const formData = new foundry.applications.ux.FormDataExtended(this.element);
 		await SceneTagDialog.#onSubmit.call(this, null, this.element, formData);
 	}
 

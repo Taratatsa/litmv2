@@ -1,4 +1,5 @@
 import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { THEME_TAG_TYPES } from "../../system/config.js";
 
 export class FellowshipData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	static defineSchema() {
@@ -21,7 +22,7 @@ export class FellowshipData extends EffectTagsMixin(foundry.abstract.TypeDataMod
 	get allTags() {
 		const items = [this.theme, ...this.storyThemes].filter(Boolean);
 		return items.flatMap((item) => [...item.effects]
-			.filter((e) => e.type === "power_tag" || e.type === "weakness_tag" || e.type === "fellowship_tag")
+			.filter((e) => THEME_TAG_TYPES.has(e.type))
 		);
 	}
 

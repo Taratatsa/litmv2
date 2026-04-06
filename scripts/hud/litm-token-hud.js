@@ -1,5 +1,5 @@
 // scripts/hud/litm-token-hud.js
-import { localize as t } from "../utils.js";
+import { localize as t, resolveEffect } from "../utils.js";
 
 const { TokenHUD } = foundry.applications.hud;
 
@@ -84,12 +84,7 @@ export class LitmTokenHUD extends TokenHUD {
 	}
 
 	#canToggleSidebarVisibility() {
-		if (!this.actor) return false;
-		const userCharacterIds = new Set(
-			game.users.filter((u) => u.character).map((u) => u.character._id),
-		);
-		const fellowshipId = game.litmv2?.fellowship?.id;
-		return !userCharacterIds.has(this.actor.id) && this.actor.id !== fellowshipId;
+		return !this.#isSidebarLocked();
 	}
 
 	/**
@@ -209,8 +204,7 @@ export class LitmTokenHUD extends TokenHUD {
 		const tier = Number(target.dataset.tier);
 		if (!effectId || !tier) return;
 
-		const effect = [...this.actor.allApplicableEffects()]
-			.find((e) => e.id === effectId);
+		const effect = resolveEffect(effectId, this.actor, { fellowship: false });
 		if (!effect) return;
 
 		const currentTier = effect.system.currentTier;

@@ -2,7 +2,7 @@ import { StatusTagData } from "../data/active-effects/index.js";
 import { buildTrackCompleteContent } from "../system/chat.js";
 import { LitmSettings } from "../system/settings.js";
 import { Sockets } from "../system/sockets.js";
-import { confirmDelete, enrichHTML, localize as t, statusTagEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
+import { confirmDelete, enrichHTML, localize as t, resolveEffect, statusTagEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
 
 const AbstractSidebarTab = foundry.applications.sidebar.AbstractSidebarTab;
 
@@ -1260,13 +1260,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 	async _toggleEffectVisibility(effectId, actorId) {
 		const actor = game.actors.get(actorId);
 		if (!actor) return;
-		let effect = actor.effects.get(effectId);
-		if (!effect) {
-			for (const item of actor.items) {
-				effect = item.effects.get(effectId);
-				if (effect) break;
-			}
-		}
+		const effect = resolveEffect(effectId, actor, { fellowship: false });
 		if (!effect) return;
 		await effect.update({ "system.isHidden": !effect.system.isHidden });
 		return this.#broadcastRender();
@@ -1466,7 +1460,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 
 		// Check backpack item for hero actors
 		if (actor.type === "hero") {
-			const backpack = actor.items.find((i) => i.type === "backpack");
+			const backpack = actor.system.backpackItem;
 			if (backpack?.effects.has(data.sourceId)) {
 				await backpack.deleteEmbeddedDocuments("ActiveEffect", [data.sourceId]);
 				return this.#broadcastRender();
@@ -1575,7 +1569,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		const isStatus = tag.type === "status" || hasValues;
 
 		if (actor.type === "hero" && !isStatus) {
-			const backpack = actor.items.find((i) => i.type === "backpack");
+			const backpack = actor.system.backpackItem;
 			if (backpack) {
 				const maxSort = Math.max(0, ...backpack.effects.map((e) => e.sort ?? 0));
 				const [created] = await backpack.createEmbeddedDocuments("ActiveEffect", [
@@ -1625,7 +1619,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 
 		// For heroes, check if the effect is on the backpack item
 		if (actor.type === "hero") {
-			const backpack = actor.items.find((i) => i.type === "backpack");
+			const backpack = actor.system.backpackItem;
 			if (backpack?.effects.has(id)) {
 				await backpack.deleteEmbeddedDocuments("ActiveEffect", [id]);
 				await this.#recalculateActorLimits(actorId);
