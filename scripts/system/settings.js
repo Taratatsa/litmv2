@@ -31,6 +31,10 @@ export class LitmSettings {
 		return game.settings.set("litmv2", "systemMigrationVersion", v);
 	}
 
+	static get heroLimit() {
+		return game.settings.get("litmv2", "hero_limit");
+	}
+
 	static get fellowshipId() {
 		return game.settings.get("litmv2", "fellowshipId");
 	}
@@ -73,6 +77,15 @@ export class LitmSettings {
 			config: false,
 			type: String,
 			default: "",
+		});
+		game.settings.register("litmv2", "hero_limit", {
+			name: "LITM.Settings.hero_limit",
+			hint: "LITM.Settings.hero_limit_hint",
+			scope: "world",
+			config: true,
+			type: Number,
+			default: 5,
+			range: { min: 1, max: 10, step: 1 },
 		});
 		game.settings.register("litmv2", "custom_dice", {
 			name: "LITM.Settings.custom_dice",

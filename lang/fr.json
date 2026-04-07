@@ -126,6 +126,8 @@
 			"addon": "Fiche d'Extension"
 		},
 		"Settings": {
+			"hero_limit": "Hero Limit",
+			"hero_limit_hint": "The base Limit for hero characters. Lower values create grittier campaigns, higher values feel more heroic.",
 			"custom_dice": "Dés Thématiques",
 			"custom_dice_hint": "Utilisez les dés personnalisés de Legend in the Mist à la place des dés à six faces standard. Nécessite le module Dice So Nice.",
 			"popout_tags_sidebar": "Ouverture Auto de la barre latérale des Tags",
