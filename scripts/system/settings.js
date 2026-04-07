@@ -86,6 +86,7 @@ export class LitmSettings {
 			type: Number,
 			default: 5,
 			range: { min: 1, max: 10, step: 1 },
+			requiresReload: true,
 		});
 		game.settings.register("litmv2", "custom_dice", {
 			name: "LITM.Settings.custom_dice",

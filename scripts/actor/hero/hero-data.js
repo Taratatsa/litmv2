@@ -1,3 +1,4 @@
+import { StatusCardData } from "../../data/active-effect-data.js";
 import { LitmSettings } from "../../system/settings.js";
 
 export class HeroData extends foundry.abstract.TypeDataModel {
@@ -195,8 +196,32 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 
 	prepareDerivedData() {
 		const baseLimit = LitmSettings?.heroLimit ?? 5;
-		const highestStatus =
-			this.statuses.sort((a, b) => b.value - a.value)[0]?.value || 0;
+
+		// Collect all status effects and group by limitId
+		const effects = (this.parent.effects ?? []).filter(
+			(e) => e.system instanceof StatusCardData,
+		);
+		const grouped = new Map();
+		const ungrouped = [];
+		for (const e of effects) {
+			const lid = e.system?.limitId;
+			if (lid) {
+				if (!grouped.has(lid)) grouped.set(lid, []);
+				grouped.get(lid).push(e.system.tiers);
+			} else {
+				ungrouped.push(e.system.currentTier);
+			}
+		}
+
+		// Stacked group values + ungrouped individual tiers
+		const values = [
+			...ungrouped,
+			...[...grouped.values()].map((tierArrays) =>
+				StatusCardData.stackTiers(tierArrays),
+			),
+		];
+		const highestStatus = Math.max(0, ...values);
+
 		this.limit.value = baseLimit - highestStatus;
 		this.limit.max = baseLimit;
 	}
