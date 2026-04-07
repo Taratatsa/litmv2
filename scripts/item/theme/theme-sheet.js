@@ -2,9 +2,12 @@ import { error } from "../../logger.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import {
 	enrichHTML,
+	fellowshipTagEffect,
 	findThemebookByName,
+	powerTagEffect,
 	queryItemsFromPacks,
 	toQuestionOptions,
+	weaknessTagEffect,
 } from "../../utils.js";
 
 /**
@@ -30,6 +33,7 @@ export class ThemeSheet extends LitmItemSheet {
 		form: {
 			submitOnChange: true,
 			closeOnSubmit: false,
+			handler: ThemeSheet._onSubmitFormWithEffects,
 		},
 		window: {
 			icon: "fa-solid fa-book",
@@ -105,7 +109,8 @@ export class ThemeSheet extends LitmItemSheet {
 			system: this.system,
 
 			// Computed properties
-			weakness: this.system.weakness,
+			powerTags: this.system.powerTags,
+			weaknessTags: this.system.weaknessTags,
 			levels,
 			themebooks,
 			powerQuestionOptions,
@@ -126,6 +131,7 @@ export class ThemeSheet extends LitmItemSheet {
 	async #getThemebookOptions() {
 		const entries = await queryItemsFromPacks({
 			type: "themebook",
+			category: "themebooks",
 			indexFields: ["system.theme_level", "system.isFellowship"],
 			map: (item) => ({
 				name: item.name,
@@ -183,56 +189,29 @@ export class ThemeSheet extends LitmItemSheet {
 	 * @private
 	 */
 	static async #onAddTag(_event, target) {
-		const type = target.dataset.type;
+		if (!this.document.isOwner) return;
+		const tagType = target.dataset.type;
 		const themebook = await findThemebookByName(this.system.themebook);
 		const isActive = this.document.isEmbedded;
 
-		if (type === "weaknessTag") {
-			const weaknessTags = [...this.system.weaknessTags];
-			const usedQuestions = new Set(
-				weaknessTags.map((t) => t.question).filter(Boolean),
-			);
-			const allWeaknessQs = themebook?.system?.weaknessTagQuestions || [];
-			const nextQuestion = allWeaknessQs
-				.map((q, i) => ({ q, i }))
-				.filter(
-					({ q, i }) => `${q ?? ""}`.trim() && !usedQuestions.has(String(i)),
-				)
-				.map(({ i }) => String(i))[0] ?? "";
-			weaknessTags.push({
-				id: foundry.utils.randomID(),
-				name: "",
-				question: nextQuestion,
-				isActive,
-				isScratched: false,
-				isSingleUse: false,
-				type: "weaknessTag",
-			});
-			await this.document.update({ "system.weaknessTags": weaknessTags });
-		} else if (type === "powerTag") {
-			const powerTags = [...this.system.powerTags];
-			const usedQuestions = new Set(
-				powerTags.map((t) => t.question).filter(Boolean),
-			);
-			const allPowerQs = themebook?.system?.powerTagQuestions || [];
-			const nextQuestion = allPowerQs
-				.map((q, i) => ({ q, i }))
-				.filter(
-					({ q, i }) =>
-						i > 0 && `${q ?? ""}`.trim() && !usedQuestions.has(String(i)),
-				)
-				.map(({ i }) => String(i))[0] ?? "";
-			powerTags.push({
-				id: foundry.utils.randomID(),
-				name: "",
-				question: nextQuestion,
-				isActive,
-				isScratched: false,
-				isSingleUse: false,
-				type: "powerTag",
-			});
-			await this.document.update({ "system.powerTags": powerTags });
-		}
+		const existingTags = tagType === "power_tag" ? this.system.powerTags : this.system.weaknessTags;
+		const usedQuestions = new Set(existingTags.map((t) => t.system?.question).filter(Boolean));
+		const allQuestions = tagType === "power_tag"
+			? (themebook?.system?.powerTagQuestions || [])
+			: (themebook?.system?.weaknessTagQuestions || []);
+		const startIndex = tagType === "power_tag" ? 1 : 0;
+		const nextQuestion = allQuestions
+			.map((q, i) => ({ q, i }))
+			.filter(({ q, i }) => i >= startIndex && `${q ?? ""}`.trim() && !usedQuestions.has(String(i)))
+			.map(({ i }) => String(i))[0] ?? null;
+
+		const isFellowship = this.document.system.isFellowship;
+		const factory = tagType === "weakness_tag" ? weaknessTagEffect
+			: isFellowship ? fellowshipTagEffect
+			: powerTagEffect;
+		await this.document.createEmbeddedDocuments("ActiveEffect", [
+			factory({ question: nextQuestion, isActive }),
+		]);
 	}
 
 	/**
@@ -242,18 +221,11 @@ export class ThemeSheet extends LitmItemSheet {
 	 * @private
 	 */
 	static async #onRemoveTag(_event, target) {
-		const index = parseInt(target.dataset.index, 10);
-		const type = target.dataset.type;
-
-		if (type === "weaknessTag") {
-			const weaknessTags = [...this.system.weaknessTags];
-			weaknessTags.splice(index, 1);
-			await this.document.update({ "system.weaknessTags": weaknessTags });
-		} else if (type === "powerTag") {
-			const powerTags = [...this.system.powerTags];
-			powerTags.splice(index, 1);
-			await this.document.update({ "system.powerTags": powerTags });
-		}
+		if (!this.document.isOwner) return;
+		const effectId = target.dataset.effectId;
+		if (!effectId) return;
+		await this.document.deleteEmbeddedDocuments("ActiveEffect", [effectId]);
+		this.document.parent?.sheet?._notifyStoryTags?.();
 	}
 
 	/**

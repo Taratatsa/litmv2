@@ -1,5 +1,5 @@
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
-import { enrichHTML } from "../../utils.js";
+import { enrichHTML, powerTagEffect, weaknessTagEffect } from "../../utils.js";
 
 export class StoryThemeSheet extends LitmItemSheet {
 	static DEFAULT_OPTIONS = {
@@ -16,6 +16,7 @@ export class StoryThemeSheet extends LitmItemSheet {
 		form: {
 			submitOnChange: true,
 			closeOnSubmit: false,
+			handler: StoryThemeSheet._onSubmitFormWithEffects,
 		},
 		window: {
 			icon: "fa-solid fa-book-open",
@@ -46,6 +47,8 @@ export class StoryThemeSheet extends LitmItemSheet {
 			system: this.system,
 			item: this.document,
 			levels: this.system.levels,
+			powerTags: this.system.powerTags,
+			weaknessTags: this.system.weaknessTags,
 		};
 	}
 
@@ -56,20 +59,12 @@ export class StoryThemeSheet extends LitmItemSheet {
 	 * @private
 	 */
 	static async #onAddTag(_event, target) {
-		const type = target.dataset.type;
-		const path =
-			type === "powerTag"
-				? "system.theme.powerTags"
-				: "system.theme.weaknessTags";
-		const tags = foundry.utils.getProperty(this.document, path);
-		const newTag = {
-			id: foundry.utils.randomID(),
-			name: "",
-			type,
-			isActive: true,
-			isScratched: false,
-		};
-		await this.document.update({ [path]: [...tags, newTag] });
+		if (!this.document.isOwner) return;
+		const tagType = target.dataset.type; // "power_tag" or "weakness_tag"
+		const factory = tagType === "weakness_tag" ? weaknessTagEffect : powerTagEffect;
+		await this.document.createEmbeddedDocuments("ActiveEffect", [
+			factory({ isActive: true }),
+		]);
 	}
 
 	/**
@@ -79,17 +74,11 @@ export class StoryThemeSheet extends LitmItemSheet {
 	 * @private
 	 */
 	static async #onRemoveTag(_event, target) {
-		const index = Number(target.dataset.index);
-		const type = target.dataset.type;
-		const path =
-			type === "powerTag"
-				? "system.theme.powerTags"
-				: "system.theme.weaknessTags";
-		const tags = foundry.utils.getProperty(this.document, path);
-
-		const newTags = [...tags];
-		newTags.splice(index, 1);
-
-		await this.document.update({ [path]: newTags });
+		if (!this.document.isOwner) return;
+		const effectId = target.dataset.effectId;
+		if (!effectId) return;
+		await this.document.deleteEmbeddedDocuments("ActiveEffect", [effectId]);
+		this.document.parent?.sheet?._notifyStoryTags?.();
 	}
+
 }

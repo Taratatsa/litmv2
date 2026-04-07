@@ -1,4 +1,7 @@
-export class FellowshipData extends foundry.abstract.TypeDataModel {
+import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { THEME_TAG_TYPES } from "../../system/config.js";
+
+export class FellowshipData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	static defineSchema() {
 		const fields = foundry.data.fields;
 		return {
@@ -17,9 +20,19 @@ export class FellowshipData extends foundry.abstract.TypeDataModel {
 	}
 
 	get allTags() {
-		const theme = this.theme;
-		const themeTags = theme ? theme.system.allTags : [];
-		const storyTags = this.storyThemes.flatMap((item) => item.system.allTags);
-		return [...themeTags, ...storyTags];
+		const items = [this.theme, ...this.storyThemes].filter(Boolean);
+		return items.flatMap((item) => [...item.effects]
+			.filter((e) => THEME_TAG_TYPES.has(e.type))
+		);
+	}
+
+	async scratchTag(_tagType, tagId) {
+		for (const item of this.parent.items) {
+			const effect = item.effects.get(tagId);
+			if (effect) {
+				await effect.system.toggleScratch();
+				return;
+			}
+		}
 	}
 }

@@ -2,14 +2,14 @@
 <li>
 	<label
 		class="litm--roll-dialog-tag litm--{{tag.type}} {{#if tag.locked}}is-locked{{/if}} {{#if tag.state}}is-selected{{/if}}"
-		for="input-{{tag.id}}" data-tag-type="{{tag.type}}">
+		for="rd-{{tag.id}}" data-tag-type="{{tag.type}}">
 		<span class="litm--sro">{{localize "LITM.Ui.select"}}</span>
-		<litm-super-checkbox name="{{tag.id}}" id="input-{{tag.id}}" value="{{tag.state}}" data-type="{{tag.type}}"
-			states="{{tag.states}}" {{#if tag.locked}}disabled aria-disabled="true" data-locked="true"
+		<litm-super-checkbox name="{{tag.id}}" id="rd-{{tag.id}}" value="{{tag.state}}" data-type="{{tag.type}}"
+			states="{{tag.states}}" aria-label="{{tag.displayName}}" {{#if tag.locked}}disabled aria-disabled="true" data-locked="true"
 			{{/if}}></litm-super-checkbox>
 		<span class="litm--roll-dialog-badge litm-{{tag.type}}"
-			data-text="{{tag.displayName}}{{ifThen (eq tag.type 'status') (ifThen tag.value (concat '-' tag.value) '') ''}}">{{tag.displayName}}{{ifThen
-			(eq tag.type "status") (ifThen tag.value (concat "-" tag.value) "") ""}}</span>
+			data-text="{{tag.displayName}}{{ifThen (eq tag.type 'status_tag') (ifThen tag.value (concat '-' tag.value) '') ''}}">{{tag.displayName}}{{ifThen
+			(eq tag.type "status_tag") (ifThen tag.value (concat "-" tag.value) "") ""}}</span>
 	</label>
 </li>
 {{/inline}}
@@ -56,21 +56,107 @@
 		<!-- Modifiers: Might, Modifier stepper, and Trade Power -->
 		<fieldset>
 			<legend>{{localize "LITM.Ui.modifiers"}}</legend>
-			<div class="litm--roll-dialog-might-row">
-				<select id="might-select" name="might" data-update="might">
-					{{selectOptions mightOptions selected=might localize=true}}
-				</select>
-				<div class="litm--modifier-stepper">
-					<button type="button" data-adjust="modifier" data-delta="-1" data-tooltip="{{localize 'LITM.Ui.decrease'}}" aria-label="{{localize 'LITM.Ui.decrease'}}">
-						<i class="fa-solid fa-minus" aria-hidden="true"></i>
-					</button>
-					<input id="modifier-input" type="number" name="modifier" value="{{modifier}}"
-						data-update="modifier" aria-label="{{localize 'LITM.Ui.modifiers'}}" />
-					<button type="button" data-adjust="modifier" data-delta="1" data-tooltip="{{localize 'LITM.Ui.increase'}}" aria-label="{{localize 'LITM.Ui.increase'}}">
-						<i class="fa-solid fa-plus" aria-hidden="true"></i>
-					</button>
+			<div class="litm--roll-dialog-might">
+				<div class="litm--might-label-row">
+					<span class="litm--might-name-wrapper">
+						{{localize "LITM.Terms.might"}}
+						<i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+					</span>
+				</div>
+				<div class="litm--might-radio-row">
+					{{#each mightRange}}
+					<label class="litm--might-option {{#if (eq ../might this)}}is-active{{/if}}"
+						{{#if (eq this -6)}}data-tooltip="{{localize 'LITM.Ui.might_extremely_imperiled_short'}}"
+						{{else if (eq this -3)}}data-tooltip="{{localize 'LITM.Ui.might_imperiled_short'}}"
+						{{else if (eq this 0)}}data-tooltip="{{localize 'LITM.Ui.might_equal_short'}}"
+						{{else if (eq this 3)}}data-tooltip="{{localize 'LITM.Ui.might_favored_short'}}"
+						{{else if (eq this 6)}}data-tooltip="{{localize 'LITM.Ui.might_extremely_favored_short'}}"
+						{{/if}}>
+						<input type="radio" name="might" value="{{this}}" {{checked (eq ../might this)}} />
+						{{#if (eq this -6)}}<span class="litm--might-scale-greatness">-6</span>
+						{{else if (eq this -3)}}<span class="litm--might-scale-adventure">-3</span>
+						{{else if (eq this 0)}}<span class="litm--might-scale-origin">0</span>
+						{{else if (eq this 3)}}<span class="litm--might-scale-adventure">+3</span>
+						{{else if (eq this 6)}}<span class="litm--might-scale-greatness">+6</span>
+						{{else if (gt this 0)}}<span>+{{this}}</span>
+						{{else}}<span>{{this}}</span>
+						{{/if}}
+					</label>
+					{{/each}}
 				</div>
 			</div>
+			<template class="litm--might-tooltip-template">
+				<div class="litm--might-tooltip">
+					<h3 class="litm--might-tooltip-title">{{localize "LITM.Ui.might_scale_title"}}</h3>
+					<table class="litm--might-table">
+						<thead>
+							<tr>
+								<th>{{localize "LITM.Terms.might"}}</th>
+								<th>{{localize "LITM.Ui.might_scale_header_scale"}}</th>
+								<th>{{localize "LITM.Ui.might_scale_header_area"}}</th>
+								<th>{{localize "LITM.Ui.might_scale_header_size"}}</th>
+								<th>{{localize "LITM.Ui.might_scale_header_group"}}</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td rowspan="2" class="litm--might-table-tier">
+									<img src="systems/litmv2/assets/media/icons/origin.svg" alt="" />
+									<span>{{localize "LITM.Terms.origin"}}</span>
+								</td>
+								<td class="litm--might-scale-accent litm--might-scale-origin">0</td>
+								<td>{{localize "LITM.Ui.might_scale_area_0"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_0"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_0"}}</td>
+							</tr>
+							<tr>
+								<td>1</td>
+								<td>{{localize "LITM.Ui.might_scale_area_1"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_1"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_1"}}</td>
+							</tr>
+							<tr>
+								<td rowspan="3" class="litm--might-table-tier">
+									<img src="systems/litmv2/assets/media/icons/adventure.svg" alt="" />
+									<span>{{localize "LITM.Terms.adventure"}}</span>
+								</td>
+								<td>2</td>
+								<td>{{localize "LITM.Ui.might_scale_area_2"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_2"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_2"}}</td>
+							</tr>
+							<tr>
+								<td class="litm--might-scale-accent litm--might-scale-adventure">3</td>
+								<td>{{localize "LITM.Ui.might_scale_area_3"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_3"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_3"}}</td>
+							</tr>
+							<tr>
+								<td>4</td>
+								<td>{{localize "LITM.Ui.might_scale_area_4"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_4"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_4"}}</td>
+							</tr>
+							<tr>
+								<td rowspan="2" class="litm--might-table-tier">
+									<img src="systems/litmv2/assets/media/icons/greatness.svg" alt="" />
+									<span>{{localize "LITM.Terms.greatness"}}</span>
+								</td>
+								<td>5</td>
+								<td>{{localize "LITM.Ui.might_scale_area_5"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_5"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_5"}}</td>
+							</tr>
+							<tr>
+								<td class="litm--might-scale-accent litm--might-scale-greatness">6</td>
+								<td>{{localize "LITM.Ui.might_scale_area_6"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_size_6"}}</td>
+								<td>{{localize "LITM.Ui.might_scale_group_6"}}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</template>
 			<div class="litm--trade-power-fieldset hidden">
 				<div class="litm--roll-type-bar litm--trade-power-bar">
 					<label class="litm--roll-type-option {{#if (eq tradePower -1)}}is-active{{/if}}" data-tooltip="{{localize 'LITM.Ui.trade_caution_hint'}}">
@@ -92,7 +178,8 @@
 		{{/if}}
 
 		<!-- Tags Summary -->
-		<div class="litm--roll-dialog-tags-fieldset">
+		<fieldset class="litm--roll-dialog-tags-fieldset">
+			<legend>{{localize "LITM.Terms.tags"}}</legend>
 		{{#if isGMViewer}}
 		<!-- GM Viewer: tabbed view per actor -->
 		<nav class="tabs litm--roll-dialog-tabs" data-group="gm-viewer">
@@ -105,8 +192,6 @@
 			{{/each}}
 		</nav>
 		{{/if}}
-		<fieldset>
-			<legend>{{localize "LITM.Terms.tags"}}</legend>
 
 			{{#if isGMViewer}}
 			{{#each gmViewerTabs as |tab|}}
@@ -127,14 +212,35 @@
 			{{/each}}
 
 			{{else}}
+			<!-- Fellowship (all themes + tags under one header) -->
+			{{#if fellowshipTagGroups.length}}
+			<div>
+				<p class="litm--roll-dialog-actor-label">
+					<img src="systems/litmv2/assets/media/icons/fellowship.svg" alt="{{fellowshipName}}" />
+					<span>{{fellowshipName}}</span>
+				</p>
+				{{#each fellowshipTagGroups as |group|}}
+				<div class="litm--roll-dialog-theme-group">
+					<p class="litm--roll-dialog-theme-label">{{#if group.themeImg}}<img src="{{group.themeImg}}" alt="{{group.themeName}}" />{{else if group.icon}}<i class="{{group.icon}}" aria-hidden="true"></i>{{/if}}{{group.themeName}}</p>
+					<ul class="plain litm--roll-dialog-tags-summary">
+						{{#each group.tags as |tag|}}
+						{{> tag tag=tag}}
+						{{/each}}
+					</ul>
+				</div>
+				{{/each}}
+			</div>
+			{{/if}}
+
 			<!-- Character Tags (grouped by theme) -->
+			<div class="litm--roll-dialog-section-break">
 			{{#each characterTagGroups as |group|}}
 			<div class="litm--roll-dialog-theme-group">
 				<p class="litm--roll-dialog-actor-label">
 					{{#if group.themeImg}}
 					<img src="{{group.themeImg}}" alt="{{group.themeName}}" />
-					{{else if group.actorImg}}
-					<img src="{{group.actorImg}}" alt="{{group.themeName}}" />
+					{{else if group.icon}}
+					<i class="{{group.icon}}" aria-hidden="true"></i>
 					{{/if}}
 					<span>{{group.themeName}}</span>
 				</p>
@@ -145,27 +251,7 @@
 				</ul>
 			</div>
 			{{/each}}
-
-			<!-- Fellowship Tags (grouped by theme) -->
-			{{#if fellowshipTagGroups.length}}
-			{{#each fellowshipTagGroups as |group|}}
-			<div class="litm--roll-dialog-theme-group {{#if @first}}litm--roll-dialog-section-break{{/if}}">
-				<p class="litm--roll-dialog-actor-label">
-					{{#if group.themeImg}}
-					<img src="{{group.themeImg}}" alt="{{group.themeName}}" />
-					{{else}}
-					<img src="systems/litmv2/assets/media/icons/fellowship.svg" alt="{{group.themeName}}" />
-					{{/if}}
-					<span>{{group.themeName}}</span>
-				</p>
-				<ul class="plain litm--roll-dialog-tags-summary">
-					{{#each group.tags as |tag|}}
-					{{> tag tag=tag}}
-					{{/each}}
-				</ul>
 			</div>
-			{{/each}}
-			{{/if}}
 
 			<!-- Contributed Tags (from other characters) -->
 			{{#each contributedTagGroups as |contributor|}}
@@ -228,7 +314,6 @@
 			{{/if}}
 			{{/if}}
 		</fieldset>
-		</div>
 
 		</div><!-- /litm--roll-dialog-grid -->
 

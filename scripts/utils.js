@@ -1,3 +1,31 @@
+import { ContentSources } from "./system/content-sources.js";
+
+/**
+ * Extract and remove keys matching a prefix from form data, returning a
+ * nested map keyed by document ID. Uses `foundry.utils.setProperty` for
+ * clean nested path handling.
+ * @param {object} submitData  The form data object (mutated: matching keys are deleted)
+ * @param {string} prefix      Key prefix to match, e.g. "effects." or "items."
+ * @returns {Record<string, object>}  Map of `{ [id]: nestedData }`
+ */
+export function parseEmbeddedFormKeys(submitData, prefix) {
+	const map = {};
+	for (const [key, value] of Object.entries(submitData)) {
+		if (!key.startsWith(prefix)) continue;
+		delete submitData[key];
+		const parts = key.split(".");
+		const id = parts[1];
+		const field = parts.slice(2).join(".");
+		map[id] ??= {};
+		foundry.utils.setProperty(map[id], field, value);
+	}
+	return map;
+}
+
+export function levelIcon(level) {
+	return `systems/litmv2/assets/media/icons/${level}.svg`;
+}
+
 export function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -59,21 +87,136 @@ export async function enrichHTML(text, document) {
 
 export function toQuestionOptions(questions = [], skipFirst = 0) {
 	const options = {};
-	let displayIndex = skipFirst;
 
 	(questions || []).forEach((question, idx) => {
 		if (idx < skipFirst) return;
 		if (!question || `${question}`.trim().length === 0) return;
 
-		options[String(idx)] = String.fromCharCode(65 + displayIndex);
-		displayIndex++;
+		options[String(idx)] = idx < 26 ? String.fromCharCode(65 + idx) : `${idx + 1}`;
 	});
 
 	return options;
 }
 
-export function toPlainObject(obj) {
-	return obj?.toObject ? obj.toObject() : { ...obj };
+export function powerTagEffect({
+	name,
+	isActive = false,
+	question = null,
+	isScratched = false,
+} = {}) {
+	return {
+		name: name || game.i18n.localize("LITM.Terms.tag"),
+		type: "power_tag",
+		disabled: !isActive,
+		system: { question, isScratched },
+	};
+}
+
+export function weaknessTagEffect({
+	name,
+	isActive = false,
+	question = null,
+} = {}) {
+	return {
+		name: name || game.i18n.localize("LITM.Terms.tag"),
+		type: "weakness_tag",
+		disabled: !isActive,
+		system: { question },
+	};
+}
+
+export function fellowshipTagEffect({
+	name,
+	isActive = false,
+	question = null,
+	isScratched = false,
+} = {}) {
+	return {
+		name: name || game.i18n.localize("LITM.Terms.tag"),
+		type: "fellowship_tag",
+		disabled: !isActive,
+		system: { question, isScratched },
+	};
+}
+
+export function relationshipTagEffect({
+	name,
+	targetId = "",
+} = {}) {
+	return {
+		name: name || game.i18n.localize("LITM.Terms.tag"),
+		type: "relationship_tag",
+		system: { targetId },
+	};
+}
+
+/**
+ * Build ActiveEffect creation data for a story_tag effect.
+ * @param {object} options
+ * @param {string} options.name - Tag name
+ * @param {boolean} [options.isScratched=false]
+ * @param {boolean} [options.isSingleUse=false]
+ * @param {boolean} [options.isHidden=false]
+ * @param {string|null} [options.limitId=null]
+ * @returns {object} Effect creation data
+ */
+export function storyTagEffect({
+	name,
+	isScratched = false,
+	isSingleUse = false,
+	isHidden = false,
+	limitId = null,
+} = {}) {
+	return {
+		name: name || game.i18n.localize("LITM.Terms.tag"),
+		type: "story_tag",
+		system: { isScratched, isSingleUse, isHidden, limitId },
+	};
+}
+
+/**
+ * Build ActiveEffect creation data for a status_card effect.
+ * @param {object} options
+ * @param {string} options.name - Status name
+ * @param {boolean[]} [options.tiers] - 6-element tier array
+ * @param {boolean} [options.isHidden=false]
+ * @param {string|null} [options.limitId=null]
+ * @returns {object} Effect creation data
+ */
+export function statusTagEffect({
+	name,
+	tiers = [false, false, false, false, false, false],
+	isHidden = false,
+	limitId = null,
+} = {}) {
+	return {
+		name: name || game.i18n.localize("LITM.Terms.status"),
+		type: "status_tag",
+		system: { tiers, isHidden, limitId },
+	};
+}
+
+/**
+ * Route effect updates to the correct parent document and batch-apply them.
+ * Effects may live on the actor directly or on embedded items (e.g. backpack).
+ * Builds an id→effect lookup once, then groups updates by parent.
+ * @param {Actor} actor    The actor whose applicable effects to search
+ * @param {object[]} updates  Array of update objects with `_id` keys
+ */
+export async function updateEffectsByParent(actor, updates) {
+	if (!updates.length) return;
+	const effectMap = new Map(
+		[...actor.allApplicableEffects()].map((e) => [e.id, e]),
+	);
+	const byParent = new Map();
+	for (const u of updates) {
+		const parent = effectMap.get(u._id)?.parent ?? actor;
+		if (!byParent.has(parent)) byParent.set(parent, []);
+		byParent.get(parent).push(u);
+	}
+	for (const [parent, parentUpdates] of byParent) {
+		await parent.updateEmbeddedDocuments("ActiveEffect", parentUpdates);
+	}
 }
 
 /**
@@ -88,11 +231,13 @@ export function toPlainObject(obj) {
  *                                             the value to include. If omitted, entries are returned as-is.
  * @returns {Promise<any[]>}
  */
+
 export async function queryItemsFromPacks({
 	type,
 	filter,
 	indexFields = [],
 	map,
+	category,
 } = {}) {
 	const results = [];
 
@@ -103,7 +248,9 @@ export async function queryItemsFromPacks({
 	}
 
 	// Compendium packs
-	const packs = game.packs.filter((pack) => pack.documentName === "Item");
+	const packs = category
+		? ContentSources.getPacks(category)
+		: game.packs.filter((pack) => pack.documentName === "Item");
 	for (const pack of packs) {
 		await pack.getIndex({ fields: ["type", "name", ...indexFields] });
 		for (const entry of pack.index?.contents || []) {
@@ -131,4 +278,33 @@ export async function confirmDelete(string = "Item") {
 		// DialogV2 throws when closed via the X button — treat as rejection
 		return false;
 	}
+}
+
+/**
+ * Find an ActiveEffect by ID, searching the actor's own effects,
+ * then all embedded item effects, then optionally the fellowship actor.
+ * @param {string} effectId
+ * @param {Actor} actor
+ * @param {{ fellowship?: boolean }} [options]
+ * @returns {ActiveEffect|null}
+ */
+export function resolveEffect(effectId, actor, { fellowship = true } = {}) {
+	const direct = actor.effects.get(effectId);
+	if (direct) return direct;
+	for (const item of actor.items) {
+		const e = item.effects.get(effectId);
+		if (e) return e;
+	}
+	if (fellowship) {
+		const f = actor.system?.fellowshipActor;
+		if (f) {
+			const fe = f.effects.get(effectId);
+			if (fe) return fe;
+			for (const item of f.items) {
+				const e = item.effects.get(effectId);
+				if (e) return e;
+			}
+		}
+	}
+	return null;
 }

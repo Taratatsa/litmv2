@@ -113,6 +113,10 @@
 			"promise": "Promesse",
 			"moment_of_fulfillment": "Moments d'Accomplissement"
 		},
+		"Hud": {
+			"toggle_sidebar": "Toggle Tags Sidebar",
+			"sidebar_locked": "Permanently in Tags Sidebar"
+		},
 		"Name": "Legend in the Mist",
 		"Sheets": {
 			"hero": "Fiche de Héros",
@@ -277,6 +281,7 @@
 			"open_fellowship_sheet": "Ouvrir la fiche de compagnie",
 			"open_fellowship_sheet_hint": "Ouvre la fiche de l'acteur Compagnie.",
 			"warn_no_fellowship": "Aucun acteur Compagnie trouvé dans ce monde.",
+			"warn_no_backpack": "Ce héros n'a pas de sac à dos pour recevoir des étiquettes.",
 			"toggle_edit_mode": "Basculer en mode édition",
 			"toggle_edit_mode_hint": "Basculer le mode édition sur la fiche de personnage la plus haute ouverte.",
 			"toggle_tags_sidebar": "Basculer la barre latérale des Tags",
@@ -369,11 +374,11 @@
 			"party_overview_quests": "Quêtes",
 			"party_overview_weaknesses": "Faiblesses",
 			"party_overview_statuses": "Statuts",
-			"might_equal": "—",
-			"might_extremely_favored": "Extrêmement Favorisé",
-			"might_extremely_imperiled": "Extrêmement Compromis",
-			"might_favored": "Favorisé",
-			"might_imperiled": "Compromis",
+			"might_equal_short": "Égal",
+			"might_favored_short": "Favorisé",
+			"might_extremely_favored_short": "Extrêmement Favorisé",
+			"might_imperiled_short": "Compromis",
+			"might_extremely_imperiled_short": "Extrêmement Compromis",
 			"moderate_roll_gm": "Modérer le Jet",
 			"moderate_roll_gm_hint": "souhaite que vous rouliez avec un",
 			"moderate_roll_player": "Attendez !",

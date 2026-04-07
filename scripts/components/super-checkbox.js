@@ -2,7 +2,7 @@ import { AdoptedStyleSheetMixin } from "./adopted-stylesheet-mixin.js";
 
 export class SuperCheckbox extends AdoptedStyleSheetMixin(HTMLElement) {
 	static formAssociated = true;
-	static observedAttributes = ["value", "disabled"];
+	static observedAttributes = ["value", "disabled", "aria-label"];
 
 	static css = `
 		#multistate-checkbox {
@@ -185,13 +185,16 @@ export class SuperCheckbox extends AdoptedStyleSheetMixin(HTMLElement) {
 		if (name === "disabled") {
 			this.#syncDisabledState();
 		}
+		if (name === "aria-label") {
+			this.#checkbox.ariaLabel = newValue;
+		}
 	}
 
 	_onClick() {
 		if (this.disabled) return;
 		this.#state = (this.#state + 1) % this.#states.length;
 		this.#updateState();
-		this.dispatchEvent(new Event("change"));
+		this.dispatchEvent(new Event("change", { bubbles: true }));
 	}
 
 	#syncDisabledState() {
@@ -206,7 +209,9 @@ export class SuperCheckbox extends AdoptedStyleSheetMixin(HTMLElement) {
 	#updateState() {
 		this.value = this.#states[this.#state];
 		this.#checkbox.setAttribute("aria-checked", this.#state > 0);
-		this.#checkbox.ariaLabel = this.#states[this.#state];
+		if (!this.getAttribute("aria-label")) {
+			this.#checkbox.ariaLabel = this.#states[this.#state];
+		}
 		this.#checkbox.dataset.state = this.#states[this.#state];
 	}
 }

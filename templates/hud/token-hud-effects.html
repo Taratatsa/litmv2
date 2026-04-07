@@ -1,0 +1,22 @@
+{{!-- templates/hud/token-hud-effects.html --}}
+<div class="litm-hud-grid">
+	{{#each statusEffects as |status|}}
+	<img class="effect-control {{status.cssClass}}" src="{{status.src}}" data-action="effect"
+		data-status-id="{{status.id}}"
+		{{#if status.title}}data-tooltip-text="{{status.title}}" alt="{{status.title}}"{{else}}alt=""{{/if}}>
+	{{/each}}
+</div>
+{{#each statusEffects as |status|}}
+{{#if status.isActive}}
+<span class="litm-status litm-hud-active" data-text="{{status.title}}" data-effect-id="{{status.effectId}}">
+	<span>{{status.title}}</span>
+	<span class="litm--tag-item-status" data-tooltip="{{localize 'LITM.Ui.right_click_reduce_status'}}">
+		{{#each status.tiers as |filled|}}
+		<img class="litm--tier-box" data-action="tier" data-tier="{{sum @index 1}}"
+			alt="" aria-hidden="true"
+			src="systems/litmv2/assets/media/checkbox{{ifThen filled '-c' ''}}.svg" />
+		{{/each}}
+	</span>
+</span>
+{{/if}}
+{{/each}}

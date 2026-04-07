@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json.schemastore.org/foundryvtt-system-manifest.json",
 	"id": "litmv2",
-	"version": "10",
+	"version": "14",
 	"license": "LICENSE",
 	"title": "Legend in the Mist: Unofficial",
 	"description": "An unofficial, community-made system for playing the <strong>Rustic Fantasy</strong> game <em>Legend in the Mist</em> in Foundry Virtual Tabletop.",
@@ -28,11 +28,16 @@
 			},
 			"fellowship": {
 				"htmlFields": ["description"]
-			}
+			},
+			"story_theme": {}
 		},
 		"ActiveEffect": {
+			"power_tag": {},
+			"weakness_tag": {},
+			"fellowship_tag": {},
+			"relationship_tag": {},
 			"story_tag": {},
-			"status_card": {}
+			"status_tag": {}
 		},
 		"Item": {
 			"backpack": {},
@@ -88,7 +93,7 @@
 	],
 	"socket": true,
 	"compatibility": {
-		"minimum": 13,
+		"minimum": 14,
 		"verified": 14,
 		"maximum": 14
 	},
@@ -110,7 +115,7 @@
 	"background": "systems/litmv2/assets/media/litm_splash.webp",
 	"url": "https://github.com/Son-of-Oak-Community/litmv2",
 	"bugs": "https://github.com/Son-of-Oak-Community/litmv2/issues?q=is:issue+is:open+sort:updated-desc",
-	"manifest": "https://raw.githubusercontent.com/Son-of-Oak-Community/litmv2/refs/heads/v13/system.json",
-	"download": "https://github.com/Son-of-Oak-Community/litmv2/archive/refs/tags/v10.zip",
+	"manifest": "https://raw.githubusercontent.com/Son-of-Oak-Community/litmv2/refs/heads/main/system.json",
+	"download": "https://github.com/Son-of-Oak-Community/litmv2/archive/refs/tags/v14.zip",
 	"readme": "https://github.com/Son-of-Oak-Community/litmv2/blob/main/README.md"
 }

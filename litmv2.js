@@ -6,6 +6,8 @@ import { HeroData } from "./scripts/actor/hero/hero-data.js";
 import { HeroSheet } from "./scripts/actor/hero/hero-sheet.js";
 import { JourneyData } from "./scripts/actor/journey/journey-data.js";
 import { JourneySheet } from "./scripts/actor/journey/journey-sheet.js";
+import { StoryThemeActorData } from "./scripts/actor/story-theme/story-theme-actor-data.js";
+import { StoryThemeActorSheet } from "./scripts/actor/story-theme/story-theme-actor-sheet.js";
 import { DoubleSix } from "./scripts/apps/dice.js";
 import { LitmRoll } from "./scripts/apps/roll.js";
 import { LitmRollDialog } from "./scripts/apps/roll-dialog.js";
@@ -14,11 +16,17 @@ import { StoryTagSidebar } from "./scripts/apps/story-tag-sidebar.js";
 import { ThemeAdvancementApp } from "./scripts/apps/theme-advancement.js";
 import { WelcomeOverlay } from "./scripts/apps/welcome-overlay.js";
 import { SuperCheckbox } from "./scripts/components/super-checkbox.js";
+import { LitmTokenHUD } from "./scripts/hud/litm-token-hud.js";
 import {
-	StatusCardData,
+	PowerTagData,
+	WeaknessTagData,
+	FellowshipTagData,
+	RelationshipTagData,
 	StoryTagData,
-} from "./scripts/data/active-effect-data.js";
-import { TagData } from "./scripts/data/tag-data.js";
+	StatusTagData,
+} from "./scripts/data/active-effects/index.js";
+import { LitmActiveEffect } from "./scripts/data/active-effects/litm-active-effect.js";
+import { LitmActiveEffectSheet } from "./scripts/data/active-effects/active-effect-sheet.js";
 import { BackpackData } from "./scripts/item/backpack/backpack-data.js";
 import { BackpackSheet } from "./scripts/item/backpack/backpack-sheet.js";
 import { LitmItem } from "./scripts/item/litm-item.js";
@@ -51,7 +59,9 @@ import {
 import { LitmHooks } from "./scripts/system/hooks/index.js";
 import { KeyBindings } from "./scripts/system/keybindings.js";
 import { migrateWorld } from "./scripts/system/migrations.js";
+import { loadStatusCompendium } from "./scripts/system/hooks/token-hooks.js";
 import { LitmSettings } from "./scripts/system/settings.js";
+import { ContentSources } from "./scripts/system/content-sources.js";
 import { Sockets } from "./scripts/system/sockets.js";
 
 // Register Custom Elements
@@ -62,12 +72,15 @@ Hooks.once("init", () => {
 	info("Initializing Legend in the Mist...");
 	game.litmv2 = {
 		data: {
-			TagData,
-			StatusCardData,
+			PowerTagData,
+			WeaknessTagData,
+			FellowshipTagData,
+			RelationshipTagData,
 			StoryTagData,
+			StatusTagData,
 		},
 		methods: {
-			calculatePower: LitmRollDialog.calculatePower,
+			calculatePower: LitmRoll.calculatePower,
 		},
 		get fellowship() {
 			const id = game.settings?.get("litmv2", "fellowshipId");
@@ -80,6 +93,7 @@ Hooks.once("init", () => {
 		SpendPowerApp,
 		ThemeAdvancementApp,
 		rollDialogHud: null,
+		ContentSources,
 	};
 
 	info("Initializing Config...");
@@ -87,6 +101,7 @@ Hooks.once("init", () => {
 	CONFIG.Actor.dataModels.challenge = ChallengeData;
 	CONFIG.Actor.dataModels.journey = JourneyData;
 	CONFIG.Actor.dataModels.fellowship = FellowshipData;
+	CONFIG.Actor.dataModels.story_theme = StoryThemeActorData;
 	CONFIG.Actor.trackableAttributes.hero = HeroData.getTrackableAttributes();
 	LitmSettings.register();
 	if (LitmSettings.customDice) {
@@ -94,6 +109,7 @@ Hooks.once("init", () => {
 	}
 	CONFIG.Dice.rolls.push(LitmRoll);
 	CONFIG.Item.documentClass = LitmItem;
+	CONFIG.ActiveEffect.documentClass = LitmActiveEffect;
 	CONFIG.Item.dataModels.backpack = BackpackData;
 	CONFIG.Item.dataModels.theme = ThemeData;
 	CONFIG.Item.dataModels.themebook = ThemebookData;
@@ -101,9 +117,22 @@ Hooks.once("init", () => {
 	CONFIG.Item.dataModels.addon = AddonData;
 	CONFIG.Item.dataModels.story_theme = StoryThemeData;
 	CONFIG.Item.dataModels.trope = TropeData;
+	CONFIG.ActiveEffect.dataModels.power_tag = PowerTagData;
+	CONFIG.ActiveEffect.dataModels.weakness_tag = WeaknessTagData;
+	CONFIG.ActiveEffect.dataModels.fellowship_tag = FellowshipTagData;
+	CONFIG.ActiveEffect.dataModels.relationship_tag = RelationshipTagData;
 	CONFIG.ActiveEffect.dataModels.story_tag = StoryTagData;
-	CONFIG.ActiveEffect.dataModels.status_card = StatusCardData;
+	CONFIG.ActiveEffect.dataModels.status_tag = StatusTagData;
+	CONFIG.ActiveEffect.typeLabels = {
+		power_tag: "TYPES.ActiveEffect.power_tag",
+		weakness_tag: "TYPES.ActiveEffect.weakness_tag",
+		fellowship_tag: "TYPES.ActiveEffect.fellowship_tag",
+		relationship_tag: "TYPES.ActiveEffect.relationship_tag",
+		story_tag: "TYPES.ActiveEffect.story_tag",
+		status_tag: "TYPES.ActiveEffect.status_tag",
+	};
 	CONFIG.litmv2 = new LitmConfig();
+	CONFIG.Token.hudClass = LitmTokenHUD;
 
 	// Replace the combat tracker sidebar tab with Story Tags
 	CONFIG.ui.combat = StoryTagSidebar;
@@ -184,6 +213,15 @@ Hooks.once("init", () => {
 			label: "LITM.Sheets.fellowship_landscape",
 		},
 	);
+	foundry.documents.collections.Actors.registerSheet(
+		"litmv2",
+		StoryThemeActorSheet,
+		{
+			types: ["story_theme"],
+			makeDefault: true,
+			label: "LITM.Sheets.story_theme",
+		},
+	);
 	foundry.documents.collections.Items.registerSheet("litmv2", BackpackSheet, {
 		types: ["backpack"],
 		makeDefault: true,
@@ -213,6 +251,7 @@ Hooks.once("init", () => {
 		types: ["trope"],
 		makeDefault: true,
 	});
+	LitmActiveEffectSheet.register();
 
 	HandlebarsHelpers.register();
 	HandlebarsPartials.register();
@@ -229,6 +268,8 @@ Hooks.once("i18nInit", () => {
 // Ready Hook — needs game world + socket
 Hooks.once("ready", async () => {
 	await migrateWorld();
+	await ContentSources.seedStatuses();
+	await loadStatusCompendium();
 
 	Sockets.registerListeners();
 

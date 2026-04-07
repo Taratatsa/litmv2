@@ -1,5 +1,6 @@
+import { LitmRoll } from "./roll.js";
 import { Sockets } from "../system/sockets.js";
-import { localize as t } from "../utils.js";
+import { localize as t, resolveEffect } from "../utils.js";
 
 const sortByTypeThenName = (tags, typeOrder) =>
 	[...tags].sort((a, b) => {
@@ -25,7 +26,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			height: 550,
 		},
 		form: {
-			handler: LitmRollDialog.#onSubmit,
+			handler: LitmRollDialog._onSubmit,
 			closeOnSubmit: true,
 		},
 		actions: {
@@ -51,7 +52,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		type,
 		speaker,
 		modifier = 0,
-		might = "equal",
+		might = 0,
 		tradePower = 0,
 		sacrificeLevel,
 		sacrificeThemeId,
@@ -59,17 +60,15 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		// Separate tags
 		const {
 			scratchedTags,
-			burnedTags,
 			powerTags,
 			weaknessTags,
 			positiveStatuses,
 			negativeStatuses,
-		} = LitmRollDialog.#filterTags(tags);
+		} = LitmRoll.filterTags(tags);
 
 		// Values
 		const {
 			scratchedValue,
-			burnedValue,
 			powerValue,
 			weaknessValue,
 			positiveStatusValue,
@@ -78,7 +77,6 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			mightOffset,
 		} = game.litmv2.methods.calculatePower({
 			scratchedTags,
-			burnedTags,
 			powerTags,
 			weaknessTags,
 			positiveStatuses,
@@ -97,13 +95,11 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			typeof CONFIG.litmv2.roll.formula === "function"
 				? CONFIG.litmv2.roll.formula({
 						scratchedTags,
-						burnedTags,
 						powerTags,
 						weaknessTags,
 						positiveStatuses,
 						negativeStatuses,
 						scratchedValue,
-						burnedValue,
 						powerValue,
 						weaknessValue,
 						positiveStatusValue,
@@ -137,7 +133,6 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			formula,
 			{
 				scratchedValue,
-				burnedValue,
 				powerValue,
 				positiveStatusValue,
 				weaknessValue,
@@ -151,7 +146,6 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				title,
 				type,
 				scratchedTags,
-				burnedTags,
 				powerTags,
 				weaknessTags,
 				positiveStatuses,
@@ -177,29 +171,45 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 
 				// Auto-scratch tags used in "scratched" state + single-use tags
 				const actor = game.actors.get(actorId);
-				if (actor?.sheet) {
+				const scratchTag = async (tag) => {
+					// Actor-backed tags
+					if (actor?.system?.toggleScratchTag) {
+						await actor.system.toggleScratchTag(tag);
+						return;
+					}
+					// Scene/sidebar tags — update settings storage
+					const sidebar = game.litmv2.storyTags ?? ui.combat;
+					if (sidebar?.tags && sidebar?.setTags) {
+						const updated = sidebar.tags.map((t) =>
+							t.id === tag.id ? { ...t, isScratched: true } : t,
+						);
+						await sidebar.setTags(updated);
+					}
+				};
+
+				if (actor?.system) {
 					for (const tag of scratchedTags) {
-						await actor.sheet.toggleScratchTag(tag);
+						await scratchTag(tag);
 					}
 					const allUsedTags = [...powerTags, ...weaknessTags];
 					for (const tag of allUsedTags) {
-						if (tag.isSingleUse) {
-							await actor.sheet.toggleScratchTag(tag);
+						if (tag.system?.isSingleUse ?? tag.isSingleUse) {
+							await scratchTag(tag);
 						}
 					}
 					roll.options.isScratched = true;
 
-					// Auto-gain improvement for weakness tags
+					// Auto-gain improvement for weakness tags and relationship tags used as negatives
 					const realWeaknessTags = weaknessTags.filter(
-						(t) => t.type === "weaknessTag",
+						(t) => t.type === "weakness_tag" || t.type === "relationship_tag",
 					);
 					for (const tag of realWeaknessTags) {
-						await actor.sheet.gainImprovement(tag);
+						await actor.system.gainImprovement(tag);
 					}
 					roll.options.gainedExp = true;
 
 					if (scratchedTags.length > 0 || realWeaknessTags.length > 0) {
-						await res.update({ rolls: [roll] });
+						await res.update({ rolls: [roll.toJSON()] });
 					}
 				}
 
@@ -210,91 +220,9 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			});
 	}
 
-	static calculatePower(tags) {
-		const scratchedTags = tags.scratchedTags ?? tags.burnedTags ?? [];
-		const scratchedValue = scratchedTags.length * 3;
 
-		const powerValue = tags.powerTags.length;
 
-		const weaknessValue = tags.weaknessTags.length;
-
-		const positiveStatusValue = tags.positiveStatuses.reduce(
-			(max, t) => Math.max(max, Number.parseInt(t.value, 10) || 0),
-			0,
-		);
-
-		const negativeStatusValue = tags.negativeStatuses.reduce(
-			(max, t) => Math.max(max, Number.parseInt(t.value, 10) || 0),
-			0,
-		);
-
-		const modifier = Number(tags.modifier) || 0;
-
-		const mightOffsets = {
-			equal: 0,
-			favored: 3,
-			extremely_favored: 6,
-			imperiled: -3,
-			extremely_imperiled: -6,
-		};
-		const mightOffset = mightOffsets[tags.might] || 0;
-
-		const totalPower =
-			scratchedValue +
-			powerValue +
-			positiveStatusValue -
-			weaknessValue -
-			negativeStatusValue +
-			modifier +
-			mightOffset;
-
-		return {
-			scratchedValue,
-			burnedValue: scratchedValue,
-			scratchedTags,
-			burnedTags: scratchedTags,
-			powerValue,
-			weaknessValue,
-			positiveStatusValue,
-			negativeStatusValue,
-			totalPower,
-			modifier,
-			mightOffset,
-		};
-	}
-
-	static #filterTags(tags) {
-		const scratchedTags = tags.filter(
-			(t) => t.state === "scratched" || t.state === "burned",
-		);
-		const powerTags = tags.filter(
-			(t) => t.type !== "status" && t.state === "positive",
-		);
-		const weaknessTags = tags.filter(
-			(t) => t.type !== "status" && t.state === "negative",
-		);
-		const positiveStatuses = tags.filter(
-			(t) => t.type === "status" && t.state === "positive",
-		);
-		const negativeStatuses = tags.filter(
-			(t) => t.type === "status" && t.state === "negative",
-		);
-
-		return {
-			scratchedTags,
-			burnedTags: scratchedTags,
-			powerTags,
-			weaknessTags,
-			positiveStatuses,
-			negativeStatuses,
-		};
-	}
-
-	static async #onSubmit(_event, _form, formData) {
-		return await this._onSubmit(_event, _form, formData);
-	}
-
-	async _onSubmit(_event, _form, formData) {
+	static async _onSubmit(_event, _form, formData) {
 		if (!this.isOwner) return;
 		return LitmRollDialog.roll(this.extractRollData(formData));
 	}
@@ -309,18 +237,8 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 
 	extractRollData(formData) {
 		const data = foundry.utils.expandObject(formData.object);
-		const {
-			actorId,
-			title,
-			type,
-			modifier,
-			might,
-			tradePower,
-			sacrificeLevel,
-			sacrificeThemeId,
-			...rest
-		} = data;
-		const tags = this.getFilteredArrayFromFormData(rest);
+		const { actorId, title, type, modifier, might, tradePower, sacrificeLevel, sacrificeThemeId } = data;
+		const tags = this.#buildTagsFromMap();
 		return {
 			actorId,
 			type,
@@ -328,7 +246,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			title,
 			speaker: this.speaker,
 			modifier,
-			might,
+			might: Number(might) || 0,
 			tradePower: Number(tradePower) || 0,
 			sacrificeLevel: type === "sacrifice" ? sacrificeLevel : undefined,
 			sacrificeThemeId: type === "sacrifice" ? sacrificeThemeId : undefined,
@@ -341,8 +259,22 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		return name ? `${name} — ${base}` : base;
 	}
 
+	/**
+	 * @typedef {object} SelectionEntry
+	 * @property {string} state - "positive"|"negative"|"scratched"|""
+	 * @property {string|null} contributorId - user ID who selected this tag
+	 * @property {ActiveEffect|null} effect - resolved AE reference (null until resolved)
+	 * @property {string|null} effectUuid - AE UUID for cross-client resolution
+	 * @property {string|null} [contributorActorId] - actor ID of the contributing character
+	 * @property {string|null} [contributorActorName] - display name of the contributing character
+	 * @property {string|null} [contributorActorImg] - image of the contributing character
+	 */
+
+	/** @type {Map<string, SelectionEntry>} */
+	#selectionMap = new Map();
+
 	#modifier = 0;
-	#might = "equal";
+	#might = 0;
 	#tradePower = 0;
 	#sacrificeLevel = "painful";
 	#sacrificeThemeId = null;
@@ -354,14 +286,13 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 
 		this.tagState = options.tagState || [];
 		this.#modifier = options.modifier || 0;
-		this.#might = options.might || "equal";
+		this.#might = Number(options.might) || 0;
 		this.#tradePower = options.tradePower || 0;
 		this.#sacrificeLevel = options.sacrificeLevel || "painful";
 		this.#sacrificeThemeId = options.sacrificeThemeId || null;
 		this.#ownerId = options.ownerId || null;
 
 		this.actorId = options.actorId;
-		this.characterTags = options.characterTags || [];
 		this.speaker =
 			options.speaker ||
 			foundry.documents.ChatMessage.getSpeaker({ actor: this.actor });
@@ -385,24 +316,50 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		return game.actors.get(this.actorId);
 	}
 
+	/** @returns {SelectionEntry} */
+	getSelection(effectId) {
+		return this.#selectionMap.get(effectId) ?? { state: "", contributorId: null, effect: null, effectUuid: null };
+	}
+
+	setSelection(effectId, state, contributorId = null, { effect = null, effectUuid = null, ...contributorMeta } = {}) {
+		if (!state) {
+			this.#selectionMap.delete(effectId);
+		} else {
+			const existing = this.#selectionMap.get(effectId);
+			const entry = {
+				state,
+				contributorId,
+				effect: effect ?? existing?.effect ?? null,
+				effectUuid: effectUuid ?? effect?.uuid ?? existing?.effectUuid ?? null,
+				...(Object.keys(contributorMeta).length ? contributorMeta : {
+					contributorActorId: existing?.contributorActorId ?? null,
+					contributorActorName: existing?.contributorActorName ?? null,
+					contributorActorImg: existing?.contributorActorImg ?? null,
+				}),
+			};
+			this.#selectionMap.set(effectId, entry);
+		}
+	}
+
+	clearSelections() {
+		this.#selectionMap.clear();
+	}
+
+	get selections() {
+		return this.#selectionMap;
+	}
+
 	#tagStateMap() {
 		return new Map(this.tagState.map((t) => [t.id, t]));
 	}
 
 	get statuses() {
-		if (!this.actor) return [];
 		const { tags } = game.litmv2.storyTags ?? ui.combat ?? { tags: [] };
-		const actorImg = this.actor.prototypeToken?.texture?.src || this.actor.img;
 		const sceneStatuses = tags
-			.filter((tag) => tag.values.some((v) => !!v))
+			.filter((tag) => tag.values?.some((v) => !!v))
 			.map((tag) => ({ ...tag, actorName: null, actorImg: null }));
-		const actorStatuses = this.actor.system.statuses.map((tag) => ({
-			...tag,
-			actorName: this.actor.name,
-			actorImg,
-		}));
 		const stateMap = this.#tagStateMap();
-		return [...sceneStatuses, ...actorStatuses].map((tag) => {
+		return sceneStatuses.map((tag) => {
 			const ts = stateMap.get(tag.id);
 			return {
 				...tag,
@@ -416,22 +373,15 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	get tags() {
 		if (!this.actor) return [];
 		const { tags } = game.litmv2.storyTags ?? ui.combat ?? { tags: [] };
-		const actorImg = this.actor.prototypeToken?.texture?.src || this.actor.img;
 		const sceneTags = tags
 			.filter((tag) => tag.values.every((v) => !v))
 			.map((tag) => ({ ...tag, actorName: null, actorImg: null }));
-		const actorTags = this.actor.system.storyTags.map((tag) => ({
-			...tag,
-			actorName: this.actor.name,
-			actorImg,
-		}));
 		const stateMap = this.#tagStateMap();
-		return [...sceneTags, ...actorTags].map((tag) => {
+		return sceneTags.map((tag) => {
 			const ts = stateMap.get(tag.id);
-			const state = ts?.state || "";
 			return {
 				...tag,
-				state: state === "burned" ? "scratched" : state,
+				state: ts?.state || "",
 				contributorId: ts?.contributorId || null,
 				states: tag.isSingleUse
 					? ",positive,negative"
@@ -446,8 +396,9 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		const storyTags = game.litmv2.storyTags ?? ui.combat;
 		if (!storyTags) return [];
 		const { actors } = storyTags;
+		const fellowshipId = game.litmv2?.fellowship?.id;
 		const tags = actors
-			.filter((actor) => actor.id !== this.actorId)
+			.filter((actor) => actor.id !== this.actorId && actor.id !== fellowshipId)
 			.flatMap((actor) =>
 				actor.tags.map((tag) => ({
 					...tag,
@@ -459,10 +410,9 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		const stateMap = this.#tagStateMap();
 		return tags.map((tag) => {
 			const ts = stateMap.get(tag.id);
-			const state = ts?.state || "";
 			return {
 				...tag,
-				state: state === "burned" ? "scratched" : state,
+				state: ts?.state || "",
 				contributorId: ts?.contributorId || null,
 				states:
 					tag.type === "tag" && !tag.isSingleUse
@@ -473,14 +423,66 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	}
 
 	get totalPower() {
-		const state = [...this.tagState, ...this.characterTags];
-		const tags = LitmRollDialog.#filterTags(state);
-		const { totalPower } = LitmRollDialog.calculatePower({
-			...tags,
+		const tags = this.#buildTagsFromMap();
+		const filtered = LitmRoll.filterTags(tags);
+		const { totalPower } = LitmRoll.calculatePower({
+			...filtered,
 			modifier: this.#modifier,
 			might: this.#might,
 		});
 		return totalPower;
+	}
+
+	/**
+	 * Resolve an ActiveEffect by ID, searching the rolling actor, fellowship, and contributor actors.
+	 * Caches the result on the selection entry for subsequent calls.
+	 * @param {string} effectId
+	 * @param {SelectionEntry} entry
+	 * @returns {ActiveEffect|null}
+	 */
+	#resolveEffect(effectId, entry) {
+		if (entry.effect) return entry.effect;
+		const actor = this.actor;
+		const effect = actor ? resolveEffect(effectId, actor) : null;
+		if (effect) { entry.effect = effect; return effect; }
+		// Search contributor actor (other hero contributing tags to this roll)
+		if (entry.contributorActorId) {
+			const contrib = game.actors.get(entry.contributorActorId);
+			if (contrib) {
+				const ce = resolveEffect(effectId, contrib, { fellowship: false });
+				if (ce) { entry.effect = ce; return ce; }
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Build the tag array for a roll from the selection map.
+	 * Each tag includes the full AE metadata (uuid, system, type).
+	 * Scene tags from tagState are appended as-is.
+	 * @returns {object[]}
+	 */
+	#buildTagsFromMap() {
+		const result = [];
+		for (const [effectId, sel] of this.#selectionMap) {
+			if (!sel.state) continue;
+			const effect = this.#resolveEffect(effectId, sel);
+			if (!effect) continue;
+			result.push({
+				_id: effect._id,
+				id: effect.id,
+				uuid: effect.uuid,
+				name: effect.name,
+				type: effect.type,
+				system: effect.system,
+				state: sel.state,
+			});
+		}
+		// Scene tags from tagState
+		for (const t of this.tagState) {
+			if (t.state) result.push(t);
+		}
+		return result;
 	}
 
 	async _prepareContext(_options) {
@@ -488,34 +490,29 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		const isGMViewer = game.user.isGM && !isOwner;
 		const currentUserId = game.user.id;
 		const tagTypeOrder = {
-			themeTag: 1,
-			powerTag: 2,
-			weaknessTag: 3,
-			relationshipTag: 4,
-			backpack: 5,
-			tag: 6,
-			status: 7,
+			power_tag: 1,
+			fellowship_tag: 2,
+			weakness_tag: 3,
+			relationship_tag: 4,
+			story_tag: 5,
+			status_tag: 6,
 		};
 		const decorateTag = (tag) => {
 			const contributorId = tag.contributorId || null;
-			const noBurn = tag.isSingleUse;
 			const isOpposition =
 				tag.actorType === "challenge" || tag.actorType === "journey";
+			const states = isOpposition
+				? ",negative,positive"
+				: (tag.system?.allowedStates ?? tag.states ?? ",positive,negative");
 			return {
 				...tag,
+				_id: tag._id ?? tag.id,
+				id: tag.id ?? tag._id,
 				contributorId,
 				displayName: tag.displayName || tag.name,
 				locked: !isOwner && contributorId && contributorId !== currentUserId,
-				states:
-					tag.type === "weaknessTag"
-						? ",negative,positive"
-						: isOpposition
-							? ",negative,positive"
-							: tag.type === "status"
-								? ",positive,negative"
-								: noBurn
-									? ",positive,negative"
-									: ",positive,negative,scratched",
+				states,
+				value: tag.type === "status_tag" ? (tag.system?.currentTier ?? 0) : undefined,
 			};
 		};
 		const gmTagsFlat = sortByTypeThenName(
@@ -544,17 +541,12 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		const sceneStoryItems = allStoryItems.filter(
 			(tag) => tag.actorName === null,
 		);
-		const actorStoryItems = allStoryItems
-			.filter((tag) => tag.actorName !== null)
-			.filter((tag) => isOwner || game.user.isGM || !!tag.state);
-
 		const storyTagGroups = sceneStoryItems.length
 			? [{ actorName: null, actorImg: null, tags: sceneStoryItems }]
 			: [];
 
-		// Group character tags by theme, preserving insertion order
-		const characterTagGroupMap = new Map();
-		const fellowshipTagGroupMap = new Map();
+		let characterTagGroups = [];
+		let fellowshipTagGroups = [];
 		// GM viewer builds per-actor tabs from the story tag app
 		const gmViewerTabs = [];
 		if (isGMViewer) {
@@ -575,8 +567,12 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				if (actor.sheet?._buildAllRollTags) {
 					const actorTags = actor.sheet._buildAllRollTags();
 					for (const rawTag of actorTags) {
-						const existing = this.characterTags.find((t) => t.id === rawTag.id);
-						const tag = decorateTag(existing || rawTag);
+						const sel = this.getSelection(rawTag.id);
+						const tag = decorateTag({
+							...rawTag,
+							state: sel.state,
+							contributorId: sel.contributorId,
+						});
 						const groupKey = rawTag.themeId ?? `__${rawTag.type}`;
 						const groupLabel = rawTag.themeName ?? rawTag.type;
 						if (!themeMap.has(groupKey)) {
@@ -591,17 +587,15 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				// Non-heroes (challenges/journeys): use sidebar tags
 				const sidebarEntry = sidebarActorMap.get(actorId);
 				if (sidebarEntry?.tags?.length && !actor.sheet?._buildAllRollTags) {
-					const stateMap = this.#tagStateMap();
 					for (const sTag of sidebarEntry.tags) {
-						const ts = stateMap.get(sTag.id);
-						const state = ts?.state || "";
+						const sel = this.getSelection(sTag.id);
 						const tag = decorateTag({
 							...sTag,
 							actorName: actor.name,
 							actorImg,
 							actorType: actor.type,
-							state: state === "burned" ? "scratched" : state,
-							contributorId: ts?.contributorId || null,
+							state: sel.state,
+							contributorId: sel.contributorId,
 						});
 						const groupKey = `__${sTag.type}`;
 						if (!themeMap.has(groupKey)) {
@@ -666,42 +660,108 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				tab.cssClass = this.tabGroups["gm-viewer"] === tab.id ? "active" : "";
 			}
 		} else {
-			// Owner sees all own tags; non-owners only see checked tags
-			const visibleCharacterTags = isOwner
-				? this.characterTags.filter((t) => !t.contributorActorId)
-				: this.characterTags.filter((t) => !!t.state && !t.contributorActorId);
-			for (const rawTag of visibleCharacterTags) {
-				const tag = decorateTag(rawTag);
-				const groupKey = rawTag.themeId ?? `__${rawTag.type}`;
-				const groupLabel = rawTag.themeName ?? rawTag.type;
-				const targetMap = rawTag.fromFellowship
-					? fellowshipTagGroupMap
-					: characterTagGroupMap;
-				if (!targetMap.has(groupKey)) {
-					targetMap.set(groupKey, {
-						themeName: groupLabel,
-						themeImg: rawTag.themeImg ?? null,
-						actorImg: rawTag.actorImg ?? null,
-						tags: [],
+			// Owner path: build groups from the actor's structured getters
+			const sys = this.actor?.system;
+			if (sys) {
+				const withSelection = (effect) => {
+					const sel = this.getSelection(effect.id ?? effect._id);
+					return decorateTag({
+						_id: effect._id,
+						id: effect.id ?? effect._id,
+						name: effect.name,
+						type: effect.type,
+						system: effect.system,
+						parent: effect.parent,
+						state: sel.state,
+						contributorId: sel.contributorId,
+					});
+				};
+
+				// Hero themes
+				for (const { theme, tags } of sys.themes) {
+					const activeTags = tags.filter((e) => e.active).map(withSelection);
+					if (activeTags.length) {
+						characterTagGroups.push({
+							themeName: theme.name,
+							themeImg: theme.img,
+							tags: activeTags,
+						});
+					}
+				}
+
+				// Backpack
+				const backpackTags = sys.backpack.filter((e) => e.active).map(withSelection);
+				if (backpackTags.length) {
+					const backpackItem = this.actor.system.backpackItem;
+					characterTagGroups.push({
+						themeName: backpackItem?.name ?? t("LITM.Terms.backpack"),
+						themeImg: backpackItem?.img ?? null,
+						tags: backpackTags,
 					});
 				}
-				targetMap.get(groupKey).tags.push(tag);
+
+				// Hero statuses
+				const heroStatuses = sys.statuses.filter((e) => e.active).map(withSelection);
+				if (heroStatuses.length) {
+					characterTagGroups.push({
+						themeName: t("LITM.Terms.statuses"),
+						icon: "fa-solid fa-droplet",
+						tags: heroStatuses,
+					});
+				}
+
+				// Fellowship
+				const fellowship = sys.fellowship;
+				for (const { theme, tags } of fellowship.themes) {
+					const activeTags = tags.filter((e) => e.active).map(withSelection);
+					if (activeTags.length) {
+						fellowshipTagGroups.push({
+							themeName: theme.name,
+							themeImg: theme.img,
+							tags: activeTags,
+						});
+					}
+				}
+				const fellowshipTags = fellowship.tags.filter((e) => e.active).map(withSelection);
+				if (fellowshipTags.length) {
+					fellowshipTagGroups.push({
+						themeName: t("LITM.Tags.tags_and_statuses"),
+						icon: "fa-solid fa-tags",
+						tags: fellowshipTags,
+					});
+				}
+
+				// Relationship tags
+				const relTags = sys.relationships.filter((e) => e.name).map(withSelection);
+				if (relTags.length) {
+					fellowshipTagGroups.push({
+						themeName: t("LITM.Terms.relationship"),
+						icon: "fa-solid fa-handshake",
+						tags: relTags,
+					});
+				}
 			}
 		}
 		// Contributed tags from other characters, grouped by contributor
-		// Each contributor entry has { actorName, actorImg, themeGroups: [{themeName, tags}] }
 		const contributedActorMap = new Map();
-		const contributedTags = this.characterTags.filter(
-			(t) => t.contributorActorId,
-		);
 		if (isOwner) {
-			for (const rawTag of contributedTags) {
-				const tag = decorateTag(rawTag);
-				const actorKey = rawTag.contributorActorId;
+			for (const [effectId, sel] of this.#selectionMap) {
+				if (!sel.contributorActorId || !sel.state) continue;
+				const actor = game.actors.get(sel.contributorActorId);
+				if (!actor) continue;
+				const allTags = actor.sheet?._buildAllRollTags?.() ?? [];
+				const rawTag = allTags.find((t) => (t.id ?? t._id) === effectId);
+				if (!rawTag) continue;
+				const tag = decorateTag({
+					...rawTag,
+					state: sel.state,
+					contributorId: sel.contributorId,
+				});
+				const actorKey = sel.contributorActorId;
 				if (!contributedActorMap.has(actorKey)) {
 					contributedActorMap.set(actorKey, {
-						actorName: rawTag.contributorActorName,
-						actorImg: rawTag.contributorActorImg,
+						actorName: sel.contributorActorName ?? actor.name,
+						actorImg: sel.contributorActorImg ?? actor.img,
 						themeMap: new Map(),
 					});
 				}
@@ -735,8 +795,12 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				}
 				const themeMap = contributedActorMap.get(actorKey).themeMap;
 				for (const rawTag of ownTags) {
-					const existing = this.characterTags.find((t) => t.id === rawTag.id);
-					const tag = decorateTag(existing || rawTag);
+					const sel = this.getSelection(rawTag.id);
+					const tag = decorateTag({
+						...rawTag,
+						state: sel.state,
+						contributorId: sel.contributorId,
+					});
 					const themeKey = rawTag.themeId ?? `__${rawTag.type}`;
 					const themeLabel = rawTag.themeName ?? rawTag.type;
 					if (!themeMap.has(themeKey)) {
@@ -759,29 +823,10 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				})),
 			}),
 		);
-		// Actor story tags/statuses (non-GM only)
-		if (!isGMViewer && actorStoryItems.length > 0) {
-			characterTagGroupMap.set("__actor_story", {
-				themeName: t("LITM.Tags.story"),
-				tags: actorStoryItems,
-			});
-		}
-		const characterTagGroups = [...characterTagGroupMap.values()].map(
-			(group) => ({
-				...group,
-				tags: sortByTypeThenName(group.tags, tagTypeOrder),
-			}),
-		);
-		const fellowshipTagGroups = [...fellowshipTagGroupMap.values()].map(
-			(group) => ({
-				...group,
-				tags: sortByTypeThenName(group.tags, tagTypeOrder),
-			}),
-		);
-
 		return {
 			actorId: this.actorId,
 			characterTagGroups,
+			fellowshipName: game.litmv2?.fellowship?.name ?? t("LITM.Terms.fellowship"),
 			fellowshipTagGroups,
 			contributedTagGroups,
 			rollTypes: {
@@ -801,15 +846,9 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			totalPower: this.totalPower,
 			modifier: this.#modifier,
 			might: this.#might,
+			mightRange: Array.from({ length: 13 }, (_, i) => i - 6),
 			tradePower: this.#tradePower,
 			canHedge: this.totalPower >= 2,
-			mightOptions: {
-				equal: "LITM.Ui.might_equal",
-				favored: "LITM.Ui.might_favored",
-				extremely_favored: "LITM.Ui.might_extremely_favored",
-				imperiled: "LITM.Ui.might_imperiled",
-				extremely_imperiled: "LITM.Ui.might_extremely_imperiled",
-			},
 			sacrificeLevel: this.#sacrificeLevel,
 			sacrificeLevelOptions: {
 				painful: "LITM.Ui.sacrifice_painful",
@@ -821,62 +860,62 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		};
 	}
 
+	_onFirstRender(context, options) {
+		super._onFirstRender(context, options);
+
+		// Delegated listener for checkbox changes
+		this.element.addEventListener("change", (event) => {
+			if (event.target.tagName === "LITM-SUPER-CHECKBOX") {
+				this._onTagChange(event);
+			}
+		});
+
+		// Delegated click handler for tag label interactions (click to toggle, shift-click to scratch)
+		this.element.addEventListener("click", (event) => {
+			const label = event.target.closest("label.litm--roll-dialog-tag");
+			if (!label || event.target.tagName === "LITM-SUPER-CHECKBOX") return;
+			event.preventDefault();
+			const checkbox = label.querySelector("litm-super-checkbox");
+			if (!checkbox) return;
+
+			if (event.shiftKey && !checkbox.disabled) {
+				const tagType = label.dataset.tagType;
+				const canScratch = !["weakness_tag", "status_tag"].includes(tagType);
+				if (canScratch) {
+					const newValue =
+						checkbox.value === "scratched" ? "" : "scratched";
+					checkbox.value = newValue;
+					checkbox.dispatchEvent(new Event("change"));
+					return;
+				}
+			}
+			checkbox.click();
+		});
+	}
+
 	_onRender(context, options) {
 		super._onRender(context, options);
+		this.#totalPowerEl = null;
+		this.#hedgeRadioEl = null;
 		Hooks.callAll("litm.rollDialogRendered", this.actor, this);
 
-		// Setup modifier change listener
+		// Setup might change listener (radio buttons)
 		this.element
-			.querySelector("[data-update='modifier']")
-			?.addEventListener("change", this.#handleModifierChange.bind(this));
+			.querySelectorAll("input[name='might']")
+			.forEach((radio) => radio.addEventListener("change", this.#handleMightChange.bind(this)));
 
-		// Setup modifier stepper buttons
-		this.element.querySelectorAll("[data-adjust='modifier']").forEach((btn) => {
-			btn.addEventListener("click", (event) => {
-				event.preventDefault();
-				const delta = Number(btn.dataset.delta) || 0;
-				const input = this.element.querySelector("[data-update='modifier']");
-				if (!input) return;
-				input.value = (Number(input.value) || 0) + delta;
-				input.dispatchEvent(new Event("change"));
+		// Might scale tooltip
+		const mightLabel = this.element.querySelector(".litm--might-name-wrapper");
+		const mightTooltipTemplate = this.element.querySelector(".litm--might-tooltip-template");
+		if (mightLabel && mightTooltipTemplate) {
+			const tooltipContent = mightTooltipTemplate.content.firstElementChild.cloneNode(true);
+			mightLabel.addEventListener("pointerenter", () => {
+				game.tooltip.activate(mightLabel, { html: tooltipContent, direction: "DOWN" });
 			});
-		});
-
-		// Setup might change listener
-		this.element
-			.querySelector("[data-update='might']")
-			?.addEventListener("change", this.#handleMightChange.bind(this));
-
-		// Setup checkbox change listener
-		this.element.querySelectorAll("litm-super-checkbox").forEach((checkbox) => {
-			checkbox.addEventListener("change", this._onTagChange.bind(this));
-		});
-
-		// Setup label click listener (for better UX)
-		this.element
-			.querySelectorAll("label.litm--roll-dialog-tag")
-			.forEach((label) => {
-				label.addEventListener("click", (event) => {
-					if (event.target.tagName !== "LITM-SUPER-CHECKBOX") {
-						event.preventDefault();
-						const checkbox = label.querySelector("litm-super-checkbox");
-						if (!checkbox) return;
-
-						if (event.shiftKey && !checkbox.disabled) {
-							const tagType = label.dataset.tagType;
-							const canScratch = !["weaknessTag", "status"].includes(tagType);
-							if (canScratch) {
-								const newValue =
-									checkbox.value === "scratched" ? "" : "scratched";
-								checkbox.value = newValue;
-								checkbox.dispatchEvent(new Event("change"));
-								return;
-							}
-						}
-						checkbox.click();
-					}
-				});
+			mightLabel.addEventListener("pointerleave", () => {
+				game.tooltip.deactivate();
 			});
+		}
 
 		// Setup trade power change listener
 		this.element
@@ -920,10 +959,10 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		});
 	}
 
-	#canModifyTag(tag) {
+	#canModifyTag(selOrTag) {
 		if (this.isOwner) return true;
-		if (!tag) return false;
-		const contributorId = tag.contributorId || null;
+		if (!selOrTag) return false;
+		const contributorId = selOrTag.contributorId || null;
 		return !contributorId || contributorId === game.user.id;
 	}
 
@@ -936,7 +975,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		tag.contributorId = game.user.id;
 	}
 
-	#mergeTags(local, incoming) {
+	#mergeTagState(local, incoming) {
 		const localById = new Map(local.map((t) => [t.id, t]));
 		const incomingById = new Map(incoming.map((t) => [t.id, t]));
 
@@ -963,105 +1002,78 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		return merged;
 	}
 
-	#normalizeContributors(ownerId) {
-		if (!ownerId) return;
-		const normalize = (tag) => {
-			if (!tag) return;
-			if (tag.state && !tag.contributorId) {
-				tag.contributorId = ownerId;
-			}
-		};
-		this.characterTags.forEach(normalize);
-		this.tagState.forEach(normalize);
-	}
-
 	#revertTagChange(target, currentValue) {
 		if (!target) return;
 		target.value = currentValue || "";
 	}
 
 	_onTagChange(event) {
-		const target = event.currentTarget;
+		const target = event.target;
 		const { name: id, value } = target;
 		const { type } = target.dataset;
 		const isCharacterTag = [
-			"powerTag",
-			"themeTag",
-			"backpack",
-			"weaknessTag",
-			"relationshipTag",
+			"power_tag",
+			"weakness_tag",
+			"fellowship_tag",
+			"relationship_tag",
+			"story_tag",
+			"status_tag",
 		].includes(type);
-		// Ensure non-owner's character tags are tracked in characterTags
-		let existingCharacterTag = isCharacterTag
-			? this.characterTags.find((t) => t.id === id)
-			: null;
-		if (!existingCharacterTag && isCharacterTag && !this.isOwner) {
-			// GM viewer: look up from any actor in the story tag app
+		// For non-owners, register contributor metadata on first interaction
+		if (isCharacterTag && !this.isOwner && !this.#selectionMap.has(id)) {
+			// GM viewer: look up from any sidebar actor
 			if (game.user.isGM) {
-				const storyTagActorIds =
-					game.litmv2.storyTags?.actors?.map((a) => a.id) ?? [];
-				for (const actorId of storyTagActorIds) {
+				const sidebarActorIds = game.litmv2.storyTags?.actors?.map((a) => a.id) ?? [];
+				for (const actorId of sidebarActorIds) {
 					if (actorId === this.actorId) continue;
 					const actor = game.actors.get(actorId);
-					const allTags = actor?.sheet?._buildAllRollTags?.() || [];
+					const allTags = actor?.sheet?._buildAllRollTags?.() ?? [];
 					const found = allTags.find((t) => t.id === id);
 					if (found) {
-						existingCharacterTag = {
-							...found,
-							state: "",
-							contributorId: null,
+						this.setSelection(id, "", null, {
+							effectUuid: found.uuid,
 							contributorActorId: actor.id,
 							contributorActorName: actor.name,
-							contributorActorImg:
-								actor.prototypeToken?.texture?.src || actor.img,
-						};
-						this.characterTags.push(existingCharacterTag);
+							contributorActorImg: actor.prototypeToken?.texture?.src || actor.img,
+						});
 						break;
 					}
 				}
 			}
 			// Non-owner player: look up from own character
-			if (!existingCharacterTag) {
+			if (!this.#selectionMap.has(id)) {
 				const ownCharacter = game.user.character;
 				if (ownCharacter) {
-					const ownTags = ownCharacter.sheet?._buildAllRollTags?.() || [];
-					const ownTag = ownTags.find((t) => t.id === id);
-					if (ownTag) {
-						existingCharacterTag = {
-							...ownTag,
-							state: "",
-							contributorId: null,
+					const ownTags = ownCharacter.sheet?._buildAllRollTags?.() ?? [];
+					const found = ownTags.find((t) => t.id === id);
+					if (found) {
+						this.setSelection(id, "", null, {
+							effectUuid: found.uuid,
 							contributorActorId: ownCharacter.id,
 							contributorActorName: ownCharacter.name,
-							contributorActorImg:
-								ownCharacter.prototypeToken?.texture?.src || ownCharacter.img,
-						};
-						this.characterTags.push(existingCharacterTag);
+							contributorActorImg: ownCharacter.prototypeToken?.texture?.src || ownCharacter.img,
+						});
 					}
 				}
 			}
 		}
-		const existingStateTag = this.tagState.find((t) => t.id === id);
-		const lookupTag =
-			existingCharacterTag ||
-			existingStateTag ||
-			[...this.tags, ...this.statuses, ...this.gmTags].find((t) => t.id === id);
-		if (!this.#canModifyTag(lookupTag)) {
-			this.#revertTagChange(target, lookupTag?.state);
+
+		// Check permission: non-owners can only modify tags they contributed or unclaimed tags
+		const existingSel = this.getSelection(id);
+		if (!this.#canModifyTag(existingSel)) {
+			this.#revertTagChange(target, existingSel.state);
 			return;
 		}
 
 		switch (type) {
-			case "powerTag":
-			case "themeTag":
-			case "backpack":
-			case "weaknessTag":
-			case "relationshipTag": {
-				const tag = this.characterTags.find((t) => t.id === id);
-				if (tag) {
-					tag.state = value;
-					this.#assignContributor(tag, value);
-				}
+			case "power_tag":
+			case "weakness_tag":
+			case "fellowship_tag":
+			case "relationship_tag":
+			case "story_tag":
+			case "status_tag": {
+				const contributorId = value ? game.user.id : null;
+				this.setSelection(id, value, contributorId);
 				break;
 			}
 			default: {
@@ -1081,6 +1093,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 						});
 					}
 				}
+				this.setSelection(id, value, value ? game.user.id : null);
 			}
 		}
 
@@ -1089,55 +1102,34 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	}
 
 	addTag(tag, toScratch) {
-		tag.state =
-			tag.type === "weaknessTag"
+		const state =
+			tag.type === "weakness_tag"
 				? "negative"
 				: toScratch
 					? "scratched"
 					: "positive";
-		tag.states =
-			tag.type === "weaknessTag" ? ",negative,positive" : ",positive,scratched";
-		this.characterTags.push(tag);
+		this.setSelection(tag.id ?? tag._id, state, game.user.id);
 	}
 
 	removeTag(tag) {
-		this.characterTags = this.characterTags.filter((t) => t.id !== tag.id);
+		this.setSelection(tag.id ?? tag._id, "");
 		this.#updateTotalPower();
 		this.#dispatchUpdate();
 	}
 
 	setCharacterTagState(tagId, state) {
-		const tag = this.characterTags.find((t) => t.id === tagId);
-		if (!tag) return;
-		tag.state = state || "";
-		tag.contributorId = state ? game.user.id : null;
+		const contributorId = state ? game.user.id : null;
+		this.setSelection(tagId, state || "", contributorId);
 		this.#updateTotalPower();
 		this.#dispatchUpdate();
 	}
 
-	getFilteredArrayFromFormData(formData) {
-		const allTags = [...this.tagState, ...this.characterTags];
-		const formKeys = new Set();
-		const fromForm = Object.entries(formData)
-			.filter(([_, v]) => !!v)
-			.map(([key]) => {
-				formKeys.add(key);
-				return allTags.find((t) => t.id === key);
-			})
-			.filter(Boolean);
-		// Include tagState entries contributed by other users that have no form field
-		// (e.g., GM-selected Journey/Challenge tags not rendered for the owner)
-		const contributed = this.tagState.filter(
-			(t) => t.state && !formKeys.has(t.id),
-		);
-		return [...fromForm, ...contributed];
-	}
 
 	reset() {
-		this.characterTags = [];
 		this.tagState = [];
+		this.clearSelections();
 		this.#modifier = 0;
-		this.#might = "equal";
+		this.#might = 0;
 		this.#tradePower = 0;
 		this.#sacrificeLevel = "painful";
 		this.#sacrificeThemeId = null;
@@ -1147,7 +1139,6 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	async updatePresence(isOpen) {
 		if (!this.isOwner) return;
 		if (isOpen) {
-			this.#normalizeContributors(this.ownerId);
 			await this.actor?.setFlag("litmv2", "rollDialogOwner", {
 				ownerId: this.ownerId,
 				openedAt: Date.now(),
@@ -1170,13 +1161,14 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 
 	#handleTypeChange(event) {
 		this.type = event.currentTarget.value;
-		// Update active state on toggle bar
-		this.element
-			.querySelectorAll(".litm--roll-type-option")
-			.forEach((label) => {
+		// Update active state on toggle bar — use closest bar to scope the query
+		const bar = event.currentTarget.closest(".litm--roll-type-bar");
+		if (bar) {
+			for (const label of bar.children) {
 				const radio = label.querySelector("input[type='radio']");
-				label.classList.toggle("is-active", radio?.value === this.type);
-			});
+				if (radio) label.classList.toggle("is-active", radio.value === this.type);
+			}
+		}
 		this.#toggleSacrificeMode(this.type === "sacrifice");
 		this.#toggleTradePower(this.type === "tracked");
 		this.#dispatchUpdate();
@@ -1186,7 +1178,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		if (!this.element) return;
 		// Hide might/modifier and total power for sacrifice rolls
 		const mightFieldset = this.element
-			.querySelector("[data-update='might']")
+			.querySelector(".litm--roll-dialog-might")
 			?.closest("fieldset");
 		const totalPowerEl = this.element.querySelector(
 			".litm--roll-dialog-total-power",
@@ -1285,55 +1277,53 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		this.#dispatchUpdate();
 	}
 
-	#handleModifierChange(event) {
+	#handleMightChange(event) {
 		const input = event.currentTarget;
-		this.#modifier = Number(input.value) || 0;
+		this.#might = Number(input.value) || 0;
+		this.element
+			.querySelectorAll(".litm--might-option")
+			.forEach((label) => {
+				const radio = label.querySelector("input[type='radio']");
+				label.classList.toggle("is-active", radio?.value === String(this.#might));
+			});
 		this.#updateTotalPower();
 		this.#dispatchUpdate();
 	}
 
-	#handleMightChange(event) {
-		const select = event.currentTarget;
-		this.#might = select.value;
-		this.#updateTotalPower();
-		this.#dispatchUpdate();
-	}
+	/** @type {HTMLElement|null} Cached by _onRender. */
+	#totalPowerEl = null;
+	/** @type {HTMLInputElement|null} Cached by _onRender. */
+	#hedgeRadioEl = null;
 
 	#updateTotalPower() {
 		if (!this.element) return;
 		const totalPower = this.totalPower;
-		const totalPowerElement = this.element.querySelector(
-			"[data-update='totalPower']",
-		);
-		if (totalPowerElement) {
+		this.#totalPowerEl ??= this.element.querySelector("[data-update='totalPower']");
+		this.#hedgeRadioEl ??= this.element.querySelector("input[name='tradePower'][value='1']");
+
+		if (this.#totalPowerEl) {
 			const trade = this.#tradePower;
 			if (trade) {
 				const rollPower = totalPower + trade;
 				const spendPower = Math.max(totalPower - trade, 1);
-				totalPowerElement.innerHTML = `${totalPower} <span class="litm--trade-annotation">(${t("LITM.Terms.roll")}: ${rollPower >= 0 ? "+" : ""}${rollPower}, ${t("LITM.Ui.spend_power")}: ${spendPower})</span>`;
+				this.#totalPowerEl.innerHTML = `${totalPower} <span class="litm--trade-annotation">(${t("LITM.Terms.roll")}: ${rollPower >= 0 ? "+" : ""}${rollPower}, ${t("LITM.Ui.spend_power")}: ${spendPower})</span>`;
 			} else {
-				totalPowerElement.textContent = totalPower;
+				this.#totalPowerEl.textContent = totalPower;
 			}
 		}
 
-		// Update hedge radio enabled state
-		const hedgeRadio = this.element.querySelector(
-			"input[name='tradePower'][value='1']",
-		);
-		if (hedgeRadio) {
+		if (this.#hedgeRadioEl) {
 			const canHedge = totalPower >= 2;
-			hedgeRadio.disabled = !canHedge;
-			hedgeRadio
+			this.#hedgeRadioEl.disabled = !canHedge;
+			this.#hedgeRadioEl
 				.closest(".litm--roll-type-option")
 				?.classList.toggle("is-disabled", !canHedge);
-			// If hedge is selected but no longer available, reset to none
 			if (!canHedge && this.#tradePower === 1) {
 				this.#tradePower = 0;
 				const noneRadio = this.element.querySelector(
 					"input[name='tradePower'][value='0']",
 				);
 				if (noneRadio) noneRadio.checked = true;
-				// Update active states
 				this.element
 					.querySelectorAll(".litm--trade-power-bar .litm--roll-type-option")
 					.forEach((label) => {
@@ -1347,7 +1337,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	async _createModerationRequest(data) {
 		const id = foundry.utils.randomID();
 		const userId = game.user.id;
-		const tags = LitmRollDialog.#filterTags(data.tags);
+		const tags = LitmRoll.filterTags(data.tags);
 		const { totalPower } = game.litmv2.methods.calculatePower({
 			...tags,
 			modifier: data.modifier,
@@ -1389,9 +1379,14 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	}
 
 	#dispatchUpdate() {
+		// Strip non-serializable AE references from selection entries
+		const selections = [...this.#selectionMap].map(([id, entry]) => {
+			const { effect, ...serializable } = entry;
+			return [id, serializable];
+		});
 		Sockets.dispatch("updateRollDialog", {
 			actorId: this.actorId,
-			characterTags: this.characterTags,
+			selections,
 			tagState: this.tagState,
 			type: this.type,
 			modifier: this.#modifier,
@@ -1408,7 +1403,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	}
 
 	async receiveUpdate({
-		characterTags,
+		selections,
 		tagState,
 		actorId,
 		type,
@@ -1421,10 +1416,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	}) {
 		if (actorId !== this.actorId) return;
 
-		if (characterTags) {
-			this.characterTags = this.#mergeTags(this.characterTags, characterTags);
-		}
-		if (tagState) this.tagState = this.#mergeTags(this.tagState, tagState);
+		if (tagState) this.tagState = this.#mergeTagState(this.tagState, tagState);
 		if (type !== undefined) this.type = type;
 		if (modifier !== undefined) this.#modifier = modifier;
 		if (might !== undefined) this.#might = might;
@@ -1433,7 +1425,18 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		if (sacrificeThemeId !== undefined)
 			this.#sacrificeThemeId = sacrificeThemeId;
 		if (ownerId !== undefined) this.ownerId = ownerId;
-		this.#normalizeContributors(this.ownerId);
+
+		// Merge selectionMap: prefer local entries where this user contributed
+		if (selections) {
+			const incoming = new Map(selections);
+			const merged = new Map(incoming);
+			for (const [id, local] of this.#selectionMap) {
+				if (local.contributorId === game.user.id && local.state) {
+					merged.set(id, local);
+				}
+			}
+			this.#selectionMap = merged;
+		}
 
 		if (this.actor?.sheet?.rendered) this.actor.sheet.render();
 		if (this.rendered) this.render();

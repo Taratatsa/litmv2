@@ -1,10 +1,10 @@
 import { error, warn } from "../logger.js";
+import { HeroCreationData } from "./hero-creation-data.js";
 import { createSampleHero } from "../system/sample-hero.js";
 import { LitmSettings } from "../system/settings.js";
 import { sleep, localize as t, toQuestionOptions } from "../utils.js";
 
 const THEME_SLOTS = 4;
-const MODULE_ID = "legend-in-the-mist";
 
 const HERO_NAMES = [
 	"Willow",
@@ -250,15 +250,10 @@ export class WelcomeOverlay {
 		},
 	};
 
-	_cache = {
-		loaded: false,
-		tropes: [],
-		themekits: [],
-		themebooks: [],
-		tropeDocs: new Map(),
-		themeDocs: new Map(),
-		themebookDocs: new Map(),
-	};
+	/** @type {HeroCreationData} */
+	_data = new HeroCreationData();
+
+	get _cache() { return this._data._cache; }
 
 	constructor({ assignToUser = null } = {}) {
 		this.#assignToUser = assignToUser;
@@ -1402,81 +1397,8 @@ export class WelcomeOverlay {
 	 * @param {Map} themebookLookup
 	 * @returns {Promise<object[]>}
 	 */
-	async buildReviewThemes(selectedTrope, themeKitLookup, themebookLookup) {
-		if (!this._appState.mode) return [];
-
-		if (this._appState.mode === "trope") {
-			const fixed = selectedTrope?.fixed || [];
-			const optionalUuid = this._appState.trope.optionalUuid;
-			const optional = optionalUuid
-				? this.resolveKitLabels([optionalUuid], themeKitLookup)
-				: [];
-			const allKits = [...fixed, ...optional];
-			const selections = this._appState.trope.themes.choices;
-
-			const themes = [];
-			for (let index = 0; index < allKits.length; index++) {
-				const kit = allKits[index];
-				const choice = selections[index];
-				const themeDoc = await this.getThemeDoc(kit.uuid);
-				const level = themeDoc?.system?.level || "origin";
-				themes.push({
-					level,
-					levelLabel: t(`LITM.Terms.${level}`),
-					themebook: themeDoc?.system?.themebook || "",
-					name: kit.name || kit.displayLabel,
-					powerTags: choice?.powerTags || [],
-					weaknessTag: choice?.weaknessTag || "",
-					method: "themekit",
-				});
-			}
-			return themes;
-		}
-
-		const themes = [];
-		for (const theme of this._appState.custom.themes) {
-			if (theme.method === "themekit") {
-				const entry = themeKitLookup.get(theme.themekitUuid);
-				const themeDoc = await this.getThemeDoc(theme.themekitUuid);
-				const level = themeDoc?.system?.level || "origin";
-				themes.push({
-					level,
-					levelLabel: t(`LITM.Terms.${level}`),
-					themebook: themeDoc?.system?.themebook || "",
-					name: entry?.name || theme.themekitUuid,
-					powerTags: theme.selectedPowerTags || [],
-					weaknessTag: theme.selectedWeaknessTag || "",
-					method: "themekit",
-				});
-			} else if (theme.method === "manual") {
-				themes.push({
-					level: "origin",
-					levelLabel: t("LITM.Terms.origin"),
-					themebook: "",
-					name: theme.name || t("LITM.Ui.theme_title"),
-					powerTags: theme.powerTags?.filter(Boolean) || [],
-					weaknessTag: theme.weaknessTag || "",
-					quest: theme.quest || "",
-					method: "manual",
-				});
-			} else if (theme.method === "themebook") {
-				const themebook = themebookLookup.get(theme.themebookUuid);
-				const bookLevel = themebook?.themeLevel || "origin";
-				const level =
-					bookLevel === "variable" ? theme.level || "origin" : bookLevel;
-				themes.push({
-					level,
-					levelLabel: t(`LITM.Terms.${level}`),
-					themebook: themebook?.name || "",
-					name: theme.name || themebook?.name || theme.themebookUuid,
-					powerTags: theme.powerTags?.filter(Boolean) || [],
-					weaknessTag: theme.weaknessTag || "",
-					quest: theme.quest || "",
-					method: "themebook",
-				});
-			}
-		}
-		return themes;
+	buildReviewThemes(selectedTrope, themeKitLookup, themebookLookup) {
+		return this._data.buildReviewThemes(this._appState, selectedTrope, themeKitLookup, themebookLookup);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -1488,261 +1410,14 @@ export class WelcomeOverlay {
 	 * then auto-start the tour and dismiss the overlay.
 	 */
 	async #createHero() {
-		const name = this._appState.actorName || t("LITM.Ui.hero_name");
-		const items = [];
-
-		const trope =
-			this._appState.mode === "trope"
-				? await this.getTropeDoc(this._appState.trope.selectedUuid)
-				: null;
-
-		if (this._appState.mode === "trope") {
-			const fixed = trope?.system?.themeKits?.fixed || [];
-			const optional = this._appState.trope.optionalUuid
-				? [this._appState.trope.optionalUuid]
-				: [];
-			const themeUuids = [...fixed, ...optional];
-			const selections = this._appState.trope.themes.choices;
-
-			for (let index = 0; index < themeUuids.length; index += 1) {
-				const uuid = themeUuids[index];
-				const themeDoc = await this.getThemeDoc(uuid);
-				if (!themeDoc) continue;
-				const data = themeDoc.toObject();
-				delete data._id;
-				delete data._stats;
-				const choice = selections[index];
-				const hasPowerSelection = choice?.powerTags?.some(Boolean);
-				const hasWeaknessSelection = Boolean(choice?.weaknessTag);
-				if (choice && (hasPowerSelection || hasWeaknessSelection)) {
-					data.system = data.system || {};
-					if (hasPowerSelection) {
-						const selectedPowerTags = new Set(choice.powerTags.filter(Boolean));
-						data.system.powerTags = (data.system.powerTags || []).map(
-							(tag) => ({
-								...tag,
-								id: tag.id || foundry.utils.randomID(),
-								isActive: selectedPowerTags.has(tag.name),
-								isScratched: false,
-							}),
-						);
-					}
-					if (hasWeaknessSelection) {
-						data.system.weaknessTags = (data.system.weaknessTags || []).map(
-							(tag) => ({
-								...tag,
-								id: tag.id || foundry.utils.randomID(),
-								isActive: tag.name === choice.weaknessTag,
-								isScratched: false,
-							}),
-						);
-					}
-				}
-				items.push(data);
-			}
-		} else {
-			for (const themeState of this._appState.custom.themes) {
-				if (!themeState.method) continue;
-
-				if (themeState.method === "themekit") {
-					const themeDoc = await this.getThemeDoc(themeState.themekitUuid);
-					if (!themeDoc) continue;
-					const data = themeDoc.toObject();
-					delete data._id;
-					delete data._stats;
-					// Apply tag selections if the user made any
-					const hasPowerSelection = themeState.selectedPowerTags?.some(Boolean);
-					const hasWeaknessSelection = Boolean(themeState.selectedWeaknessTag);
-					if (hasPowerSelection || hasWeaknessSelection) {
-						data.system = data.system || {};
-						if (hasPowerSelection) {
-							const selectedPower = new Set(
-								themeState.selectedPowerTags.filter(Boolean),
-							);
-							data.system.powerTags = (data.system.powerTags || []).map(
-								(tag) => ({
-									...tag,
-									id: tag.id || foundry.utils.randomID(),
-									isActive: selectedPower.has(tag.name),
-									isScratched: false,
-								}),
-							);
-						}
-						if (hasWeaknessSelection) {
-							data.system.weaknessTags = (data.system.weaknessTags || []).map(
-								(tag) => ({
-									...tag,
-									id: tag.id || foundry.utils.randomID(),
-									isActive: tag.name === themeState.selectedWeaknessTag,
-									isScratched: false,
-								}),
-							);
-						}
-					}
-					items.push(data);
-					continue;
-				}
-
-				if (themeState.method === "manual") {
-					items.push({
-						name: themeState.name || t("LITM.Ui.theme_title"),
-						type: "theme",
-						system: {
-							themebook: "",
-							level: "origin",
-							isScratched: false,
-							powerTags: [
-								{
-									id: foundry.utils.randomID(),
-									name: "",
-									type: "powerTag",
-									question: "",
-									isActive: true,
-									isScratched: false,
-								},
-								{
-									id: foundry.utils.randomID(),
-									name: "",
-									type: "powerTag",
-									question: "",
-									isActive: false,
-									isScratched: false,
-								},
-							],
-							weaknessTags: [
-								{
-									id: foundry.utils.randomID(),
-									name: "",
-									type: "weaknessTag",
-									question: "",
-									isActive: true,
-									isScratched: false,
-								},
-							],
-							quest: {
-								description: themeState.quest || t("LITM.Ui.name_quest"),
-								tracks: {
-									abandon: { value: 0 },
-									milestone: { value: 0 },
-								},
-							},
-							specialImprovements: [],
-							improve: { value: 0 },
-						},
-					});
-					continue;
-				}
-
-				// themebook method
-				const themebookDoc = await this.getThemebookDoc(
-					themeState.themebookUuid,
-				);
-				const themebookName = themebookDoc?.name || "";
-				const bookLevel = themebookDoc?.system?.theme_level || "origin";
-				const level =
-					bookLevel === "variable" ? themeState.level || "origin" : bookLevel;
-				const nameValue =
-					themeState.name || themebookName || t("LITM.Ui.theme_title");
-
-				const powerTags = themeState.powerTags.map((tagName, index) => ({
-					id: foundry.utils.randomID(),
-					name: tagName,
-					type: "powerTag",
-					question: themeState.powerQuestions[index] || "",
-					isActive: true,
-					isScratched: false,
-				}));
-				const weaknessTags = [
-					{
-						id: foundry.utils.randomID(),
-						name: themeState.weaknessTag,
-						type: "weaknessTag",
-						question: themeState.weaknessQuestion || "",
-						isActive: true,
-						isScratched: false,
-					},
-				];
-
-				items.push({
-					name: nameValue,
-					type: "theme",
-					system: {
-						themebook: themebookName,
-						level,
-						isScratched: false,
-						powerTags,
-						weaknessTags,
-						quest: {
-							description: themeState.quest || t("LITM.Ui.name_quest"),
-							tracks: {
-								abandon: { value: 0 },
-								milestone: { value: 0 },
-							},
-						},
-						specialImprovements: [],
-						improve: { value: 0 },
-					},
-				});
-			}
-		}
-
-		// Backpack item
-		const backpackTags =
-			this._appState.mode === "trope"
-				? (trope?.system?.backpackChoices || []).filter(Boolean)
-				: this._appState.custom.backpackTags.filter(Boolean);
-		const selectedBackpackTag =
-			this._appState.trope.backpackChoice || backpackTags[0];
-
-		items.push({
-			name: t("TYPES.Item.backpack"),
-			type: "backpack",
-			system: {
-				contents: backpackTags.map((tag, index) => ({
-					id: foundry.utils.randomID(),
-					name: tag,
-					type: "backpack",
-					isActive:
-						this._appState.mode === "trope"
-							? tag === selectedBackpackTag
-							: index === this._appState.custom.activeBackpackIndex,
-					isScratched: false,
-				})),
-			},
+		const actor = await this._data.createHero(this._appState, {
+			assignToUser: this.#assignToUser,
 		});
-
-		const actorData = {
-			name,
-			type: "hero",
-			system: {},
-			items,
-		};
-		const actor = await foundry.documents.Actor.create(actorData, {
-			renderSheet: false,
-			fromSidebar: false,
-			litm: {
-				skipHeroWizard: true,
-				skipAutoSetup: true,
-			},
-		});
-
 		if (!actor) return;
 
-		// Auto-assign the hero to the target user
-		if (this.#assignToUser) {
-			const user = game.users.get(this.#assignToUser);
-			if (user && !user.character) {
-				await user.update({ character: actor.id });
-			}
-		}
-
-		// Open the actor's sheet
 		actor.sheet.render(true);
-
-		// Store the created actor so tours can reference it
 		this._createdActor = actor;
 
-		// Navigate to the heroCreated slide
 		if (!this.#slideFlow.includes("heroCreated")) {
 			this.#slideFlow.push("heroCreated");
 		}
@@ -1750,432 +1425,37 @@ export class WelcomeOverlay {
 	}
 
 	// ---------------------------------------------------------------------------
-	// Data methods (ported from HeroCreationApp)
+	// Data method delegates (forwarded to HeroCreationData)
 	// ---------------------------------------------------------------------------
 
-	async ensureIndexes() {
-		if (this._cache.loaded) return;
+	ensureIndexes() { return this._data.ensureIndexes(); }
+	buildLookup(entries) { return this._data.buildLookup(entries); }
+	groupByCategory(entries) { return this._data.groupByCategory(entries); }
+	filterBySearch(entries, term) { return this._data.filterBySearch(entries, term); }
+	resolveKitLabels(uuids, lookup) { return this._data.resolveKitLabels(uuids, lookup); }
+	toLookupMap(values) { return this._data.toLookupMap(values); }
+	getTropeDetails(uuid, lookup) { return this._data.getTropeDetails(uuid, lookup); }
+	getThemeTagOptions(doc) { return this._data.getThemeTagOptions(doc); }
+	getTropeDoc(uuid) { return this._data.getTropeDoc(uuid); }
+	getThemeDoc(uuid) { return this._data.getThemeDoc(uuid); }
+	getThemebookDoc(uuid) { return this._data.getThemebookDoc(uuid); }
+	getThemebookByName(name) { return this._data.getThemebookByName(name); }
 
-		this._cache.tropes = await this.loadPackIndex("Tropes", [
-			"name",
-			"img",
-			"type",
-			"system.category",
-		]);
-		this._cache.themekits = await this.loadPackIndex("Themekits", [
-			"name",
-			"img",
-			"type",
-			"system.level",
-			"system.powerTags",
-			"system.weaknessTags",
-		]);
-		this._cache.themebooks = await this.loadPackIndex("Themebooks", [
-			"name",
-			"img",
-			"type",
-			"system.theme_level",
-		]);
-
-		this._cache.loaded = true;
-	}
-
-	async loadPackIndex(prefix, fields) {
-		const packs = this.getModulePacks(prefix);
-		const results = [];
-		const type = this.typeForPrefix(prefix);
-
-		for (const pack of packs) {
-			await pack.getIndex({ fields });
-			for (const entry of pack.index?.contents || []) {
-				if (entry.type !== type) continue;
-				const id = entry._id ?? entry.id;
-				const uuid =
-					entry.uuid || (id ? `Compendium.${pack.collection}.${id}` : "");
-				if (!uuid) continue;
-				const level = entry.system?.theme_level || entry.system?.level || "";
-				results.push({
-					uuid,
-					name: entry.name || "",
-					img: entry.img || "",
-					category: entry.system?.category || "",
-					themeLevel: level,
-					themeLevelIcon: this.#levelIcon(level),
-					sourceLabel: pack.metadata?.label || pack.collection,
-					tagTooltip: this.#buildTagTooltip(entry.system),
-				});
-			}
-		}
-
-		for (const item of game.items) {
-			if (item.type !== type) continue;
-			const lvl = item.system?.theme_level || item.system?.level || "";
-			results.push({
-				uuid: item.uuid || item.id,
-				name: item.name,
-				img: item.img || "",
-				category: item.system?.category || "",
-				themeLevel: lvl,
-				themeLevelIcon: this.#levelIcon(lvl),
-				sourceLabel: "World",
-				tagTooltip: this.#buildTagTooltip(item.system),
-			});
-		}
-
-		return results.sort((a, b) => a.name.localeCompare(b.name));
-	}
-
-	typeForPrefix(prefix) {
-		switch (prefix.toLowerCase()) {
-			case "tropes":
-				return "trope";
-			case "themekits":
-				return "theme";
-			case "themebooks":
-				return "themebook";
-			default:
-				return "";
-		}
-	}
-
-	getModulePacks(prefix) {
-		const normalized = prefix.toLowerCase();
-		const packs = game.packs.filter(
-			(pack) =>
-				pack.documentName === "Item" &&
-				pack.metadata?.packageName === MODULE_ID,
-		);
-
-		const matching = packs.filter((pack) =>
-			(pack.metadata?.label || "").toLowerCase().startsWith(normalized),
-		);
-		if (matching.length) return matching;
-
-		return packs.filter((pack) =>
-			(pack.metadata?.label || "").toLowerCase().includes(normalized),
-		);
-	}
-
-	buildLookup(entries) {
-		const lookup = new Map();
-		for (const entry of entries) {
-			lookup.set(entry.uuid, {
-				name: entry.name,
-				img: entry.img || "",
-				sourceLabel: entry.sourceLabel,
-				displayLabel: entry.name,
-				themeLevel: entry.themeLevel || "",
-				themeLevelIcon: entry.themeLevelIcon || "",
-				tagTooltip: entry.tagTooltip || "",
-			});
-		}
-		return lookup;
-	}
-
-	groupByCategory(entries) {
-		const grouped = new Map();
-		const bannerImages = new Map();
-		for (const entry of entries) {
-			const category =
-				entry.category || t("LITM.Ui.hero_creation_uncategorized");
-			// Convention: a trope whose name matches its category is a banner image source
-			if (entry.name === entry.category) {
-				if (!bannerImages.has(category)) bannerImages.set(category, entry.img);
-				continue;
-			}
-			if (!grouped.has(category)) grouped.set(category, []);
-			grouped.get(category).push(entry);
-		}
-		return Array.from(grouped.entries())
-			.filter(([, items]) => items.length > 0)
-			.map(([name, items]) => ({
-				name,
-				img: bannerImages.get(name) || "",
-				items,
-			}));
-	}
-
-	filterBySearch(entries, searchTerm) {
-		const term = (searchTerm || "").trim().toLowerCase();
-		if (!term) return entries;
-		return entries.filter((entry) => entry.name.toLowerCase().includes(term));
-	}
-
-	async getTropeDetails(uuid, themeKitLookup) {
-		if (!uuid) return null;
-		const doc = await this.getTropeDoc(uuid);
-		if (!doc) return null;
-
-		const fixed = this.resolveKitLabels(
-			doc.system?.themeKits?.fixed || [],
-			themeKitLookup,
-		);
-		const optional = this.resolveKitLabels(
-			doc.system?.themeKits?.optional || [],
-			themeKitLookup,
-		);
-
-		return {
-			uuid: doc.uuid,
-			name: doc.name,
-			img: doc.img,
-			category: doc.system?.category || "",
-			description: doc.system?.description || "",
-			fixed,
-			optional,
-			backpackChoices: doc.system?.backpackChoices || [],
-		};
-	}
-
-	resolveKitLabels(uuids, lookup) {
-		return uuids.map((uuid) => {
-			const entry = lookup.get(uuid);
-			return {
-				uuid,
-				name: entry?.name || "",
-				img: entry?.img || "",
-				sourceLabel: entry?.sourceLabel || "",
-				displayLabel: entry?.displayLabel || uuid,
-				themeLevel: entry?.themeLevel || "",
-				themeLevelIcon: entry?.themeLevelIcon || "",
-				tagTooltip: entry?.tagTooltip || "",
-			};
-		});
-	}
-
-	async syncTropeThemes(selectedTrope) {
-		const fixed = selectedTrope?.fixed?.map((entry) => entry.uuid) || [];
-		const optional = this._appState.trope.optionalUuid
-			? [this._appState.trope.optionalUuid]
-			: [];
-		const kitUuids = [...fixed, ...optional].filter(Boolean);
-		const state = this._appState.trope.themes;
-		const same =
-			kitUuids.length === state.kitUuids.length &&
-			kitUuids.every((uuid, index) => uuid === state.kitUuids[index]);
-		if (same) {
-			// Update tag options for existing choices
-			for (const choice of state.choices) {
-				if (!choice.kitName) {
-					const themeDoc = await this.getThemeDoc(choice.kitUuid);
-					const tagOptions = this.getThemeTagOptions(themeDoc);
-					const selectedPowerTags = new Set(choice.powerTags || []);
-					choice.kitName = themeDoc?.name || "";
-					choice.kitLevel = themeDoc?.system?.level || "origin";
-					choice.kitThemebook = themeDoc?.system?.themebook || "";
-					choice.powerTagOptions = tagOptions.powerTags.map((tag) => ({
-						name: tag,
-						checked: selectedPowerTags.has(tag),
-					}));
-					choice.weaknessTagOptions = tagOptions.weaknessTags.map((tag) => ({
-						name: tag,
-						checked: tag === choice.weaknessTag,
-					}));
-					choice.powerTagsMap = this.toLookupMap(choice.powerTags || []);
-					// Resolve parent themebook questions
-					const themebookName = themeDoc?.system?.themebook || "";
-					const parentBook = await this.getThemebookByName(themebookName);
-					const allPQs = (parentBook?.system?.powerTagQuestions || [])
-						.map((q) => `${q ?? ""}`.trim())
-						.filter(Boolean);
-					choice.powerTagQuestions = allPQs.slice(1);
-					choice.weaknessTagQuestions = (
-						parentBook?.system?.weaknessTagQuestions || []
-					)
-						.map((q) => `${q ?? ""}`.trim())
-						.filter(Boolean);
-				}
-			}
-			return;
-		}
-		state.kitUuids = kitUuids;
-		state.index = 0;
-		state.choices = [];
-		for (const uuid of kitUuids) {
-			const themeDoc = await this.getThemeDoc(uuid);
-			const tagOptions = this.getThemeTagOptions(themeDoc);
-			// Resolve parent themebook questions
-			const themebookName = themeDoc?.system?.themebook || "";
-			const parentBook = await this.getThemebookByName(themebookName);
-			const allPQs = (parentBook?.system?.powerTagQuestions || [])
-				.map((q) => `${q ?? ""}`.trim())
-				.filter(Boolean);
-			state.choices.push({
-				kitUuid: uuid,
-				kitName: themeDoc?.name || "",
-				kitLevel: themeDoc?.system?.level || "origin",
-				kitThemebook: themeDoc?.system?.themebook || "",
-				powerTags: [],
-				weaknessTag: "",
-				powerTagOptions: tagOptions.powerTags.map((tag) => ({
-					name: tag,
-					checked: false,
-				})),
-				weaknessTagOptions: tagOptions.weaknessTags.map((tag) => ({
-					name: tag,
-					checked: false,
-				})),
-				powerTagsMap: {},
-				powerTagQuestions: allPQs.slice(1),
-				weaknessTagQuestions: (parentBook?.system?.weaknessTagQuestions || [])
-					.map((q) => `${q ?? ""}`.trim())
-					.filter(Boolean),
-			});
-		}
-	}
-
-	getThemeTagOptions(themeDoc) {
-		const powerTags = (themeDoc?.system?.powerTags || [])
-			.map((tag) => tag?.name || "")
-			.filter((name) => name.length > 0);
-		const weaknessTags = (themeDoc?.system?.weaknessTags || [])
-			.map((tag) => tag?.name || "")
-			.filter((name) => name.length > 0);
-		return {
-			powerTags,
-			weaknessTags,
-		};
-	}
-
-	static #LEVEL_ICONS = new Set([
-		"origin",
-		"adventure",
-		"greatness",
-		"variable",
-	]);
-
-	#levelIcon(level) {
-		return WelcomeOverlay.#LEVEL_ICONS.has(level) ? level : "";
-	}
-
-	#buildTagTooltip(system) {
-		const power = (system?.powerTags || [])
-			.map((t) => t?.name || "")
-			.filter(Boolean);
-		const weakness = (system?.weaknessTags || [])
-			.map((t) => t?.name || "")
-			.filter(Boolean);
-		if (!power.length && !weakness.length) return "";
-		const sections = [];
-		if (power.length) {
-			sections.push(
-				`<div class="tag-tooltip-group"><label>${t(
-					"LITM.Tags.power_tags",
-				)}</label>${power
-					.map(
-						(n) => `<span class="litm-powerTag" data-text="${n}">${n}</span>`,
-					)
-					.join(" ")}</div>`,
-			);
-		}
-		if (weakness.length) {
-			sections.push(
-				`<div class="tag-tooltip-group"><label>${t(
-					"LITM.Tags.weakness_tags",
-				)}</label>${weakness
-					.map(
-						(n) =>
-							`<span class="litm-weaknessTag" data-text="${n}">${n}</span>`,
-					)
-					.join(" ")}</div>`,
-			);
-		}
-		return `<div class="litmv2 tag-tooltip-content">${sections.join("")}</div>`;
-	}
-
-	toLookupMap(values) {
-		return (values || []).reduce((acc, value) => {
-			if (value) acc[value] = true;
-			return acc;
-		}, {});
-	}
-
-	async #getCachedDoc(cacheKey, uuid) {
-		if (!uuid) return null;
-		const cache = this._cache[cacheKey];
-		if (cache.has(uuid)) return cache.get(uuid);
-		const doc = await foundry.utils.fromUuid(uuid);
-		if (doc) cache.set(uuid, doc);
-		return doc;
-	}
-
-	async getTropeDoc(uuid) {
-		return this.#getCachedDoc("tropeDocs", uuid);
-	}
-
-	async getThemeDoc(uuid) {
-		return this.#getCachedDoc("themeDocs", uuid);
-	}
-
-	async getThemebookDoc(uuid) {
-		return this.#getCachedDoc("themebookDocs", uuid);
-	}
-
-	async getThemebookByName(name) {
-		if (!name) return null;
-		for (const entry of this._cache.themebooks) {
-			if (entry.name === name) {
-				return this.getThemebookDoc(entry.uuid);
-			}
-		}
-		return null;
+	syncTropeThemes(selectedTrope) {
+		return this._data.syncTropeThemes(this._appState, selectedTrope);
 	}
 
 	isCustomReady() {
-		const themes = this._appState.custom.themes;
-		return themes.every((theme) => {
-			if (!theme.method) return false;
-			if (theme.method === "themekit") return Boolean(theme.themekitUuid);
-			if (theme.method === "themebook") {
-				return Boolean(theme.themebookUuid) && Boolean(theme.name);
-			}
-			if (theme.method === "manual") return Boolean(theme.name);
-			return false;
-		});
+		return this._data.isCustomReady(this._appState);
 	}
 
 	async validateAllCustomThemes() {
-		const themes = this._appState.custom.themes;
-
-		for (let i = 0; i < THEME_SLOTS; i++) {
-			const theme = themes[i];
-			const label = `${game.i18n.localize("TYPES.Item.theme")} ${i + 1}`;
-
-			if (!theme.method) {
-				ui.notifications.warn(
-					`${label}: ${t("LITM.Ui.hero_creation_select_method")}`,
-				);
-				return i;
-			}
-
-			if (theme.method === "themekit" && !theme.themekitUuid) {
-				ui.notifications.warn(
-					`${label}: ${t("LITM.Ui.hero_creation_select_themekit")}`,
-				);
-				return i;
-			}
-
-			if (theme.method === "themebook") {
-				if (!theme.themebookUuid) {
-					ui.notifications.warn(`${label}: ${t("LITM.Ui.select_themebook")}`);
-					return i;
-				}
-				if (!theme.name) {
-					ui.notifications.warn(
-						`${label}: ${t("LITM.Ui.hero_creation_manual_name_required")}`,
-					);
-					return i;
-				}
-			}
-
-			if (theme.method === "manual" && !theme.name) {
-				ui.notifications.warn(
-					`${label}: ${t("LITM.Ui.hero_creation_manual_name_required")}`,
-				);
-				return i;
-			}
+		const result = this._data.validateAllCustomThemes(this._appState);
+		if (result) {
+			const label = `${game.i18n.localize("TYPES.Item.theme")} ${result.index + 1}`;
+			ui.notifications.warn(`${label}: ${t(result.reason)}`);
+			return result.index;
 		}
-
 		return -1;
 	}
 
@@ -2444,22 +1724,16 @@ export class WelcomeOverlay {
 			},
 		};
 
-		// V14+ uses levels for backgrounds and fog modes; V13 uses flat scene fields
 		const levelId = foundry.documents.BaseScene.metadata.defaultLevelId;
-		if (levelId) {
-			sceneData.fog = { mode: foundry.CONST.FOG_EXPLORATION_MODES.DISABLED };
-			sceneData.levels = [
-				{
-					_id: levelId,
-					name: sceneName,
-					background: sceneData.background,
-				},
-			];
-			sceneData.initialLevel = levelId;
-		} else {
-			sceneData.backgroundColor = "#000000";
-			sceneData.fogExploration = false;
-		}
+		sceneData.fog = { mode: foundry.CONST.FOG_EXPLORATION_MODES.DISABLED };
+		sceneData.levels = [
+			{
+				_id: levelId,
+				name: sceneName,
+				background: sceneData.background,
+			},
+		];
+		sceneData.initialLevel = levelId;
 
 		const scene = await foundry.documents.Scene.create(sceneData);
 

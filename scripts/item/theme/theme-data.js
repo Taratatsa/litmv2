@@ -1,9 +1,9 @@
-import { localize as t, titleCase } from "../../utils.js";
+import { POWER_TAG_TYPES, THEME_TAG_TYPES } from "../../system/config.js";
+import { levelIcon, localize as t } from "../../utils.js";
 
 export class ThemeData extends foundry.abstract.TypeDataModel {
 	static defineSchema() {
 		const fields = foundry.data.fields;
-		const abstract = game.litmv2.data;
 		return {
 			description: new fields.HTMLField({
 				initial: "",
@@ -18,22 +18,10 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 				validate: (level) =>
 					Object.keys(CONFIG.litmv2.theme_levels).includes(level),
 			}),
-			isScratched: new fields.BooleanField(),
+			isScratched: new fields.BooleanField({ initial: false }),
 			isFellowship: new fields.BooleanField({
 				initial: false,
 			}),
-			powerTags: new fields.ArrayField(
-				new fields.EmbeddedDataField(abstract.TagData),
-				{
-					initial: () => [],
-				},
-			),
-			weaknessTags: new fields.ArrayField(
-				new fields.EmbeddedDataField(abstract.TagData),
-				{
-					initial: () => [],
-				},
-			),
 			improve: new fields.SchemaField({
 				value: new fields.NumberField({
 					initial: 0,
@@ -93,57 +81,46 @@ export class ThemeData extends foundry.abstract.TypeDataModel {
 		) {
 			source.level = Object.keys(CONFIG.litmv2.theme_levels)[0];
 		}
-		for (const tag of source.powerTags ?? []) {
-			if (!tag.id) tag.id = foundry.utils.randomID();
-		}
-		for (const tag of source.weaknessTags ?? []) {
-			if (!tag.id) tag.id = foundry.utils.randomID();
-		}
+		// Strip legacy array fields — tags are now ActiveEffects.
+		// (These would be pruned by schema validation anyway, but explicit is clearer.)
+		delete source.powerTags;
+		delete source.weaknessTags;
 		return super.migrateData(source);
 	}
 
-	prepareDerivedData() {
-		for (const tag of this.weaknessTags) {
-			tag.isScratched = false;
-		}
+	/* -------------------------------------------- */
+	/*  Tag Getters (read from effects)             */
+	/* -------------------------------------------- */
+
+	get powerTags() {
+		return this.parent.effects
+			.filter((e) => POWER_TAG_TYPES.has(e.type) && !e.system.isTitleTag);
+	}
+
+	get weaknessTags() {
+		return this.parent.effects
+			.filter((e) => e.type === "weakness_tag");
 	}
 
 	get themeTag() {
-		const isScratched = this.isScratched ?? false;
-		const item = {
-			id: this.parent._id,
-			name: titleCase(this.parent.name),
-			isActive: true,
-			isScratched,
-			type: "themeTag",
-		};
-		return game.litmv2.data.TagData.fromSource(item);
+		return [...this.parent.effects].find((e) => e.system.isTitleTag) ?? null;
 	}
 
 	get activatedPowerTags() {
-		const powerTags = this.powerTags;
-		const themeTag = this.themeTag;
-		return [...powerTags, themeTag].filter((tag) => tag.isActive);
+		return this.powerTags.filter((e) => e.active);
 	}
 
 	get availablePowerTags() {
-		return this.activatedPowerTags.filter((tag) => !tag.isScratched);
-	}
-
-	get powerTagRatio() {
-		return this.availablePowerTags.length / this.activatedPowerTags.length;
-	}
-
-	get weakness() {
-		return this.weaknessTags;
+		return this.activatedPowerTags;
 	}
 
 	get allTags() {
-		return [...this.weaknessTags, ...this.powerTags, this.themeTag];
+		return [...this.parent.effects]
+			.filter((e) => THEME_TAG_TYPES.has(e.type));
 	}
 
 	get levelIcon() {
-		return `systems/litmv2/assets/media/icons/${this.level}.svg`;
+		return levelIcon(this.level);
 	}
 
 	get levels() {

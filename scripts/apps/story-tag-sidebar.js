@@ -1,8 +1,8 @@
-import { StatusCardData } from "../data/active-effect-data.js";
+import { StatusTagData } from "../data/active-effects/index.js";
 import { buildTrackCompleteContent } from "../system/chat.js";
 import { LitmSettings } from "../system/settings.js";
 import { Sockets } from "../system/sockets.js";
-import { confirmDelete, enrichHTML, localize as t } from "../utils.js";
+import { confirmDelete, enrichHTML, localize as t, resolveEffect, statusTagEffect, storyTagEffect, updateEffectsByParent } from "../utils.js";
 
 const AbstractSidebarTab = foundry.applications.sidebar.AbstractSidebarTab;
 
@@ -60,6 +60,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			"toggle-effect-visibility": StoryTagSidebar.#onToggleEffectVisibility,
 			"add-actor": StoryTagSidebar.#onAddActor,
 			"remove-tag": StoryTagSidebar.#onRemoveTag,
+			"deactivate-tag": StoryTagSidebar.#onDeactivateTag,
 			"add-limit": StoryTagSidebar.#onAddLimit,
 			"remove-limit": StoryTagSidebar.#onRemoveLimit,
 			"toggle-collapse": StoryTagSidebar.#onToggleCollapse,
@@ -139,12 +140,12 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					isUserCharacter:
 						userCharacterIds.has(actor._id) || actor._id === fellowshipId,
 					hidden: (this.config.hiddenActors ?? []).includes(actor._id),
-					tags: [...actor.effects]
-						.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-						.filter((e) => e.type === "story_tag" || e.type === "status_card")
+					tags: [...(actor.system.storyTags ?? []), ...(actor.system.statusEffects ?? [])]
+						.filter((e) => !e.disabled)
 						.filter((e) => game.user.isGM || !(e.system?.isHidden ?? false))
+						.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
 						.map((e) => {
-							const isStatus = e.type === "status_card";
+							const isStatus = e.type === "status_tag";
 							return {
 								id: e._id,
 								name: e.name,
@@ -302,7 +303,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 						const statusTierArrays = groupedTags
 							.filter((t) => t.type === "status")
 							.map((t) => t.values);
-						const computedValue = StatusCardData.stackTiers(statusTierArrays);
+						const computedValue = StatusTagData.stackTiers(statusTierArrays);
 						return {
 							...limit,
 							max: isHero ? heroLimit : limit.max,
@@ -333,7 +334,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				const statusTierArrays = groupedTags
 					.filter((t) => t.type === "status")
 					.map((t) => t.values);
-				const computedValue = StatusCardData.stackTiers(statusTierArrays);
+				const computedValue = StatusTagData.stackTiers(statusTierArrays);
 				return {
 					...limit,
 					tags: groupedTags,
@@ -796,7 +797,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					const tier = Number.parseInt(value, 10);
 					return {
 						name,
-						type: isStatus ? "status_card" : "story_tag",
+						type: isStatus ? "status_tag" : "story_tag",
 						system: isStatus
 							? {
 									tiers: Array(6)
@@ -847,32 +848,29 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			return tiers;
 		};
 
-		await Promise.all(
-			Object.entries(actors).map(([id, tags]) => {
-				return this.#updateTagsOnActor({
-					id,
-					tags: Object.entries(tags).map(([tagId, data]) => {
-						const isStatus = data.tagType === "status";
-						const rawValues = Array.isArray(data.values)
-							? data.values
-							: data.values != null
-								? [data.values]
-								: [];
-						return {
-							_id: tagId,
-							name: data.name,
-							system: isStatus
-								? { tiers: toTiers(rawValues), limitId: data.limitId || null }
-								: {
-										isScratched: data.isScratched ?? false,
-										isSingleUse: data.isSingleUse ?? false,
-										limitId: data.limitId || null,
-									},
-						};
-					}),
-				});
-			}),
-		);
+		for (const [actorId, tags] of Object.entries(actors)) {
+			const actor = game.actors.get(actorId);
+			if (!actor?.isOwner) continue;
+
+			const updates = Object.entries(tags).map(([effectId, data]) => {
+				const isStatus = data.tagType === "status";
+				return {
+					_id: effectId,
+					name: data.name,
+					system: isStatus
+						? {
+								tiers: toTiers(data.values),
+							}
+						: {
+								isScratched: !!data.isScratched,
+								isSingleUse: !!data.isSingleUse,
+								limitId: data.limitId || null,
+							},
+				};
+			});
+
+			await updateEffectsByParent(actor, updates);
+			}
 
 		// Recalculate actor limits after tag updates
 		for (const id of Object.keys(actors)) {
@@ -1108,6 +1106,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		this.removeTag(target);
 	}
 
+	static async #onDeactivateTag(_event, target) {
+		const id = target.dataset.id;
+		const actorId = target.dataset.actorId;
+		const actor = game.actors.get(actorId);
+		if (!actor?.isOwner) return;
+		await updateEffectsByParent(actor, [{ _id: id, disabled: true }]);
+		this.invalidateCache();
+		return this.#broadcastRender();
+	}
+
 	static async #onAddLimit(_event, target) {
 		const source = target.dataset.source;
 
@@ -1251,13 +1259,14 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 
 	async _toggleEffectVisibility(effectId, actorId) {
 		const actor = game.actors.get(actorId);
-		const effect = actor?.effects.get(effectId);
+		if (!actor) return;
+		const effect = resolveEffect(effectId, actor, { fellowship: false });
 		if (!effect) return;
 		await effect.update({ "system.isHidden": !effect.system.isHidden });
 		return this.#broadcastRender();
 	}
 
-	async _toggleActorVisibility(id) {
+	async _toggleActorVisibility(id, { syncTokens = true } = {}) {
 		const hidden = new Set(this.config.hiddenActors ?? []);
 		if (hidden.has(id)) hidden.delete(id);
 		else hidden.add(id);
@@ -1265,6 +1274,17 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			...this.config,
 			hiddenActors: [...hidden],
 		});
+		// Sync token visibility on the canvas
+		if (syncTokens) {
+			const isHidden = hidden.has(id);
+			const tokens = canvas.scene?.tokens?.filter((t) => t.actorId === id) ?? [];
+			if (tokens.length) {
+				await canvas.scene.updateEmbeddedDocuments(
+					"Token",
+					tokens.map((t) => ({ _id: t.id, hidden: isHidden })),
+				);
+			}
+		}
 		return this.#broadcastRender();
 	}
 
@@ -1328,7 +1348,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			const tiers = tag.values ?? new Array(6).fill(false);
 			if (!tiers.some(Boolean)) return;
 
-			// Shift all marks left by 1 (same logic as StatusCardData#calculateReduction)
+			// Shift all marks left by 1 (same logic as StatusTagData#calculateReduction)
 			const newTiers = Array(6).fill(false);
 			for (let i = 0; i < 6; i++) {
 				if (tiers[i]) {
@@ -1351,7 +1371,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			if (!actor?.isOwner) return;
 
 			const effect = actor.effects.get(tagId);
-			if (!effect || effect.type !== "status_card") return;
+			if (!effect || effect.type !== "status_tag") return;
 			if (!effect.system.tiers.some(Boolean)) return;
 
 			const newTiers = effect.system.calculateReduction(1);
@@ -1378,7 +1398,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		if (!oldLimits.length) return;
 
 		const effects = [...actor.effects]
-			.filter((e) => e.type === "status_card" && e.system?.limitId)
+			.filter((e) => e.type === "status_tag" && e.system?.limitId)
 			.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
 
 		const heroLimit = LitmSettings.heroLimit;
@@ -1386,7 +1406,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		const limits = oldLimits.map((limit) => {
 			const grouped = effects.filter((e) => e.system.limitId === limit.id);
 			const tierArrays = grouped.map((e) => e.system.tiers);
-			const computedValue = StatusCardData.stackTiers(tierArrays);
+			const computedValue = StatusTagData.stackTiers(tierArrays);
 			return { ...limit, value: computedValue };
 		});
 
@@ -1437,6 +1457,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 
 		const actor = game.actors.get(data.sourceContainer);
 		if (!actor?.isOwner) return;
+
+		// Check backpack item for hero actors
+		if (actor.type === "hero") {
+			const backpack = actor.system.backpackItem;
+			if (backpack?.effects.has(data.sourceId)) {
+				await backpack.deleteEmbeddedDocuments("ActiveEffect", [data.sourceId]);
+				return this.#broadcastRender();
+			}
+		}
+
 		if (!actor.effects.has(data.sourceId)) return;
 		await actor.deleteEmbeddedDocuments("ActiveEffect", [data.sourceId]);
 		return this.#broadcastRender();
@@ -1451,19 +1481,20 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			const actor = game.actors.get(container);
 			if (!actor?.isOwner) return;
 
-			const source = actor.effects.get(sourceId);
+			const allEffects = [...actor.effects];
+			const source = allEffects.find((e) => e.id === sourceId);
 			if (!source) return;
 
 			// Determine the target sibling from the drop position
 			const target = dropTarget
-				? actor.effects.get(dropTarget.dataset.id)
+				? allEffects.find((e) => e.id === dropTarget.dataset.id)
 				: null;
 
-			const siblings = actor.effects
+			const siblings = allEffects
 				.filter(
 					(e) =>
 						e.id !== sourceId &&
-						(e.type === "story_tag" || e.type === "status_card"),
+						(e.type === "story_tag" || e.type === "status_tag"),
 				)
 				.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
 
@@ -1475,7 +1506,8 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				_id: target.id,
 				sort: update.sort,
 			}));
-			await actor.updateEmbeddedDocuments("ActiveEffect", updates);
+
+			await updateEffectsByParent(actor, updates);
 			return this.#broadcastRender();
 		}
 
@@ -1530,10 +1562,33 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			});
 		}
 
+		// For heroes, route tags (not statuses) through the backpack helper
 		const hasValues = Array.isArray(tag.values)
 			? tag.values.some((v) => v !== null && v !== false && v !== "")
 			: false;
-		const type = tag.type === "status" || hasValues ? "status" : "tag";
+		const isStatus = tag.type === "status" || hasValues;
+
+		if (actor.type === "hero" && !isStatus) {
+			const backpack = actor.system.backpackItem;
+			if (backpack) {
+				const maxSort = Math.max(0, ...backpack.effects.map((e) => e.sort ?? 0));
+				const [created] = await backpack.createEmbeddedDocuments("ActiveEffect", [
+					{ ...storyTagEffect({
+						name: tag.name,
+						isScratched: tag.isScratched ?? false,
+						isSingleUse: tag.isSingleUse ?? false,
+						isHidden: game.user.isGM,
+						limitId: tag.limitId,
+					}), transfer: true, sort: maxSort + 1000 },
+				]);
+				if (created) this._editOnRender = created.id;
+				await this.#recalculateActorLimits(id);
+				return this.#broadcastRender();
+			}
+		}
+
+		// Non-hero path: create effect directly on the actor (unchanged)
+		const type = isStatus ? "status" : "tag";
 		const tiers = Array.isArray(tag.values)
 			? tag.values.map(
 					(value) => value !== null && value !== false && value !== "",
@@ -1541,33 +1596,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			: new Array(6).fill(false);
 
 		const maxSort = Math.max(0, ...actor.effects.map((e) => e.sort ?? 0));
-		const systemData =
-			type === "status"
-				? { tiers, isHidden: game.user.isGM }
-				: {
-						isScratched: tag.isScratched ?? false,
-						isSingleUse: tag.isSingleUse ?? false,
-						isHidden: game.user.isGM,
-					};
-		if (tag.limitId) systemData.limitId = tag.limitId;
-		const [created] = await actor.createEmbeddedDocuments("ActiveEffect", [
-			{
-				name: tag.name,
-				type: type === "status" ? "status_card" : "story_tag",
-				sort: maxSort + 1000,
-				system: systemData,
-			},
-		]);
+		const effectData = type === "status"
+			? { ...statusTagEffect({ name: tag.name, tiers, isHidden: game.user.isGM, limitId: tag.limitId }), sort: maxSort + 1000 }
+			: { ...storyTagEffect({ name: tag.name, isScratched: tag.isScratched ?? false, isSingleUse: tag.isSingleUse ?? false, isHidden: game.user.isGM, limitId: tag.limitId }), sort: maxSort + 1000 };
+		const [created] = await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
 		if (created) this._editOnRender = created.id;
 		await this.#recalculateActorLimits(id);
 		return this.#broadcastRender();
 	}
 
-	async #updateTagsOnActor({ id, tags }) {
-		const actor = game.actors.get(id);
-		if (!actor?.isOwner) return;
-		return actor.updateEmbeddedDocuments("ActiveEffect", tags);
-	}
+
 
 	async #removeTagFromActor({ actorId, id }) {
 		const actor = game.actors.get(actorId);
@@ -1578,6 +1616,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			});
 		}
 		if (!actor.isOwner) return;
+
+		// For heroes, check if the effect is on the backpack item
+		if (actor.type === "hero") {
+			const backpack = actor.system.backpackItem;
+			if (backpack?.effects.has(id)) {
+				await backpack.deleteEmbeddedDocuments("ActiveEffect", [id]);
+				await this.#recalculateActorLimits(actorId);
+				return this.#broadcastRender();
+			}
+		}
 
 		await actor.deleteEmbeddedDocuments("ActiveEffect", [id]);
 		await this.#recalculateActorLimits(actorId);

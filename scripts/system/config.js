@@ -1,4 +1,12 @@
+/** All theme-bound tag effect types (power, weakness, fellowship). */
+export const THEME_TAG_TYPES = new Set(["power_tag", "weakness_tag", "fellowship_tag"]);
+
+/** Power-side theme tag types only (excludes weakness). */
+export const POWER_TAG_TYPES = new Set(["power_tag", "fellowship_tag"]);
+
 export class LitmConfig {
+	static BURN_POWER = 3;
+
 	challenge_types = [
 		"attacker",
 		"barrier-hazard",

@@ -68,6 +68,7 @@
 								alt="{{theme.levelLabel}}" data-tooltip="{{theme.levelLabel}}" />
 							{{> systems/litmv2/templates/partials/play-tag.html theme.themeTag
 							noBurn=true
+							extraClass="litm-title_tag"
 							}}
 						</div>
 						{{> systems/litmv2/templates/partials/play-theme-tags.html theme
@@ -125,7 +126,22 @@
 				<h3>{{localize "LITM.Ui.party_overview_quests"}}</h3>
 				<ul class="litm-party-overview__quests">
 					{{#each hero.quests as |quest|}}
-					<li>&middot; <em>{{quest.themeName}}:</em> {{quest.description}}</li>
+					<li>
+						<div class="litm-party-overview__quest-tracks">
+							<span class="litm-party-overview__quest-track">
+								<small>{{localize "LITM.Themes.milestone"}}</small>
+								{{quest.milestone}} / 3
+							</span>
+							<span class="litm-party-overview__quest-track">
+								<small>{{localize "LITM.Themes.abandon"}}</small>
+								{{quest.abandon}} / 3
+							</span>
+						</div>
+						<div class="litm-party-overview__quest-text">
+							<img src="systems/litmv2/assets/media/checkbox-c.svg" aria-hidden="true" height="12" width="12" />
+							<p><em>{{quest.themeName}}:</em> {{quest.description}}</p>
+						</div>
+					</li>
 					{{/each}}
 				</ul>
 			</section>
@@ -136,7 +152,18 @@
 				<h3>{{localize "LITM.Ui.party_overview_weaknesses"}}</h3>
 				<div class="litm-party-overview__tags">
 					{{#each hero.weaknesses as |name|}}
-					<span class="litm-weaknessTag" data-text="{{name}}">{{name}}</span>
+					<span class="litm-weakness_tag" data-text="{{name}}">{{name}}</span>
+					{{/each}}
+				</div>
+			</section>
+			{{/if}}
+
+			{{#if hero.relationshipTags.length}}
+			<section class="litm-party-overview__section">
+				<h3>{{localize "LITM.Terms.relationship"}}</h3>
+				<div class="litm-party-overview__tags">
+					{{#each hero.relationshipTags as |tag|}}
+					<span class="litm-relationship_tag" data-text="{{tag.name}}">{{tag.name}}</span>
 					{{/each}}
 				</div>
 			</section>

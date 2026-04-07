@@ -1,7 +1,24 @@
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
-import { buildTrackCompleteContent } from "../../system/chat.js";
+import { THEME_TAG_TYPES } from "../../system/config.js";
 import { Sockets } from "../../system/sockets.js";
-import { enrichHTML, toPlainObject } from "../../utils.js";
+import { enrichHTML, relationshipTagEffect } from "../../utils.js";
+
+/**
+ * Extract and remove `newRelationship.<actorId>` keys from submit data,
+ * returning an array of relationship tag effect creation data.
+ */
+function extractNewRelationships(submitData) {
+	const effects = [];
+	for (const key of Object.keys(submitData)) {
+		if (!key.startsWith("newRelationship.")) continue;
+		const name = submitData[key]?.trim();
+		delete submitData[key];
+		if (!name) continue;
+		const targetId = key.slice("newRelationship.".length);
+		effects.push(relationshipTagEffect({ name, targetId }));
+	}
+	return effects;
+}
 
 /**
  * Hero sheet for Legend in the Mist
@@ -24,11 +41,12 @@ export class HeroSheet extends LitmActorSheet {
 			editItem: LitmActorSheet._onEditItem,
 			removeItem: LitmActorSheet._onRemoveItem,
 			viewActor: HeroSheet.#onViewActor,
-			adjustProgress: HeroSheet.#onAdjustProgress,
+			adjustProgress: LitmActorSheet._onAdjustProgress,
 			openThemeAdvancement: HeroSheet.#onOpenThemeAdvancement,
+			toggleTier: HeroSheet.#onToggleTier,
 		},
 		form: {
-			handler: LitmActorSheet._onSubmitActorForm,
+			handler: HeroSheet.#onSubmitForm,
 			submitOnChange: true,
 			closeOnSubmit: false,
 		},
@@ -57,6 +75,14 @@ export class HeroSheet extends LitmActorSheet {
 		return "systems/litmv2/templates/actor/hero-play.html";
 	}
 
+	/** @override */
+	async _onRender(context, options) {
+		await super._onRender(context, options);
+		for (const el of this.element.querySelectorAll(".litm--tag-item-status")) {
+			el.addEventListener("contextmenu", HeroSheet.#onReduceStatus.bind(this));
+		}
+	}
+
 	/**
 	 * Roll dialog instance
 	 * @type {LitmRollDialog}
@@ -81,7 +107,6 @@ export class HeroSheet extends LitmActorSheet {
 		if (!this.#rollDialog) {
 			this.#rollDialog = game.litmv2.LitmRollDialog.create({
 				actorId: this.document.id,
-				characterTags: this._buildAllRollTags(),
 			});
 		}
 		return this.#rollDialog;
@@ -213,32 +238,33 @@ export class HeroSheet extends LitmActorSheet {
 		}
 
 		// Prepare backpack
-		const backpackItem = this.document.items.find((i) => i.type === "backpack");
+		const backpackItem = this.document.system.backpackItem;
 		const backpack = backpackItem
 			? {
 					name: backpackItem.name,
 					id: backpackItem.id,
-					contents: this.system.backpack
-						.sort((a, b) => a.name.localeCompare(b.name))
-						.sort((a, b) =>
-							a.isActive && b.isActive ? 0 : a.isActive ? -1 : 1,
-						),
+					tags: [...backpackItem.system.tags],
 				}
 			: null;
 
 		// Get story tags and statuses
-		const storyTags = this._prepareStoryTags();
+		const tagEffects = this.system.backpack
+			.filter((e) => game.user.isGM || !e.system?.isHidden);
+		const statuses = this.system.statuses
+			.filter((e) => game.user.isGM || !e.system?.isHidden);
 
 		const relationshipEntries = this._prepareRelationshipEntries();
 		const relationshipVisible = relationshipEntries.filter((entry) =>
 			entry.tag.trim(),
 		);
 
-		// Get scratched tags for display (only if dialog already exists)
+		// Build roll tags once and derive scratched subset
+		const rollTags = this._buildAllRollTags();
 		const scratchedTags = this.#rollDialog
-			? this.#rollDialog.characterTags.filter(
-					(t) => t.isScratched || t.state === "scratched",
-				)
+			? rollTags.filter((t) => {
+					const sel = this.#rollDialog.getSelection(t.id);
+					return t.system?.isScratched || sel.state === "scratched";
+				})
 			: [];
 
 		// Prepare enriched fields for the editor helper
@@ -258,7 +284,8 @@ export class HeroSheet extends LitmActorSheet {
 			fellowshipActorId: fellowshipActor?.id ?? null,
 			storyThemes,
 			backpack,
-			storyTags,
+			storyTags: tagEffects,
+			statuses,
 			scratchedTags,
 			relationshipEntries,
 			relationshipVisible,
@@ -266,7 +293,7 @@ export class HeroSheet extends LitmActorSheet {
 			momentOfFulfillmentEntries,
 			momentOfFulfillmentVisible,
 
-			rollTags: this.#rollDialog?.characterTags ?? this._buildAllRollTags(),
+			rollTags,
 			limit: this.system.limit,
 		};
 	}
@@ -282,6 +309,35 @@ export class HeroSheet extends LitmActorSheet {
 	 * @static
 	 * @protected
 	 */
+	static async #onSubmitForm(event, form, formData) {
+		const submitData = formData.object;
+		const newEffects = extractNewRelationships(submitData);
+
+		// Relationship effects cleared to empty → delete instead of update
+		const toDelete = [];
+		const relationshipIds = new Set(
+			this.system.relationships.map((e) => e.id),
+		);
+		for (const key of Object.keys(submitData)) {
+			const match = key.match(/^effects\.(.+)\.name$/);
+			if (!match) continue;
+			const id = match[1];
+			if (!relationshipIds.has(id)) continue;
+			if (!submitData[key]?.trim()) {
+				toDelete.push(id);
+				delete submitData[key];
+			}
+		}
+
+		await LitmActorSheet._onSubmitActorForm.call(this, event, form, formData);
+		if (newEffects.length) {
+			await this.document.createEmbeddedDocuments("ActiveEffect", newEffects);
+		}
+		if (toDelete.length) {
+			await this.document.deleteEmbeddedDocuments("ActiveEffect", toDelete);
+		}
+	}
+
 	static #onOpenRollDialog(_event, _target) {
 		this.renderRollDialog();
 	}
@@ -290,115 +346,27 @@ export class HeroSheet extends LitmActorSheet {
 		return this.system.relationshipEntries;
 	}
 
-	_buildRelationshipRollTags() {
-		return this.system.relationshipTags;
-	}
-
-	_buildThemeRollTags() {
-		const tags = [];
-
-		const ownThemes = this.document.items
-			.filter(
-				(i) =>
-					(i.type === "theme" && !i.system.isFellowship) ||
-					i.type === "story_theme",
-			)
-			.sort((a, b) => a.sort - b.sort);
-
-		const fellowshipActor = this.system.fellowshipActor;
-		const fellowshipThemes = fellowshipActor
-			? fellowshipActor.items.filter(
-					(i) => i.type === "theme" || i.type === "story_theme",
-				)
-			: [];
-
-		const allThemes = [...ownThemes, ...fellowshipThemes];
-
-		for (const theme of allThemes) {
-			const isFellowship = !!theme.system?.isFellowship;
-			const fromFellowship = fellowshipThemes.includes(theme);
-			const themeImg = theme.img;
-			const themeTag = theme.system?.themeTag;
-			if (themeTag?.name && themeTag?.isActive && !themeTag?.isScratched) {
-				tags.push({
-					id: theme.id,
-					name: theme.name,
-					displayName: theme.name,
-					themeId: theme.id,
-					themeName: theme.name,
-					themeImg,
-					type: "themeTag",
-					isSingleUse: isFellowship,
-					fromFellowship,
-					state: "",
-					states: ",positive",
-				});
-			}
-
-			for (const tag of theme.system?.powerTags || []) {
-				const tagData = toPlainObject(tag);
-				if (tagData?.name && tagData?.isActive && !tagData?.isScratched) {
-					tags.push({
-						id: tagData.id,
-						name: `${theme.name} - ${tagData.name}`,
-						displayName: tagData.name,
-						themeId: theme.id,
-						themeName: theme.name,
-						themeImg,
-						type: tagData.type ?? "powerTag",
-						isSingleUse: isFellowship,
-						fromFellowship,
-						state: "",
-						states: isFellowship ? ",positive,negative" : ",positive,scratched",
-					});
-				}
-			}
-
-			for (const tag of theme.system?.weaknessTags || []) {
-				const tagData = toPlainObject(tag);
-				if (tagData?.name && tagData?.isActive && !tagData?.isScratched) {
-					tags.push({
-						id: tagData.id,
-						name: `${theme.name} - ${tagData.name}`,
-						displayName: tagData.name,
-						themeId: theme.id,
-						themeName: theme.name,
-						themeImg,
-						type: tagData.type ?? "weaknessTag",
-						fromFellowship,
-						state: "",
-						states: ",negative,positive",
-					});
-				}
-			}
-		}
-
-		return tags;
-	}
-
-	_buildBackpackRollTags() {
-		const backpackItem = this.document.items.find((i) => i.type === "backpack");
-		if (!backpackItem) return [];
-		return (backpackItem.system.contents ?? [])
-			.filter((item) => item.isActive && !item.isScratched)
-			.map((item) => ({
-				id: item.id,
-				name: item.name,
-				displayName: item.name,
-				themeId: backpackItem.id,
-				themeName: backpackItem.name,
-				type: "backpack",
-				isSingleUse: item.isSingleUse ?? false,
-				state: "",
-				states: item.isSingleUse ? ",positive" : ",positive,scratched",
-			}));
-	}
-
 	_buildAllRollTags() {
-		const relationshipTags = this._buildRelationshipRollTags();
-		const themeTags = this._buildThemeRollTags();
-		const backpackTags = this._buildBackpackRollTags();
-		return [...relationshipTags, ...themeTags, ...backpackTags];
+		const sys = this.system;
+		const toPlain = (e) => ({
+			_id: e._id,
+			id: e.id ?? e._id,
+			uuid: e.uuid,
+			name: e.name,
+			type: e.type,
+			system: e.system,
+			active: e.active,
+			themeId: e.parent?.id,
+			themeName: e.parent?.name,
+		});
+		return [
+			...sys.themes.flatMap((g) => g.tags),
+			...sys.backpack,
+			...sys.fellowship.themes.flatMap((g) => g.tags),
+			...sys.fellowship.tags,
+			...sys.relationships.filter((e) => e.name),
+			...sys.statuses,
+		].map(toPlain);
 	}
 
 	/**
@@ -443,49 +411,19 @@ export class HeroSheet extends LitmActorSheet {
 		const toScratch = event.shiftKey;
 		const toScratchNoRoll = event.altKey;
 
-		if (
-			["powerTag", "weaknessTag", "themeTag", "relationshipTag"].includes(
-				tagType,
-			)
-		) {
-			const existingById = new Map(
-				this.rollDialogInstance.characterTags.map((tag) => [tag.id, tag]),
-			);
-			for (const tag of this._buildAllRollTags()) {
-				if (!existingById.has(tag.id)) {
-					this.rollDialogInstance.characterTags.push(tag);
-				}
-			}
-		}
-
-		const tagFromSystem = this.system.allTags.find((t) => t.id === tagId);
-		let existingTag = this.rollDialogInstance.characterTags.find(
-			(t) => t.id === tagId,
-		);
-		if (!existingTag && tagFromSystem) {
-			const tag = tagFromSystem.toObject();
-			this.rollDialogInstance.characterTags.push(tag);
-			existingTag = tag;
-		}
-		const tagRef = existingTag;
-		const fallbackType = tagType || tagRef?.type || "powerTag";
-		const isWeaknessTag = (tagRef?.type || fallbackType) === "weaknessTag";
-		const isScratched = tagRef?.isScratched ?? false;
-		const selected = !!existingTag?.state;
+		const tagFromSystem = this._buildAllRollTags().find((e) => e.id === tagId);
+		const sel = this.rollDialogInstance.getSelection(tagId);
+		const effectType = tagFromSystem?.type ?? tagType ?? "power_tag";
+		const isWeaknessTag = effectType === "weakness_tag";
+		const isRelationshipTag = effectType === "relationship_tag";
+		const isScratched = tagFromSystem?.system?.isScratched ?? false;
+		const selected = !!sel.state;
 
 		// Scratch tag without rolling
 		if (toScratchNoRoll) {
 			if (isWeaknessTag) return;
-			// Story tags are ActiveEffects, look them up directly
-			if (tagType === "tag") {
-				return this.toggleScratchTag({ id: tagId, type: tagType });
-			}
-			// Relationship tags are stored on the actor
-			if (tagType === "relationshipTag") {
-				return this.toggleScratchTag({ id: tagId, type: tagType });
-			}
-			if (!tagRef) return;
-			return this.toggleScratchTag(tagRef);
+			if (!tagFromSystem) return;
+			return this.toggleScratchTag(tagFromSystem);
 		}
 
 		// Can't select scratched tags, except weakness tags
@@ -494,19 +432,20 @@ export class HeroSheet extends LitmActorSheet {
 		// Add or remove the tag from the roll
 		if (selected) {
 			this.rollDialogInstance.setCharacterTagState(tagId, "");
-		} else if (existingTag) {
+		} else {
 			const nextState =
-				existingTag.type === "weaknessTag"
+				isWeaknessTag
 					? toScratch
 						? "positive"
 						: "negative"
-					: toScratch
-						? "scratched"
-						: "positive";
+					: isRelationshipTag
+						? toScratch
+							? "negative"
+							: "positive"
+						: toScratch
+							? "scratched"
+							: "positive";
 			this.rollDialogInstance.setCharacterTagState(tagId, nextState);
-		} else if (tagRef) {
-			if (!isWeaknessTag && isScratched) return;
-			this.rollDialogInstance.addTag(tagRef, toScratch);
 		}
 
 		// Open the roll dialog if not already open, otherwise re-render it
@@ -535,50 +474,36 @@ export class HeroSheet extends LitmActorSheet {
 		if (!tagType || !tagId) return;
 
 		switch (tagType) {
-			case "powerTag": {
+			case "power_tag":
+			case "fellowship_tag": {
 				const parentTheme = this.document.items.find(
 					(i) =>
 						["theme", "story_theme"].includes(i.type) &&
-						i.system.powerTags?.some((t) => t.id === tagId),
+						i.effects.has(tagId),
+				) ?? game.litmv2?.fellowship?.items.find(
+					(i) =>
+						["theme", "story_theme"].includes(i.type) &&
+						i.effects.has(tagId),
 				);
 				if (!parentTheme) return;
 
-				const tagToUpdate = parentTheme.system.powerTags.find(
-					(t) => t.id === tagId,
-				);
-				if (!tagToUpdate) return;
-				if (!tagToUpdate.isActive) return;
+				const effect = parentTheme.effects.get(tagId);
+				if (!effect || effect.disabled) return;
 
 				return this.toggleScratchTag({
-					id: tagToUpdate.id,
-					type: "powerTag",
-					isScratched: tagToUpdate.isScratched ?? false,
-				});
-			}
-			case "themeTag": {
-				const theme = this.document.items.get(tagId);
-				if (!theme) return;
-
-				return this.toggleScratchTag({
-					id: theme.id,
-					type: "themeTag",
-					isScratched: theme.system.isScratched ?? false,
+					id: effect.id,
+					type: tagType,
 				});
 			}
 			case "backpack": {
-				const backpack = this.document.items.find((i) => i.type === "backpack");
+				const backpack = this.document.system.backpackItem;
 				if (!backpack) return;
-
-				const tagToUpdate = backpack.system.contents?.find(
-					(item) => item.id === tagId,
-				);
-				if (!tagToUpdate) return;
-				if (!tagToUpdate.isActive) return;
-
+				const effect = backpack.effects.get(tagId);
+				if (!effect || effect.disabled) return;
 				return this.toggleScratchTag({
-					id: tagToUpdate.id,
+					id: effect.id,
 					type: "backpack",
-					isScratched: tagToUpdate.isScratched ?? false,
+					isScratched: effect.system.isScratched ?? false,
 				});
 			}
 			default:
@@ -604,37 +529,36 @@ export class HeroSheet extends LitmActorSheet {
 		const item = this.resolveItem(target);
 		if (!item) return;
 
-		if (tagType === "themeTag") {
-			await item.update({ "system.isScratched": !item.system.isScratched });
-			return;
-		}
-
-		const findTag = (t) => (tagId && t.id === tagId) || t.name === tagName;
-
 		if (tagType === "backpack") {
-			const tags = (item.system.contents ?? []).map((t) => toPlainObject(t));
-			const tag = tags.find(findTag);
-			if (!tag) return;
-			if (scratch) tag.isScratched = !tag.isScratched;
-			else tag.isActive = !tag.isActive;
-			await item.update({ "system.contents": tags });
+			const effect = item.effects.get(tagId)
+				?? [...item.effects].find((e) => e.name === tagName && e.type === "story_tag");
+			if (!effect) return;
+			if (scratch) {
+				await item.updateEmbeddedDocuments("ActiveEffect", [
+					{ _id: effect.id, "system.isScratched": !effect.system.isScratched },
+				]);
+			} else {
+				await item.updateEmbeddedDocuments("ActiveEffect", [
+					{ _id: effect.id, disabled: !effect.disabled },
+				]);
+			}
 			return;
 		}
 
-		const tagArrayKey =
-			tagType === "weaknessTag" ? "weaknessTags" : "powerTags";
-		const systemPath =
-			item.type === "story_theme"
-				? `system.theme.${tagArrayKey}`
-				: `system.${tagArrayKey}`;
+		// Theme tag effects — find and update the effect directly
+		const effect = item.effects.get(tagId)
+			?? [...item.effects].find((e) => e.name === tagName && THEME_TAG_TYPES.has(e.type));
+		if (!effect) return;
 
-		const tags = (item.system[tagArrayKey] ?? []).map((t) => toPlainObject(t));
-		const tag = tags.find(findTag);
-		if (!tag) return;
-
-		if (scratch) tag.isScratched = !tag.isScratched;
-		else tag.isActive = !tag.isActive;
-		await item.update({ [systemPath]: tags });
+		if (scratch) {
+			await item.updateEmbeddedDocuments("ActiveEffect", [
+				{ _id: effect.id, "system.isScratched": !effect.system.isScratched },
+			]);
+		} else {
+			await item.updateEmbeddedDocuments("ActiveEffect", [
+				{ _id: effect.id, disabled: !effect.disabled },
+			]);
+		}
 	}
 
 	/**
@@ -643,107 +567,11 @@ export class HeroSheet extends LitmActorSheet {
 	 * @private
 	 */
 	async toggleScratchTag(tag) {
-		if (Hooks.call("litm.preTagScratched", this.document, tag) === false) {
-			return;
-		}
-		const fellowshipActor = this.system.fellowshipActor;
-		switch (tag.type) {
-			case "powerTag": {
-				const findTheme = (actor) =>
-					actor?.items.find(
-						(i) =>
-							["theme", "story_theme"].includes(i.type) &&
-							i.system.powerTags?.some((t) => t.id === tag.id),
-					);
-				const parentTheme =
-					findTheme(this.document) ?? findTheme(fellowshipActor);
-				if (!parentTheme) return;
-
-				const isStoryTheme = parentTheme.type === "story_theme";
-				const raw = parentTheme.system.toObject();
-				const powerTags = isStoryTheme ? raw.theme.powerTags : raw.powerTags;
-				const systemPath = isStoryTheme
-					? "system.theme.powerTags"
-					: "system.powerTags";
-				const tagToUpdate = powerTags.find((t) => t.id === tag.id);
-				if (tagToUpdate) {
-					tagToUpdate.isScratched = !tagToUpdate.isScratched;
-					await parentTheme.parent.updateEmbeddedDocuments("Item", [
-						{ _id: parentTheme.id, [systemPath]: powerTags },
-					]);
-				}
-				break;
-			}
-			case "themeTag": {
-				const theme =
-					this.document.items.get(tag.id) ?? fellowshipActor?.items.get(tag.id);
-				if (!theme) return;
-				const isScratched = theme.system.isScratched ?? false;
-				await theme.parent.updateEmbeddedDocuments("Item", [
-					{ _id: theme.id, "system.isScratched": !isScratched },
-				]);
-				break;
-			}
-			case "backpack": {
-				const backpack = this.document.items.find((i) => i.type === "backpack");
-				if (!backpack) return;
-
-				const { contents } = backpack.system.toObject();
-				const tagToUpdate = contents.find((i) => i.id === tag.id);
-				if (tagToUpdate) {
-					tagToUpdate.isScratched = !tagToUpdate.isScratched;
-					await this.document.updateEmbeddedDocuments("Item", [
-						{ _id: backpack.id, "system.contents": contents },
-					]);
-				}
-				break;
-			}
-			case "tag": {
-				const effect = this.document.effects.get(tag.id);
-				if (!effect || effect.type !== "story_tag") return;
-				const isScratched = effect.system.isScratched ?? false;
-				await effect.update({ "system.isScratched": !isScratched });
-				break;
-			}
-			case "relationshipTag": {
-				const actorId = tag.id.replace("relationship-", "");
-				const relationships = foundry.utils.deepClone(
-					this.system.relationships ?? [],
-				);
-				const entry = relationships.find((r) => r.actorId === actorId);
-				if (!entry) return;
-				entry.isScratched = !entry.isScratched;
-				await this.document.update({ "system.relationships": relationships });
-				break;
-			}
-			default:
-				return;
-		}
-		Hooks.callAll("litm.tagScratched", this.document, tag);
+		return this.system.toggleScratchTag(tag);
 	}
 
-	/**
-	 * Gain improvement from using a weakness tag
-	 * @param {object} tag The weakness tag
-	 */
 	async gainImprovement(tag) {
-		const owner = tag.fromFellowship
-			? this.system.fellowshipActor
-			: this.document;
-		if (!owner) return;
-		const parentTheme = owner.items.find(
-			(i) =>
-				["theme", "story_theme"].includes(i.type) &&
-				i.system.weaknessTags?.some((t) => t.id === tag.id),
-		);
-		if (parentTheme) {
-			await owner.updateEmbeddedDocuments("Item", [
-				{
-					_id: parentTheme.id,
-					"system.improve.value": parentTheme.system.improve.value + 1,
-				},
-			]);
-		}
+		return this.system.gainImprovement(tag);
 	}
 
 	/**
@@ -765,6 +593,32 @@ export class HeroSheet extends LitmActorSheet {
 	 * @param {HTMLElement} target The target element
 	 * @private
 	 */
+	static async #onToggleTier(_event, target) {
+		const effectId = target.closest("[data-effect-id]")?.dataset.effectId;
+		const tier = Number.parseInt(target.dataset.tier, 10);
+		if (!effectId || !Number.isFinite(tier)) return;
+
+		const effect = this.document.effects.get(effectId);
+		if (!effect || effect.type !== "status_tag") return;
+
+		const newTiers = [...effect.system.tiers];
+		newTiers[tier - 1] = !newTiers[tier - 1];
+		await effect.update({ "system.tiers": newTiers });
+	}
+
+	static async #onReduceStatus(event) {
+		const statusRow = event.target.closest("[data-effect-id]");
+		if (!statusRow) return;
+		event.preventDefault();
+
+		const effect = this.document.effects.get(statusRow.dataset.effectId);
+		if (!effect || effect.type !== "status_tag") return;
+		if (!effect.system.tiers.some(Boolean)) return;
+
+		const newTiers = effect.system.calculateReduction(1);
+		await effect.update({ "system.tiers": newTiers });
+	}
+
 	static #onOpenThemeAdvancement(_event, target) {
 		const item = this.resolveItem(target);
 		if (!item) return;
@@ -785,6 +639,7 @@ export class HeroSheet extends LitmActorSheet {
 	 * @returns {Item|null}
 	 * @private
 	 */
+	/** @override */
 	resolveItem(element) {
 		const itemEl =
 			element.closest("[data-item-id]") ?? element.closest(".item");
@@ -798,139 +653,6 @@ export class HeroSheet extends LitmActorSheet {
 		}
 
 		return this.document.items.get(itemId) ?? null;
-	}
-
-	/**
-	 * Adjust a progress track (promise or theme track)
-	 * @param {Event} event        The triggering event
-	 * @param {HTMLElement} target The target element
-	 * @private
-	 */
-	static async #onAdjustProgress(_event, target) {
-		const button = target.closest("button") ?? target;
-		const boxIndex = parseInt(button.dataset.index, 10);
-		if (Number.isNaN(boxIndex)) return;
-
-		const container = button.closest(
-			".progress-display, .promise-display, .progress-buttons, .progress-boxes",
-		);
-		if (!container) return;
-		const attrib = container.dataset.id;
-		if (!attrib) return;
-
-		// Check if it's an effect (story tag/status)
-		const effectId = button.dataset.effectId;
-
-		if (effectId) {
-			// Handle effect tiers (boolean array)
-			const effect = this.document.effects.get(effectId);
-			if (!effect) return;
-
-			const currentTiers = foundry.utils.getProperty(effect, "system.tiers");
-			if (!Array.isArray(currentTiers)) return;
-
-			// Only use toggle logic for status effects; otherwise, use progress logic
-			const isStatus = effect.type === "status_card";
-			let newTiers;
-			if (isStatus) {
-				// Toggle only the clicked tier for statuses
-				newTiers = currentTiers.map((v, idx) => (idx === boxIndex ? !v : v));
-			} else {
-				// Progress logic for everything else
-				newTiers = currentTiers.map((_, idx) => idx <= boxIndex);
-			}
-			await effect.update({ "system.tiers": newTiers });
-			return;
-		}
-		// Check if it's an item or the actor (including fellowship items)
-		const item = this.resolveItem(button);
-
-		const doc = item || this.document;
-		const currentValue = foundry.utils.getProperty(doc, attrib);
-
-		// Calculate new value:
-		// If clicking a checked box, drop to that level (uncheck it and above).
-		// Otherwise set to the clicked box's index + 1.
-		const newValue = boxIndex < currentValue ? boxIndex : boxIndex + 1;
-
-		const updateData = {};
-		foundry.utils.setProperty(updateData, attrib, newValue);
-		await doc.update(updateData);
-
-		// Celebrate when a track reaches its maximum
-		const trackInfo = HeroSheet.#detectTrackCompletion(
-			attrib,
-			newValue,
-			doc,
-			this.document,
-		);
-		if (trackInfo) {
-			await foundry.documents.ChatMessage.create({
-				content: buildTrackCompleteContent(trackInfo),
-				speaker: foundry.documents.ChatMessage.getSpeaker({
-					actor: this.document,
-				}),
-			});
-		}
-	}
-
-	/**
-	 * Detect whether a track update is a completion event and return a
-	 * typed info object, or null if not a completion.
-	 */
-	static #detectTrackCompletion(attrib, newValue, doc, actor) {
-		const isTheme = doc !== actor;
-		const isFellowship = isTheme && (doc.system?.isFellowship ?? false);
-
-		// Promise track (on the actor, max 5)
-		if (attrib === "system.promise" && newValue === 5) {
-			return {
-				text: game.i18n.format("LITM.Ui.promise_complete", {
-					actor: actor.name,
-				}),
-				type: "promise",
-			};
-		}
-
-		if (!isTheme) return null;
-
-		const themeLabel = isFellowship
-			? game.i18n.format("LITM.Ui.fellowship_theme_label", { theme: doc.name })
-			: doc.name;
-
-		// Improve (max 3)
-		if (attrib === "system.improve.value" && newValue === 3) {
-			return {
-				text: game.i18n.format("LITM.Ui.improve_complete", {
-					actor: actor.name,
-					theme: themeLabel,
-				}),
-				type: "improve",
-				actorId: doc.parent?.id ?? actor.id,
-				themeId: doc.id,
-			};
-		}
-
-		// Milestone / Abandon (max 3)
-		if (newValue === 3) {
-			const isMilestone = attrib.includes("milestone");
-			const isAbandon = attrib.includes("abandon");
-			if (isMilestone || isAbandon) {
-				const trackKey = isMilestone
-					? "LITM.Themes.milestone"
-					: "LITM.Themes.abandon";
-				return {
-					text: game.i18n.format("LITM.Ui.theme_track_complete", {
-						actor: actor.name,
-						theme: themeLabel,
-						track: game.i18n.localize(trackKey),
-					}),
-					type: isMilestone ? "milestone" : "abandon",
-				};
-			}
-		}
-
-		return null;
 	}
 
 	/* -------------------------------------------- */
@@ -988,8 +710,11 @@ export class HeroSheet extends LitmActorSheet {
 	}
 
 	/** @override */
-	async _onDropActor(_event, _actor) {
-		// Fellowship linking is automatic — no manual drops needed
+	async _onDropActor(_event, actor) {
+		if (actor.type !== "story_theme") return;
+		const theme = actor.items.find((i) => i.type === "story_theme");
+		if (!theme) return;
+		return this.document.createEmbeddedDocuments("Item", [theme.toObject()]);
 	}
 
 	/**
@@ -998,11 +723,11 @@ export class HeroSheet extends LitmActorSheet {
 	 * @private
 	 */
 	async #handleLootDrop(item) {
-		const { contents } = item.system;
+		const tags = item.system.tags;
 		const content = await foundry.applications.handlebars.renderTemplate(
 			"systems/litmv2/templates/apps/loot-dialog.html",
 			{
-				contents,
+				contents: tags,
 				cssClass: "litm--loot-dialog",
 			},
 		);
@@ -1022,32 +747,33 @@ export class HeroSheet extends LitmActorSheet {
 
 		if (!chosenLoot?.length) return;
 
-		const backpack = this.document.items.find((i) => i.type === "backpack");
+		const backpack = this.document.system.backpackItem;
 
 		if (!backpack) {
 			ui.notifications.error(game.i18n.localize("LITM.Ui.error_no_backpack"));
 			return;
 		}
 
-		// Re-read contents fresh after the dialog to avoid stale data
-		const freshContents = item.system.contents;
-		const loot = freshContents.filter((i) => chosenLoot.includes(i.id));
-
-		// Add the loot to the backpack
-		await backpack.update({
-			"system.contents": [...this.system.backpack, ...loot],
-		});
-
-		// Remove the loot from the source item
-		await item.update({
-			"system.contents": freshContents.filter(
-				(i) => !chosenLoot.includes(i.id),
-			),
-		});
+		// Transfer chosen effects from source backpack to target
+		const sourceEffects = item.effects.filter(
+			(e) => e.type === "story_tag" && chosenLoot.includes(e.id),
+		);
+		const effectData = sourceEffects.map((e) => ({
+			name: e.name,
+			type: "story_tag",
+			transfer: true,
+			disabled: e.disabled,
+			system: e.system.toObject(),
+		}));
+		await backpack.createEmbeddedDocuments("ActiveEffect", effectData);
+		await item.deleteEmbeddedDocuments(
+			"ActiveEffect",
+			sourceEffects.map((e) => e.id),
+		);
 
 		ui.notifications.info(
 			game.i18n.format("LITM.Ui.item_transfer_success", {
-				items: loot.map((i) => i.name).join(", "),
+				items: sourceEffects.map((e) => e.name).join(", "),
 			}),
 		);
 
@@ -1071,20 +797,6 @@ export class HeroSheet extends LitmActorSheet {
 	 * @param {object} options Render options
 	 */
 	renderRollDialog(options = {}) {
-		const existingById = new Map(
-			this.rollDialogInstance.characterTags.map((tag) => [tag.id, tag]),
-		);
-		this.rollDialogInstance.characterTags = this._buildAllRollTags().map(
-			(tag) => {
-				const existing = existingById.get(tag.id);
-				return {
-					...tag,
-					state: existing?.state ?? tag.state,
-					contributorId: existing?.contributorId ?? null,
-				};
-			},
-		);
-
 		const activeOwnerId =
 			this.document.getFlag("litmv2", "rollDialogOwner")?.ownerId || null;
 		const activeOwner = activeOwnerId ? game.users.get(activeOwnerId) : null;

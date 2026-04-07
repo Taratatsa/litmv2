@@ -29,6 +29,8 @@ export class HandlebarsHelpers {
 			if (!Array.isArray(array)) return "";
 			return array.join(typeof separator === "string" ? separator : ", ");
 		});
+
+		Handlebars.registerHelper("sum", (a, b) => a + b);
 	}
 }
 
