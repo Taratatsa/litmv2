@@ -1,3 +1,5 @@
+import { LitmSettings } from "../../system/settings.js";
+
 export class HeroData extends foundry.abstract.TypeDataModel {
 	static defineSchema() {
 		const fields = foundry.data.fields;
@@ -29,8 +31,8 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 			),
 			fellowshipId: new fields.StringField({ initial: "" }),
 			limit: new fields.SchemaField({
-				value: new fields.NumberField({ initial: 6, integer: true }),
-				max: new fields.NumberField({ initial: 6, integer: true }),
+				value: new fields.NumberField({ initial: 5, integer: true }),
+				max: new fields.NumberField({ initial: 5, integer: true }),
 			}),
 		};
 	}
@@ -192,9 +194,10 @@ export class HeroData extends foundry.abstract.TypeDataModel {
 	}
 
 	prepareDerivedData() {
+		const baseLimit = LitmSettings?.heroLimit ?? 5;
 		const highestStatus =
 			this.statuses.sort((a, b) => b.value - a.value)[0]?.value || 0;
-		this.limit.value = 6 - highestStatus;
-		this.limit.max = 6;
+		this.limit.value = baseLimit - highestStatus;
+		this.limit.max = baseLimit;
 	}
 }

@@ -118,6 +118,8 @@
 			"addon": "Add-On Sheet"
 		},
 		"Settings": {
+			"hero_limit": "Hero Limit",
+			"hero_limit_hint": "The base Limit for hero characters. Lower values create grittier campaigns, higher values feel more heroic.",
 			"custom_dice": "主题骰子",
 			"custom_dice_hint": "使用Legend in the Mist主题骰子代替标准d6骰子。需要重新加载。",
 			"popout_tags_sidebar": "Auto Pop-out Tags Sidebar",

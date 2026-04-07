@@ -16,6 +16,8 @@ function _prepareCharacterOnCreate() {
 					sight: { enabled: true },
 					actorLink: true,
 					disposition: foundry.CONST.TOKEN_DISPOSITIONS.FRIENDLY,
+					displayBars: foundry.CONST.TOKEN_DISPLAY_MODES.OWNER_HOVER,
+					bar1: { attribute: "limit" },
 					texture: {
 						src: actor.prototypeToken?.texture?.src || actor.img,
 					},

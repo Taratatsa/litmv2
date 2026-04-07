@@ -118,6 +118,8 @@
 			"addon": "Add-On Sheet"
 		},
 		"Settings": {
+			"hero_limit": "Hero Limit",
+			"hero_limit_hint": "The base Limit for hero characters. Lower values create grittier campaigns, higher values feel more heroic.",
 			"custom_dice": "Tematiske terninger",
 			"custom_dice_hint": "Bruk de tematiske Legend in the Mist-terningene i stedet for standard d6-terninger. Krever omlasting.",
 			"popout_tags_sidebar": "Auto Pop-out Tags Sidebar",

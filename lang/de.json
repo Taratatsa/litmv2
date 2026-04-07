@@ -118,6 +118,8 @@
 			"addon": "Add-On Sheet"
 		},
 		"Settings": {
+			"hero_limit": "Hero Limit",
+			"hero_limit_hint": "The base Limit for hero characters. Lower values create grittier campaigns, higher values feel more heroic.",
 			"custom_dice": "Thematische Würfel",
 			"custom_dice_hint": "Verwende die thematischen Legend in the Mist Würfel anstelle von Standard-W6-Würfeln. Erfordert Neuladen.",
 			"popout_tags_sidebar": "Auto Pop-out Tags Sidebar",

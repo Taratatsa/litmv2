@@ -126,6 +126,8 @@
 			"addon": "Add-On Sheet"
 		},
 		"Settings": {
+			"hero_limit": "Hero Limit",
+			"hero_limit_hint": "The base Limit for hero characters. Lower values create grittier campaigns, higher values feel more heroic.",
 			"custom_dice": "Themed Dice",
 			"custom_dice_hint": "Use the custom Legend in the Mist dice visuals instead of standard d6s. Requires the Dice So Nice module.",
 			"popout_tags_sidebar": "Auto Pop-out Tags Sidebar",
