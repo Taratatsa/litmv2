@@ -99,14 +99,6 @@ async function _handleRejectModeration(_target, app) {
 	const data = await app.getFlag("litmv2", "data");
 	// Delete Message
 	app.delete();
-	// Reopen Roll Dialog
-	const actor = game.actors.get(data.actorId);
-	actor?.sheet?.renderRollDialog();
-	ui.notifications.warn(
-		game.i18n.format("LITM.Ui.roll_rejected", {
-			name: t("You"),
-		}),
-	);
 	// Dispatch order to reopen
 	Sockets.dispatch("rejectRoll", {
 		name: game.user.name,
@@ -169,6 +161,16 @@ function onRenderChatMessage(app, html, _data) {
 	);
 	if (advanceBtn && !app.isAuthor)
 		advanceBtn.closest(".litm-track-complete__footer")?.remove();
+
+	// Moderation messages: show actions only to GMs, toggle hint text
+	const moderationActions = element.querySelector(".litm--moderation-actions");
+	if (moderationActions) {
+		if (!game.user.isGM) moderationActions.remove();
+		const gmHint = element.querySelector(".litm--moderation-gm-hint");
+		const playerHint = element.querySelector(".litm--moderation-player-hint");
+		if (game.user.isGM) playerHint?.remove();
+		else gmHint?.remove();
+	}
 
 	// Remove empty footer if no buttons remain
 	const footer = element.querySelector(".dice-footer");
