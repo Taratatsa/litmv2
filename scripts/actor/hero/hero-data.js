@@ -43,6 +43,7 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	}
 
 	get fellowshipActor() {
+		if (!LitmSettings.useFellowship) return null;
 		if (this.fellowshipId) {
 			const actor = game.actors.get(this.fellowshipId);
 			if (actor) return actor;
