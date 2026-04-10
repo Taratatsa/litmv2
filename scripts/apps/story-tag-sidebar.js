@@ -123,7 +123,7 @@ export class StoryTagSidebar
 			const toUuid = (id) => isUuid(id) ? id : `Actor.${id}`;
 			config.actors = config.actors.map(toUuid);
 			config.hiddenActors = (config.hiddenActors ?? []).map(toUuid);
-			LitmSettings.setStoryTags(config);
+			if (game.user?.isGM) void LitmSettings.setStoryTags(config).catch(console.error);
 		}
 		return config;
 	}

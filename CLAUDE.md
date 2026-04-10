@@ -4,133 +4,353 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## About
 
-Legend in the Mist is a Foundry Virtual Tabletop (v14 minimum) system for a rustic fantasy RPG based on the Mist Engine. The system id is `litmv2`.
+Legend in the Mist is a Foundry Virtual Tabletop (v14 minimum) system for a rustic fantasy RPG based on the Mist Engine. The system id is `litmv2`. Pure ES modules -- no build step, no bundler.
 
 ## Commands
 
-- `node check-keys.js` — find missing localization keys across language files
-- `node diff.js` — diff localization keys between language files
-- `node scripts/system/build-packs.js` — generate status card source files in `packs/status-effects/_source/`, then compile with `fvtt package pack status-effects`
+- `node check-keys.js` -- find missing localization keys across language files
+- `node diff.js` -- diff localization keys between language files
+- `node scripts/system/build-packs.js` -- generate status card source files in `packs/status-effects/_source/`, then compile with `fvtt package pack status-effects`
 - E2E tests: `cd tests/e2e && npx playwright test`
+- Single test: `cd tests/e2e && npx playwright test specs/hero-sheet/gm.spec.ts`
+- Test profiles: `--project=gm`, `--project=player-owner`, `--project=player-observer`
 
 ## Architecture
 
-### Entry Point (`litmv2.js`)
+### Boot Sequence (`litmv2.js`)
 
-`SuperCheckbox` registers before any hooks fire. The `init` hook then runs in this order:
+1. **Module load** -- `SuperCheckbox.Register()` registers the custom element before any hooks
+2. **`init`** -- Registers data models, settings, dice, config, sheets, helpers, hooks, token HUD, and replaces combat tracker with `StoryTagSidebar`
+3. **`i18nInit`** -- Registers text enrichers (needs localized strings)
+4. **`ready`** -- Runs world migrations, seeds statuses, loads status compendium, registers socket listeners, aliases `game.litmv2.storyTags = ui.combat`
 
-1. Exposes `game.litmv2` with references to apps (`LitmRollDialog`, `LitmRoll`, `WelcomeOverlay`, `StoryTagApp`, `SpendPowerApp`, `ThemeAdvancementApp`), data constructors (`TagData`, `StatusCardData`, `StoryTagData`, `ThemeTagData`), a `fellowship` getter, and `methods.calculatePower`
-2. Sets `CONFIG.Actor.dataModels`, `CONFIG.Actor.trackableAttributes.hero`, `CONFIG.Item.documentClass` (`LitmItem`), `CONFIG.Item.dataModels`, `CONFIG.ActiveEffect.dataModels`
-3. Calls `LitmSettings.register()` (must happen before dice — custom dice are gated on a setting)
-4. Conditionally registers `CONFIG.Dice.terms["6"] = DoubleSix` when `LitmSettings.customDice` is enabled; always pushes `LitmRoll` to `CONFIG.Dice.rolls`
-5. Sets `CONFIG.litmv2 = new LitmConfig()`
-6. Replaces the combat tracker sidebar with `StoryTagSidebar` (`CONFIG.ui.combat`)
-7. Unregisters core Foundry sheets and registers all system sheets (4 actor + 4 landscape + 7 item)
-8. Calls `HandlebarsHelpers.register()`, `HandlebarsPartials.register()`, `Fonts.register()`, `KeyBindings.register()`, `LitmHooks.register()`
+### Directory Structure
 
-Separate hooks handle deferred registration:
-- **`i18nInit`**: `Enrichers.register()` (needs localized strings)
-- **`ready`**: `migrateWorld()`, `Sockets.registerListeners()`, aliases `game.litmv2.storyTags = ui.combat`
+```
+scripts/
+  actor/                    # Actor data models + sheets (hero, challenge, journey, fellowship, story-theme)
+  item/                     # Item data models + sheets (theme, story-theme, backpack, themebook, vignette, trope, addon)
+  apps/                     # Standalone ApplicationV2 apps (roll dialog, roll, sidebar, spend-power, etc.)
+  data/active-effects/      # AE type data models, custom AE document, AE sheet, scratchable mixin
+  sheets/                   # Base sheet classes + mixins + landscape variants
+  system/                   # Infrastructure (config, settings, sockets, migrations, hooks/, renderers/)
+    hooks/                  # Domain-specific hook modules (actor, chat, fellowship, item, token, ui, compat, preloads, ready)
+  components/               # Custom HTML elements (SuperCheckbox)
+  hud/                      # Custom token HUD
+  utils.js                  # Effect factories, localization, pack queries, enrichHTML
+  logger.js                 # Color-coded console logging
+templates/                  # Handlebars templates (actor/, item/, chat/, apps/, effect/, hud/, partials/)
+lang/                       # Localization files (en, de, es, cn, fr, no)
+assets/                     # Fonts (.woff2), images (.webp), icons (.svg)
+packs/                      # Compendium packs (status-effects)
+tests/e2e/                  # Playwright E2E tests
+```
 
-`CONFIG.litmv2` is a `LitmConfig` instance (`scripts/system/config.js`) holding asset paths, roll config (`formula`/`resolver` overrides), challenge/vignette type lists, theme level tiers, and tag/scene-link regex patterns.
+### Document Type Map
 
-### ApplicationV2 Pattern
+| Document | Types | Data Model Location |
+|----------|-------|---------------------|
+| **Actor** | `hero`, `journey`, `challenge`, `fellowship`, `story_theme` | `scripts/actor/{type}/{type}-data.js` |
+| **Item** | `theme`, `themebook`, `trope`, `backpack`, `story_theme`, `vignette`, `addon` | `scripts/item/{type}/{type}-data.js` |
+| **ActiveEffect** | `power_tag`, `weakness_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`, `status_tag` | `scripts/data/active-effects/{type}-data.js` |
 
-All apps and sheets use Foundry's **ApplicationV2 API** (not the deprecated AppV1):
+Custom document classes: `LitmItem` (`scripts/item/litm-item.js`) handles legacy tag-to-effect migration. `LitmActiveEffect` (`scripts/data/active-effects/litm-active-effect.js`) is the custom AE document class.
 
-- Actor sheets extend `LitmActorSheet` (`scripts/sheets/base-actor-sheet.js`), which extends `LitmSheetMixin(HandlebarsApplicationMixin(ActorSheetV2))`
-- Item sheets extend `LitmItemSheet` (`scripts/sheets/base-item-sheet.js`), which extends `LitmSheetMixin(HandlebarsApplicationMixin(ItemSheetV2))`
-- Standalone apps extend `HandlebarsApplicationMixin(ApplicationV2)` directly
-- Each actor type also has a **landscape sheet variant** (e.g., `HeroSheetLandscape`) registered as a non-default alternative, defined in `scripts/sheets/landscape-sheets.js`
+### Sheet Inheritance
 
-`LitmActorSheet` adds a `MODES` enum (`PLAY = 0`, `EDIT = 1`) and a `_mode` property. Sheets toggle between play and edit templates by overriding `_getEditModeTemplate()` and `_configureRenderParts()`.
+```
+HandlebarsApplicationMixin(ActorSheetV2)
+  -> LitmSheetMixin(...)
+       -> LitmActorSheet              # MODES (PLAY/EDIT), _updateEmbeddedFromForm
+             HeroSheet             + HeroSheetLandscape
+             ChallengeSheet        + ChallengeSheetLandscape    (+ TagStringSyncMixin)
+             JourneySheet          + JourneySheetLandscape      (+ TagStringSyncMixin)
+             FellowshipSheet       + FellowshipSheetLandscape
+             StoryThemeActorSheet
 
-`LitmActorSheet._updateEmbeddedFromForm(submitData)` parses `items.*` and `effects.*` keys from form data and performs embedded document updates. Used by hero and challenge sheet submit handlers.
+HandlebarsApplicationMixin(ItemSheetV2)
+  -> LitmSheetMixin(...)
+       -> LitmItemSheet
+             ThemeSheet, StoryThemeSheet, BackpackSheet,
+             ThemebookSheet, VignetteSheet, TropeSheet, AddonSheet
+```
 
-Action handlers are **private static methods** on sheet classes (e.g., `HeroSheet.#onOpenRollDialog`), referenced by string key in `DEFAULT_OPTIONS.actions`. Despite being declared `static`, ApplicationV2 binds `this` to the **sheet instance** when calling them — so `this.document`, `this.actor`, etc. all work as expected inside these methods.
+Action handlers are **private static methods** on sheet classes, referenced by string key in `DEFAULT_OPTIONS.actions`. ApplicationV2 binds `this` to the sheet instance at call time.
 
-### Data Models
+All actor sheets support **dual modes** -- Play (read-only) and Edit (full editing), togglable via the `E` keybinding. Sheets switch templates by overriding `_getEditModeTemplate()` and `_configureRenderParts()`.
 
-All data models extend `foundry.abstract.TypeDataModel` and define schemas using `foundry.data.fields`. The shared `TagData` embedded model (used in themes) is accessed via `game.litmv2.data.TagData` after init.
+### Actor-Item Relationships
 
-Actor types: `hero`, `journey`, `challenge`, `fellowship`
-Item types: `theme`, `themebook`, `trope`, `backpack`, `story_theme`, `vignette`, `addon`
-ActiveEffect types: `story_tag`, `status_card`, `theme_tag`
+```
+Hero ---+--- 4x theme (with power_tag/weakness_tag effects)
+        +--- 1x backpack (with story_tag effects, transfer: true)
+        +--- fellowshipId ---> Fellowship (singleton)
+                                  +--- 1x theme (isFellowship=true, with fellowship_tag effects)
+                                  +--- Nx story_theme
+
+Challenge ---+--- Nx addon (rating bonus, with synced story_tag/status_tag effects)
+             +--- Nx vignette (consequences)
+
+Journey --------- Nx vignette (one marked generalConsequences)
+```
+
+**Fellowship singleton:** Exactly one fellowship actor per world, stored in `LitmSettings.fellowshipId`. On `ready`, the system ensures the singleton exists and auto-links all heroes. Creation/deletion of duplicates is blocked via `preCreateActor`/`preDeleteActor` hooks.
+
+### Roll Flow
+
+```
+User clicks Roll (Hero Sheet)
+  -> HeroSheet opens LitmRollDialog
+  -> User selects tags (positive / negative / scratched)
+  -> calculatePower():
+       power = scratched*BURN_POWER + powerTags - weaknessTags
+             + maxPositiveStatus - maxNegativeStatus
+             + modifier + might + tradePower
+  -> new LitmRoll("2d6 + {power}", ...)
+  -> evaluate() using DoubleSix term (d12 mapped to 2d6 range via Math.ceil(total / 2))
+  -> outcome: consequences / success-and-consequences / success
+  -> toMessage() -> ChatMessage with rendered template
+  -> Hook "litm.roll" -> auto-scratch, gain improvements
+  -> Socket broadcast -> reset dialogs on all clients
+```
+
+Roll dialog `#selectionMap` is the source of truth for tag selections, not form fields.
+
+### Multiplayer (Sockets)
+
+Eight socket events on `system.litmv2`:
+
+| Event | Purpose |
+|-------|---------|
+| `updateRollDialog` | Sync roll dialog state across clients |
+| `requestRollDialogSync` | Request current dialog state from owner |
+| `resetRollDialog` | Clear dialog after roll completes |
+| `closeRollDialog` | Close dialog on all clients |
+| `rollDice` | GM broadcasts approved roll to player (moderation) |
+| `rejectRoll` | GM rejects roll, reopens dialog |
+| `storyTagsUpdate` | Sync story tag sidebar state |
+| `storyTagsRender` | Trigger sidebar re-render on all clients |
+
+### Standalone Applications
+
+| Class | File | Purpose |
+|-------|------|---------|
+| LitmRollDialog | `scripts/apps/roll-dialog.js` | Tag selection, power calculation, roll submission |
+| LitmRoll | `scripts/apps/roll.js` | Roll formula, outcome resolution, chat display |
+| StoryTagSidebar | `scripts/apps/story-tag-sidebar.js` | Scene tags, effects UI (replaces combat tracker) |
+| SpendPowerApp | `scripts/apps/spend-power.js` | Post-roll power spending dialog |
+| ThemeAdvancementApp | `scripts/apps/theme-advancement.js` | Quest/improvement advancement UI |
+| WelcomeOverlay | `scripts/apps/welcome-overlay.js` | First-time setup wizard |
+| DoubleSix | `scripts/apps/dice.js` | Custom d12-to-2d6 dice term |
+
+### System Infrastructure
+
+| Module | File | Purpose |
+|--------|------|---------|
+| LitmConfig | `scripts/system/config.js` | Theme tiers, `BURN_POWER` constant, roll formula overrides, asset paths, regex patterns, `THEME_TAG_TYPES`/`POWER_TAG_TYPES` sets |
+| LitmSettings | `scripts/system/settings.js` | World/client settings with static getter/setter accessors |
+| Sockets | `scripts/system/sockets.js` | Socket event dispatch and handler registration |
+| Migrations | `scripts/system/migrations.js` | Sequential world-migration system (prefer `migrateData()` in DataModels) |
+| Enrichers | `scripts/system/enrichers.js` | `@render`, `@banner`, `@might`, `[tag]` text enrichers |
+| Handlebars | `scripts/system/handlebars.js` | Template helpers (`add`, `progress-buttons`, `toJSON`, `join`) and partials |
+| Fonts | `scripts/system/fonts.js` | Custom font registration (Ysgarth, Luminari, Labrada, Fraunces, etc.) |
+| KeyBindings | `scripts/system/keybindings.js` | `E` (toggle edit), `Alt+T` (wrap tag markup), `T` (toggle sidebar), `F` (fellowship sheet), `R` (dice roller) |
+| Renderers | `scripts/system/renderers/` | Document-to-HTML renderers for `@render` enricher |
+| Chat | `scripts/system/chat.js` | Track completion detection and chat message builders |
+| ContentSources | `scripts/system/content-sources.js` | Compendium pack management and status seeding |
+| Logger | `scripts/logger.js` | Styled `error`, `warn`, `info`, `success` wrappers -- use instead of bare `console.*` |
+| LitmItem | `scripts/item/litm-item.js` | Custom Item class with legacy tag-to-effect migration |
+| LitmActiveEffect | `scripts/data/active-effects/litm-active-effect.js` | Custom ActiveEffect document class |
+| SuperCheckbox | `scripts/components/super-checkbox.js` | `<litm-super-checkbox>` -- cycles: "" -> positive -> negative -> scratched |
+
+## Game Concepts
+
+Legend in the Mist is a tag-based RPG. Instead of numeric stats, characters are defined by short descriptors called **tags**. Tags define what's true in the story and add or reduce the **Power** of a Hero's actions.
+
+### Tag Taxonomy
+
+**Power Tags** -- Permanent positive tags on a Hero's themes. +1 Power when invoked. Can be **scratched** (temporarily unavailable) or **burned** (+3 Power then scratched). "Burn" is a roll-time action; "scratched" is the resulting persistent state. There is no "burned" state on a tag.
+
+**Weakness Tags** -- Permanent negative tags on a Hero's themes. -1 Power when invoked. Invoking marks **Improve** on its theme (the primary advancement mechanic). Cannot be scratched.
+
+**Story Tags** -- Temporary tags gained during play. +1 or -1 Power depending on context. Can be burned for +3 Power. Created or scratched by spending 2 Power. Variants: **single-use** (scratched after one invocation, cannot be burned), **consumable** (burned when fully consumed for +3).
+
+**Statuses** -- Tags with a **tier** (1-6) measuring intensity. Only the highest positive and highest negative status count toward a roll. Stack when reapplied (mark new tier; if box occupied, shift right). Related to **Limits** -- when a status reaches a Limit tier, the target is overcome.
+
+**Fellowship Power Tags** -- Single-use power tags on the shared Fellowship theme. Cannot be burned. Shared across all Heroes.
+
+**Relationship Tags** -- Single-use story tags each Hero has for each other Hero. Renewed during camp/sojourn.
+
+**Story Theme Tags** -- Story tags elevated into a mini-theme with positive and negative tags. Impermanent (entire theme can be removed).
+
+### Power Calculation
+
+- +1 per helpful (positive) tag
+- -1 per hindering (negative) tag
+- +tier of highest helpful status
+- -tier of highest hindering status
+- +3 for one burned tag (max one per roll)
+- +/-3 or +/-6 for Might difference
+
+### Spending Power (Detailed Outcomes)
+
+- **Add/recover/scratch a tag**: 2 Power
+- **Give/reduce a status**: 1 Power per tier
+- **Discover a valuable detail**: 1 Power
+- **Extra feat**: 1 Power (only after main purpose spent)
+- **Single-use tag** (with last 1 Power): 1 Power
+
+## Active Effects
+
+Active Effects are the **canonical data store** for all tags and statuses. Each effect has a `type` that maps to a TypeDataModel subclass in `scripts/data/active-effects/`.
+
+### Effect Types
+
+#### `power_tag` (lives on: theme/story_theme items)
+
+Fields: `question` (String, nullable), `isScratched` (Boolean), `isTitleTag` (Boolean). Uses `ScratchableMixin` for `toggleScratch()` and `isSuppressed`. `disabled` field encodes unlocked/active state.
+
+Getters: `canBurn` -> `!this.isScratched`, `allowedStates` -> `",positive,scratched"`, `defaultPolarity` -> `1`
+
+#### `weakness_tag` (lives on: theme/story_theme items)
+
+Fields: `question` (String, nullable). No scratch support. `disabled` encodes unlocked/active.
+
+Getters: `canBurn` -> `false`, `allowedStates` -> `",negative,positive"`, `defaultPolarity` -> `-1`
+
+#### `fellowship_tag` (lives on: fellowship theme item)
+
+Fields: `question` (String, nullable), `isScratched` (Boolean), `isTitleTag` (Boolean). Uses `ScratchableMixin`. Always single-use (`isSingleUse` getter returns `true`), cannot be burned.
+
+Getters: `canBurn` -> `false`, `allowedStates` -> `",positive"`, `defaultPolarity` -> `1`
+
+#### `relationship_tag` (lives on: hero actors directly)
+
+Fields: `targetId` (String), `isScratched` (Boolean). Uses `ScratchableMixin`. Always single-use (`isSingleUse` getter returns `true`).
+
+Getters: `canBurn` -> `false`, `allowedStates` -> `",positive,negative"`, `defaultPolarity` -> `1`
+
+#### `story_tag` (lives on: backpack items with transfer, or directly on actors)
+
+Fields: `isScratched` (Boolean), `isSingleUse` (Boolean), `isHidden` (Boolean), `limitId` (String, nullable). Uses `ScratchableMixin`.
+
+Getters: `canBurn` -> `!this.isSingleUse && !this.isScratched`, `allowedStates` -> varies by `isSingleUse`, `defaultPolarity` -> `null`
+
+#### `status_tag` (lives on: actors directly)
+
+Fields: `tiers` (Boolean[6]), `isHidden` (Boolean), `limitId` (String, nullable). No scratch support.
+
+Getters: `canBurn` -> `false`, `allowedStates` -> `",positive,negative"`, `defaultPolarity` -> `null`, `currentTier`, `value`
+
+Static methods: `markTier(tiers, tier)`, `stackTiers(tierArrays)`. Instance: `calculateMark(tier)`, `calculateReduction(amount)`.
+
+### Type Summary
+
+| Type | Lives On | Transfers? | Polarity | Single-Use | Can Burn |
+|------|----------|-----------|----------|-----------|---------|
+| `power_tag` | theme/story_theme items | No | Always +1 | No | Yes (+3) |
+| `weakness_tag` | theme/story_theme items | No | Always -1 | No | No |
+| `fellowship_tag` | fellowship theme item | No | Always +1 | Yes | No |
+| `relationship_tag` | hero actors | N/A | +1 default | Yes | No |
+| `story_tag` | backpack items / actors | Yes (backpack) | Context | Optional | Yes |
+| `status_tag` | actors | No | Context | N/A | N/A |
+
+### ScratchableMixin (`scripts/data/active-effects/scratchable-mixin.js`)
+
+Adds `isSuppressed` getter (returns `this.isScratched` -- Foundry skips suppressed effects) and `toggleScratch()` method. Used by `power_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`.
+
+### Effect Routing
+
+Effects can live on actors or embedded items. Updates must be routed to the correct parent document.
+
+- **`updateEffectsByParent(actor, updates)`** -- resolves each effect via `allApplicableEffects()`, groups by `.parent`, calls `updateEmbeddedDocuments` per group
+- **`_updateEmbeddedFromForm(submitData)`** on actor sheets -- parses `effects.<id>.<field>` keys from form data, normalizes special cases, routes through `updateEffectsByParent`
+
+### Effect Lifecycle
+
+- **Theme sheets**: `item.createEmbeddedDocuments("ActiveEffect", [powerTagEffect(...)])` / `weaknessTagEffect(...)`
+- **Backpack sheets**: `item.createEmbeddedDocuments("ActiveEffect", [{ ...storyTagEffect(...), transfer: true }])`
+- **Actor sheets**: `_onAddStoryTag` routes heroes through backpack with `transfer: true`, others directly on actor
+- **Challenge/Journey** (`TagStringSyncMixin`): Dual representation -- `system.tags` string (canonical in edit mode) and ActiveEffects (canonical in play mode). Mixin synchronizes between them on mode switch.
+- **Addon items**: `syncAddonEffects` parses addon's `system.tags` string, creates effects flagged with `flags.litmv2.addonId`. `resyncAddonEffects` deletes and recreates on addon update.
+
+### EffectTagsMixin (`scripts/actor/effect-tags-mixin.js`)
+
+Mixin for actor data models providing: `storyTags` (all `story_tag` effects), `statusEffects` (all `status_tag` effects), `statusParent` (override point for routing), `addStatus(name, {tiers, img})`, `removeStatus(effectId)`. Uses `allApplicableEffects()` internally.
+
+### HeroData Getters (`scripts/actor/hero/hero-data.js`)
+
+- `fellowshipActor` -- linked fellowship actor (falls back to singleton)
+- `themes` -- `[{ theme: Item, tags: ActiveEffect[] }]` own non-fellowship themes
+- `backpack` / `backpackItem` -- story tags on the hero's backpack item
+- `storyTags` -- all `story_tag` effects via `allApplicableEffects()`
+- `statusEffects` -- all `status_tag` effects (from `EffectTagsMixin`)
+- `fellowship` -- `{ themes, tags }` from the linked fellowship actor
+- `scratchedTags` -- all scratched AEs across hero + fellowship
+
+## Key Conventions
+
+### Prefer Native Foundry Behaviour
+
+Always use Foundry's built-in APIs instead of hand-rolling solutions. A symlink to the current Foundry source is at `./foundry/` (client code under `public/`, CSS at `public/css/foundry2.css`). API docs: https://foundryvtt.com/api/v14/
+
+- **Dialogs:** `foundry.applications.api.DialogV2` (not legacy `Dialog`)
+- **Template rendering:** `foundry.applications.handlebars.renderTemplate()`
+- **Tabs:** Use Foundry's native tab system via `static TABS`, `tabGroups`, `changeTab()`, and `data-action="tab"` -- never hand-roll tab switching JS
+- **CSS:** Use Foundry utility classes (`.tabs`, `.flexrow`, `.flexcol`, `.scrollable`) and CSS variables before writing custom styles
+
+**Gotcha:** `<button>` inside a `<form>` defaults to `type="submit"`. Always use `type="button"` for non-submit buttons in ApplicationV2 apps with `tag: "form"`.
+
+### Tag Access Model
+
+**Access rules:**
+1. **Actor-level queries** (all tags on a character) -> use `allApplicableEffects()`, never `actor.effects`
+2. **Item-level queries** (tags on a specific theme) -> use `item.effects` directly
+3. **Finding an effect by ID** -> search `allApplicableEffects()` or use `resolveEffect()` from `utils.js`
+4. **Mutating an effect** -> resolve via `allApplicableEffects()`, use `effect.parent` for the correct document
+5. **Never set `transfer: true` explicitly** -- it's the Foundry default for item-parented effects
+
+Use `HeroData` getters instead of manually traversing items/effects.
 
 ### Template Paths
 
 All Handlebars template paths are prefixed with `systems/litmv2/`:
 
 ```javascript
-// Correct
 template: "systems/litmv2/templates/actor/hero.html"
-// In HTML partials
+// In partials
 {{> "systems/litmv2/templates/partials/play-tag.html"}}
 ```
 
-### Sockets & Multiplayer
-
-`Sockets.dispatch(event, data)` in `scripts/system/sockets.js` emits on `"system.litmv2"`. `Sockets.on(event, cb)` registers per-event handlers (one handler per event, ignores messages from the sender). Listeners are registered via `Sockets.registerListeners()` in the `ready` hook.
-
-### Roll System
-
-`LitmRollDialog` (ApplicationV2) collects tag selections and power. It calls `LitmRoll` (extends `foundry.dice.Roll`), which uses the custom `DoubleSix` dice term (denomination `"6"`, internally a d12 mapped to 2d6 range via `Math.ceil(total / 2)`). Roll formula and resolver can be overridden on `CONFIG.litmv2.roll`.
-
-Roll dialog presence is tracked via actor flags (`actor.getFlag("litmv2", "rollDialogOwner")`) and displayed in the HUD overlay (`#litm-roll-dialog-hud`).
-
-## Key Conventions
-
 ### Localization
 
-All user-facing strings must use localization keys from `lang/en.json`. Use the `localize` utility (aliased as `t`) from `scripts/utils.js` — see Utility Functions above. When adding new keys, add them to all language files (use `node diff.js` or `node check-keys.js` to find gaps).
+All user-facing strings use keys from `lang/en.json`. Use the `localize` utility (aliased as `t`) from `scripts/utils.js`:
+
+```javascript
+import { localize as t } from "../utils.js";
+```
+
+When adding new keys, add them to all language files (`node diff.js` or `node check-keys.js` to find gaps).
 
 ### CSS Class Naming
 
-System-specific classes use `litm--` prefix (BEM-inspired):
+System-specific classes use `litm--` prefix (BEM-inspired). Use Foundry's built-in utility classes for layout. Prefer Foundry CSS variables (`--color-text-primary`, `--color-border`) over hardcoded values for theme compatibility.
 
-```html
-<div class="litm litm--roll">
-	<span class="litm--tag" draggable="true">tag name</span>
-	<span class="litm--status">status-1</span>
-</div>
-```
+**CSS anti-patterns -- do not use:**
+- `border-left` as a selection/active indicator -- use background color changes instead
+- `dashed` or `dotted` border styles -- use `solid` borders, or `groove`/`ridge` for decorative separators
 
-Use Foundry's built-in utility classes for layout (`.flexrow`, `.flexcol`, `.flex1`, `.scrollable`, `.hidden`). Prefer Foundry CSS variables (`--color-text-primary`, `--border-radius`) over hardcoded values for theme compatibility. See `CSS_GUIDE.md` for the full reference of available variables and utility classes.
+### Logging
 
-**CSS anti-patterns — do not use:**
-- **`border-left` as a selection/active indicator.** Use background color changes instead (e.g., `background: var(--color-warm-1-10)`). Foundry uses background shifts, text emphasis, or full-border changes for active states.
-- **`dashed` or `dotted` border styles.** Use `solid` borders (with reduced-opacity color variables if subtlety is needed), or `groove`/`ridge` for decorative separators.
-
-### Custom Elements
-
-`SuperCheckbox` (`litm-super-checkbox`) cycles through states: `""` → `"positive"` → `"negative"` → `"scratched"`. The `states` attribute can override this list.
-
-`SuperCheckbox` is registered before the `init` hook fires.
-
-### Prefer Native Foundry Behaviour
-
-**Always use Foundry's built-in APIs and UI patterns instead of hand-rolling custom solutions.** When Foundry provides a native mechanism, use it — even if a custom approach seems simpler at first. This applies to tabs, dialogs, forms, drag-and-drop, context menus, notifications, and any other UI or framework feature. A symlink to the current Foundry source is at `./foundry/` (client code under `public/`, CSS at `public/css/foundry2.css`). API docs: https://foundryvtt.com/api/v14/
-
-Specific examples:
-
-- **Dialogs:** Use `foundry.applications.api.DialogV2` (not legacy `Dialog`).
-- **Template rendering:** Use `foundry.applications.handlebars.renderTemplate()` (not bare `renderTemplate` global).
-- **Tabs:** Use Foundry's native ApplicationV2 tab system via `tabGroups`, `changeTab()`, and `data-action="tab"` attributes — never hand-roll tab switching JS. See the pattern below.
-- **CSS:** Use Foundry's built-in utility classes (`.tabs`, `.tab`, `.item`, `.flexrow`, `.flexcol`, `.scrollable`, etc.) and CSS variables before writing custom styles.
-
-#### Native Tabs Pattern (ApplicationV2)
-
-For **static tabs** known at class definition time, use `static TABS`:
+Use the system logger (`scripts/logger.js`) instead of bare `console.log/warn/error`:
 
 ```javascript
-static TABS = {
-  group: {
-    tabs: [{id: "tab1", icon: "fa-solid fa-book"}, {id: "tab2"}],
-    initial: "tab1",
-    labelPrefix: "LITM.Tabs"
-  }
-};
+import { error, warn, info, success } from "../logger.js";
 ```
+
+**Exception:** `.catch(console.error)` callbacks are acceptable since the logger loses Error stack traces.
+
+### Dynamic Tabs
 
 For **dynamic tabs** (e.g., generated from data at render time), manually manage `tabGroups` and set `cssClass` on each tab entry in `_prepareContext`:
 
@@ -141,7 +361,7 @@ for (const tab of dynamicTabs) {
 }
 ```
 
-Template markup — nav buttons use `data-action="tab"`, content sections use `class="tab"`:
+Template markup -- nav buttons use `data-action="tab"`, content sections use `class="tab"`:
 
 ```html
 <nav class="tabs" data-group="my-group">
@@ -155,137 +375,139 @@ Template markup — nav buttons use `data-action="tab"`, content sections use `c
 
 Foundry's `changeTab()` handles all switching, active-class toggling, and state persistence automatically. No custom JS event listeners needed.
 
-**Gotcha:** `<button>` inside a `<form>` defaults to `type="submit"`. Always use `type="button"` for non-submit buttons in ApplicationV2 apps with `tag: "form"`.
-
-### Tag Access Model
-
-All tags are ActiveEffects with custom types. Foundry's `allApplicableEffects()` is the single source of truth for "what effects are on this actor" — it yields the actor's own effects plus all transferred effects from owned items. Item effects default to `transfer: true`, so all item-level tags are included automatically.
-
-**Access rules:**
-1. **Actor-level queries** (all tags on a character) → use `allApplicableEffects()`, never `actor.effects`
-2. **Item-level queries** (tags on a specific theme) → use `item.effects` directly
-3. **Finding an effect by ID** → search `allApplicableEffects()` or use `resolveEffect()` from `utils.js`
-4. **Mutating an effect** → resolve via `allApplicableEffects()`, use `effect.parent` for the target document
-5. **Never set `transfer: true` explicitly** — it's the Foundry default for item-parented effects
-
-**Storage:**
-- Theme tags (`power_tag`, `weakness_tag`, `fellowship_tag`) → on theme/story_theme items
-- Story tags (`story_tag`) → on backpack item (heroes) or actor (others)
-- Status tags (`status_tag`) → always on the actor directly
-- Relationship tags (`relationship_tag`) → on the hero actor directly
-
-### HeroData Getters (`scripts/actor/hero/hero-data.js`)
-
-`HeroData` provides computed getters for accessing tags and effects. **Always use these instead of manually traversing items/effects.**
-
-- `fellowshipActor` — linked fellowship actor (falls back to singleton)
-- `themes` — `[{ theme: Item, tags: ActiveEffect[] }]` own non-fellowship themes with their tag AEs
-- `backpack` — story tags on the hero's backpack item (via `BackpackData.tags`)
-- `storyTags` — all `story_tag` effects via `allApplicableEffects()`
-- `statuses` — all `status_tag` effects via `allApplicableEffects()`
-- `relationships` — all `relationship_tag` effects via `allApplicableEffects()`
-- `fellowship` — `{ themes, tags }` from the linked fellowship actor via its `allApplicableEffects()`
-- `scratchedTags` — all scratched AEs across hero + fellowship via `allApplicableEffects()`
-
-### Custom System Hooks
-
-The system emits hooks that modules and macros can listen to:
-
-- `litm.preRoll` — before a roll is submitted. Return `false` to cancel. Receives `{ actorId, tags, title, type, ... }`.
-- `litm.roll` — after a roll completes. Receives `(roll, chatMessage)`.
-- `litm.rollDialogRendered` — when roll dialog opens. Receives `(actor, dialog)`.
-- `litm.rollDialogClosed` — when roll dialog closes. Receives `(actor)`.
-- `litm.preTagScratched` — before a tag is scratched. Return `false` to cancel. Receives `(actor, tag)`.
-- `litm.tagScratched` — after a tag is scratched. Receives `(actor, tag)`.
-- `litm.themeAdvanced` — after a theme is advanced. Receives `(actor, theme, updateData)`.
-
-### Hooks Organization
-
-Hooks are registered via `LitmHooks.register()` in `scripts/system/hooks/index.js`, which delegates to domain-specific modules: `actor-hooks.js`, `chat-hooks.js`, `compat-hooks.js`, `fellowship-hooks.js`, `item-hooks.js`, `preloads.js`, `ready-hooks.js`, `ui-hooks.js`. Add new hooks to the appropriate domain file.
-
 ### Data Migrations
 
-**Prefer `static migrateData(source)` in DataModel subclasses** for data shape changes (renaming fields, coercing types, backfilling defaults). Foundry calls `migrateData` automatically whenever a document is loaded, so these migrations are transparent, idempotent, and require no version tracking. Examples exist in `ChallengeData`, `ThemeData`, and `StoryThemeData`. Always call `return super.migrateData(source)` at the end.
+Prefer `static migrateData(source)` in DataModel subclasses for data shape changes. Foundry calls `migrateData` automatically on document load -- transparent, idempotent, no version tracking. Always call `return super.migrateData(source)` at the end.
 
-`scripts/system/migrations.js` provides a separate sequential world-migration system for bulk operations that cannot be handled by `migrateData` alone (e.g., renaming document types, moving data between documents). `migrateWorld()` runs on the `ready` hook (GM-only) and executes pending entries from the `MIGRATIONS` array. Use this only when DataModel-level migration is insufficient.
+`scripts/system/migrations.js` is only for bulk operations that `migrateData` can't handle (e.g., renaming document types, moving data between documents).
 
 ### Settings (`scripts/system/settings.js`)
 
 `LitmSettings.register()` registers world and client settings with static getter/setter accessors:
-- `welcomed` (world) — whether the welcome overlay has been shown
-- `storytags` (world) — shared story tags data
-- `systemMigrationVersion` (world) — tracks applied migration version
-- `fellowshipId` (world) — ID of the fellowship actor
-- `customDice` (client) — toggle custom dice rendering
-- `popoutTagsSidebar` (client) — tags sidebar popout preference
 
-### Asset Preloads
+**World:** `welcomed`, `storytags`, `systemMigrationVersion`, `fellowshipId`, `heroLimit`, `useFellowship`, `statusesSeeded`, compendium source arrays (`compendium.themebooks`, `compendium.themekits`, `compendium.tropes`, `compendium.statuses`)
 
-New `.webp` assets must be added to the `preloads` array in `LitmConfig` (`scripts/system/config.js`). Preload logic lives in `scripts/system/hooks/preloads.js`. All images use `.webp` format. Icons use `.svg`.
+**Client:** `customDice`, `popoutTagsSidebar`
 
-### Logging (`scripts/logger.js`)
+### Effect Factory Functions (`scripts/utils.js`)
 
-**Always use the system logger instead of bare `console.log/warn/error`.** The logger prefixes messages with a styled "Legend in the Mist |" label for easy filtering.
-
-```javascript
-import { error, warn, info, success } from "../logger.js";
-error("Something failed");    // console.error with styled prefix
-warn("Heads up");             // console.warn with styled prefix
-info("FYI");                  // console.log with styled prefix (blue)
-success("Done");              // console.log with styled prefix (green)
-```
-
-**Exception:** `.catch(console.error)` callbacks are acceptable since the logger's `args.join("\n")` loses Error stack traces. For catch blocks with context strings, use the logger: `catch (err) { error("Migration failed", err); }`.
+Use factory functions to create properly-shaped effect data: `powerTagEffect()`, `weaknessTagEffect()`, `fellowshipTagEffect()`, `relationshipTagEffect()`, `storyTagEffect()`, `statusTagEffect()`. Use `updateEffectsByParent(actor, updates)` to route batched effect updates to the correct parent document.
 
 ### Utility Functions (`scripts/utils.js`)
 
-- `localize(...key)` — wrapper around `game.i18n.localize()`. Import as `t`: `import { localize as t } from "../utils.js"`
-- `queryItemsFromPacks({ type, filter, indexFields, map })` — queries world items and compendium pack indices by type, with optional filtering and mapping. Use this instead of manually iterating packs.
-- `findThemebookByName(name)` — searches world items then compendium packs for a themebook by name.
-- `enrichHTML(text, document)` — wraps `TextEditor.enrichHTML()` with owner-aware secrets and `relativeTo` context.
-- `confirmDelete(string)` — shows a `DialogV2.confirm()` prompt; returns `false` on cancel or X-button close.
-- `toQuestionOptions(questions, skipFirst)` — maps question arrays to letter-indexed option objects (A, B, C…).
-- `titleCase(str)` — converts to title case, skipping articles (and, the, of, etc.).
-- `sleep(ms)` — Promise-based delay.
-- `effectToTag(effect, typeOverride)` — maps an ActiveEffect to a TagData-compatible plain object (synthesizes `isActive` from `!effect.disabled`).
-- `powerTagEffect({name, isActive, question, isScratched})` — builds `power_tag` ActiveEffect creation data.
-- `weaknessTagEffect({name, isActive, question})` — builds `weakness_tag` ActiveEffect creation data.
-- `fellowshipTagEffect({name, isActive, question, isScratched})` — builds `fellowship_tag` ActiveEffect creation data.
-- `relationshipTagEffect({name, targetId})` — builds `relationship_tag` ActiveEffect creation data.
-- `storyTagEffect({name, isScratched, isSingleUse, isHidden, limitId})` — builds `story_tag` ActiveEffect creation data.
-- `statusTagEffect({name, tiers, isHidden, limitId})` — builds `status_tag` ActiveEffect creation data.
-- `updateEffectsByParent(actor, updates)` — routes batched effect updates to the correct parent document (actor or embedded item).
+- `localize(...keys)` (alias `t`) -- `game.i18n.localize()` wrapper
+- `queryItemsFromPacks({ type, filter, indexFields, map })` -- queries world items and compendium packs
+- `findThemebookByName(name)` -- searches world items then compendium packs
+- `enrichHTML(text, document)` -- `TextEditor.enrichHTML()` wrapper with owner-aware secrets
+- `confirmDelete(string)` -- `DialogV2.confirm()` prompt; returns `false` on cancel/close
+- `toQuestionOptions(questions, skipFirst)` -- maps question arrays to letter-indexed options
+- `resolveEffect(effectId, actor, {fellowship})` -- finds effect across actor/items/fellowship
+- `parseEmbeddedFormKeys()` -- extracts nested document updates from form data
 
-### Testing
+### Custom System Hooks
 
-E2E tests use Playwright in `tests/e2e/`. Specs are in `tests/e2e/specs/`, selectors in `tests/e2e/helpers/selectors.ts`.
+- `litm.preRoll` / `litm.roll` -- before/after roll submission
+- `litm.rollDialogRendered` / `litm.rollDialogClosed` -- roll dialog lifecycle
+- `litm.preTagScratched` / `litm.tagScratched` -- tag scratch lifecycle
+- `litm.themeAdvanced` -- after theme advancement
 
-### Hot Reload
+### Hooks Organization
 
-The system supports hot reloading for `css`, `html`, `js`, and `json` files in `templates/`, `lang/`, `litmv2.css`, and `litmv2.js`. No build step is required; edit files directly.
+Hooks registered via `LitmHooks.register()` in `scripts/system/hooks/index.js`, delegating to domain-specific modules: `actor-hooks.js`, `chat-hooks.js`, `compat-hooks.js`, `fellowship-hooks.js`, `item-hooks.js`, `preloads.js`, `ready-hooks.js`, `ui-hooks.js`, `token-hooks.js`. Add new hooks to the appropriate domain file.
+
+### Asset Preloads
+
+New `.webp` assets must be added to the `preloads` array in `LitmConfig` (`scripts/system/config.js`). All images use `.webp` format. Icons use `.svg`.
+
+## Foundry CSS Reference
+
+Foundry V14 provides extensive utility classes and CSS variables. The Foundry source CSS is at `./foundry/public/css/foundry2.css`. Always check the source for current values.
+
+### Layout Utilities
+
+| Class | Description |
+|-------|-------------|
+| `.flexrow` | `display: flex; flex-direction: row; flex-wrap: wrap; align-items: center;` Children default to `flex: 1` |
+| `.flexcol` | `display: flex; flex-direction: column; flex-wrap: nowrap;` Children default to `flex: none` |
+| `.flex0` - `.flex3` | Flex growth values 0-3 |
+| `.noflex` | `flex: none` |
+| `.scrollable` | `overflow: hidden auto` with `scrollbar-gutter: stable` |
+| `.hidden` | `display: none !important` |
+| `.disabled` | `cursor: default; pointer-events: none;` |
+| `.ellipsis` | `white-space: nowrap; text-overflow: ellipsis; overflow: hidden;` |
+
+### Forms (`.standard-form`)
+
+| Class | Description |
+|-------|-------------|
+| `.standard-form` | Top-level flex column container with `gap` spacing |
+| `.form-group` | Container for label + input. Label `flex: 1`, input/fields `flex: 2` |
+| `.form-group.stacked` | Children take 100% width |
+| `.form-group.inline` | `justify-content: space-between` |
+| `.form-group.slim` | Reduced spacing |
+| `.form-fields` | Flex container for grouping multiple inputs |
+| `.form-footer` | Container for action buttons |
+| `.hint` | Small text (`var(--font-size-14)`) |
+| `fieldset.input-grid` | CSS Grid layout, default `--grid-cols: 2` |
+
+### Buttons
+
+| Class | Description |
+|-------|-------------|
+| `button` / `a.button` | Standard flex button with transitions |
+| `.bright` | Uppercase, high-contrast action button |
+| `.active` | Focus/active state outline |
+| `.icon` | Fixed-width icon button (`flex: 0 0 var(--button-size)`) |
+| `.plain` | Transparent background and borders |
+| `.ui-control` | Small fixed-size control button (32px) |
+
+### Tabs
+
+| Class | Description |
+|-------|-------------|
+| `nav.tabs` | Flex container with `space-evenly` |
+| `nav.tabs.vertical` | Column layout for sidebars |
+| `nav.tabs [data-tab].active` | Highlighted active tab |
+| `.tab[data-tab]` | Content container, hidden unless `.active` |
+
+### Sheet Structure
+
+| Class | Description |
+|-------|-------------|
+| `.app` | Base application with backdrop blur and rounded corners |
+| `.window-app` | Pop-out window structure |
+| `.window-header` | Header with title and controls |
+| `.window-content` | Scrollable main content area |
+| `.sheet-header` | Flexrow header for profile image and name |
+| `.sheet-tabs` | Specialized tab navigation |
+| `.sheet-footer` | Bottom action area |
+
+### Key CSS Variables
+
+Foundry V14 uses a warm earth-tone palette. Variables are theme-aware (light/dark via `body.theme-light` / `body.theme-dark`).
+
+**Text:** `--color-text-emphatic`, `--color-text-primary`, `--color-text-secondary`, `--color-text-subtle`
+
+**Layout:** `--spacer-2`, `--spacer-4`, `--spacer-8`, `--spacer-12`, `--spacer-16` (spacing)
+
+**Typography:** `--font-primary` (Signika), `--font-size-11` through `--font-size-24`
+
+**Application:** `--background`, `--color-header-background`, `--color-border`, `--color-tabs-border`, `--color-fieldset-border`
+
+**Forms:** `--color-form-hint`, `--color-form-label`, `--color-form-hint-hover`, `--color-form-label-hover`
+
+**Headings:** `--font-h1` (Modesto Condensed), `--font-h2` (Amiri), `--font-h3` (Signika)
 
 ## Design Context
 
-### Users
-Primary audience is TTRPG players and GMs running Legend in the Mist sessions online via Foundry VTT. The system should also feel welcoming to newcomers who are new to virtual tabletops — clear affordances, discoverable UI, no assumed Foundry knowledge.
-
 ### Brand Personality
-**Rustic, warm, storied.** The interface should feel like a well-loved book of legends — aged but inviting, with the warmth of candlelight and parchment. Typography leans on blackletter headings (Ysgarth), decorative serifs (Luminari, PowellAntique), and readable body serifs (Labrada, Fraunces). The color palette is earth-toned: golden mustard tags, sage green statuses, muted rose limits, warm beige banners.
 
-### Emotional Goals
-- **Immersion & wonder**: The UI should transport players into the world, not remind them they're using software. Decorative elements (banners, tag badges, antique fonts) serve atmosphere.
-- **Confidence & clarity**: Despite the decorative layer, information hierarchy must be crystal clear. Players should always know where they are, what they can do, and what just happened.
-
-### Aesthetic Direction
-- Warm earth tones with strong light/dark mode support
-- Antique/rustic typography with clear readability hierarchy
-- Notched banners, stroke-effect tag badges, parchment textures
-- Foundry utility classes and CSS variables as the foundation layer
-- **Anti-reference**: Avoid overly ornate or heavy decoration that slows comprehension. Decoration should serve atmosphere, never obstruct usability.
+**Rustic, warm, storied.** The interface should feel like a well-loved book of legends -- aged but inviting, with warmth of candlelight and parchment. Typography: blackletter headings (Ysgarth), decorative serifs (Luminari, PowellAntique), readable body serifs (Labrada, Fraunces). Color palette: earth-toned golden mustard tags, sage green statuses, muted rose limits, warm beige banners.
 
 ### Design Principles
-1. **Atmosphere through restraint** — Decorative elements (fonts, banners, textures) create mood, but never at the cost of clarity. When in doubt, simplify.
-2. **Newcomer-friendly** — Every interaction should be discoverable without a manual. Tooltips, clear labels, and consistent patterns over clever shortcuts.
-3. **Foundry-native first** — Use Foundry's built-in UI patterns, utility classes, and CSS variables before writing custom solutions. This ensures theme compatibility and reduces maintenance.
-4. **Warm, not heavy** — The palette and typography evoke aged parchment and candlelight, but the interface should feel light and responsive, not weighed down by decoration.
-5. **Both modes matter** — Light and dark themes are first-class citizens. Every color, texture, and decorative element must work well in both.
+
+1. **Atmosphere through restraint** -- Decoration creates mood but never at the cost of clarity
+2. **Newcomer-friendly** -- Discoverable interactions, tooltips, consistent patterns
+3. **Foundry-native first** -- Built-in UI patterns, utility classes, CSS variables before custom solutions
+4. **Warm, not heavy** -- Aged parchment and candlelight, but light and responsive
+5. **Both modes matter** -- Light and dark themes are first-class citizens
