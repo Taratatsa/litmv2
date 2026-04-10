@@ -1,5 +1,6 @@
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
 import { THEME_TAG_TYPES } from "../../system/config.js";
+import { LitmSettings } from "../../system/settings.js";
 import { Sockets } from "../../system/sockets.js";
 import { enrichHTML, relationshipTagEffect } from "../../utils.js";
 
@@ -157,26 +158,30 @@ export class HeroSheet extends LitmActorSheet {
 		}
 
 		// Prepare fellowship from linked fellowship actor
+		const hasFellowship = LitmSettings.useFellowship;
 		let fellowship = {};
-		const fellowshipActor = this.system.fellowshipActor;
-		if (fellowshipActor) {
-			const fellowshipTheme = fellowshipActor.system.theme;
-			fellowship = {
-				actorId: fellowshipActor.id,
-				actorName: fellowshipActor.name,
-				hasTheme: !!fellowshipTheme,
-			};
-			if (fellowshipTheme) {
-				const data = this._prepareThemeData(fellowshipTheme);
+		let fellowshipActor = null;
+		if (hasFellowship) {
+			fellowshipActor = this.system.fellowshipActor;
+			if (fellowshipActor) {
+				const fellowshipTheme = fellowshipActor.system.theme;
 				fellowship = {
-					...fellowship,
-					name: fellowshipTheme.name,
-					_id: fellowshipTheme.id,
-					id: fellowshipTheme.id,
-					img: fellowshipTheme.img,
-					themeTag: data.themeTag,
-					system: data.system,
+					actorId: fellowshipActor.id,
+					actorName: fellowshipActor.name,
+					hasTheme: !!fellowshipTheme,
 				};
+				if (fellowshipTheme) {
+					const data = this._prepareThemeData(fellowshipTheme);
+					fellowship = {
+						...fellowship,
+						name: fellowshipTheme.name,
+						_id: fellowshipTheme.id,
+						id: fellowshipTheme.id,
+						img: fellowshipTheme.img,
+						themeTag: data.themeTag,
+						system: data.system,
+					};
+				}
 			}
 		}
 
@@ -184,7 +189,7 @@ export class HeroSheet extends LitmActorSheet {
 		const ownStoryThemeItems = this.document.items
 			.filter((i) => i.type === "story_theme")
 			.sort((a, b) => a.sort - b.sort);
-		const fellowshipStoryThemeItems = fellowshipActor
+		const fellowshipStoryThemeItems = hasFellowship && fellowshipActor
 			? fellowshipActor.items
 					.filter((i) => i.type === "story_theme")
 					.sort((a, b) => a.sort - b.sort)
@@ -253,7 +258,7 @@ export class HeroSheet extends LitmActorSheet {
 		const statuses = this.system.statuses
 			.filter((e) => game.user.isGM || !e.system?.isHidden);
 
-		const relationshipEntries = this._prepareRelationshipEntries();
+		const relationshipEntries = hasFellowship ? this._prepareRelationshipEntries() : [];
 		const relationshipVisible = relationshipEntries.filter((entry) =>
 			entry.tag.trim(),
 		);
@@ -280,8 +285,9 @@ export class HeroSheet extends LitmActorSheet {
 			},
 			fields,
 			themes,
+			hasFellowship,
 			fellowship,
-			fellowshipActorId: fellowshipActor?.id ?? null,
+			fellowshipActorId: hasFellowship ? (fellowshipActor?.id ?? null) : null,
 			storyThemes,
 			backpack,
 			storyTags: tagEffects,
@@ -359,14 +365,19 @@ export class HeroSheet extends LitmActorSheet {
 			themeId: e.parent?.id,
 			themeName: e.parent?.name,
 		});
-		return [
+		const tags = [
 			...sys.themes.flatMap((g) => g.tags),
 			...sys.backpack,
-			...sys.fellowship.themes.flatMap((g) => g.tags),
-			...sys.fellowship.tags,
-			...sys.relationships.filter((e) => e.name),
 			...sys.statuses,
-		].map(toPlain);
+		];
+		if (LitmSettings.useFellowship) {
+			tags.push(
+				...sys.fellowship.themes.flatMap((g) => g.tags),
+				...sys.fellowship.tags,
+				...sys.relationships.filter((e) => e.name),
+			);
+		}
+		return tags.map(toPlain);
 	}
 
 	/**
