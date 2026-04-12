@@ -201,8 +201,9 @@ export class StoryTagSidebar
 	 */
 	#resolveActor(id) {
 		if (!id) return null;
-
-		return foundry.utils.fromUuidSync(id) ?? game.actors.get(id) ?? null;
+		// Decode encoded form keys (dots replaced with __ for expandObject safety)
+		const decoded = id.includes("__") ? id.replaceAll("__", ".") : id;
+		return foundry.utils.fromUuidSync(decoded) ?? game.actors.get(decoded) ?? null;
 	}
 
 	/**
@@ -253,7 +254,7 @@ export class StoryTagSidebar
 				img: tokenDoc?.texture?.src || actor.prototypeToken?.texture?.src ||
 					actor.img,
 				id: uuid,
-				actorId: actor._id,
+				actorId: uuid.replaceAll(".", "__"),
 				isOwner: actor.isOwner,
 				isUserCharacter: userCharacterUuids.has(actor.uuid) ||
 					actor.uuid === fellowshipUuid,
