@@ -498,7 +498,7 @@ Foundry V14 uses a warm earth-tone palette. Variables are theme-aware (light/dar
 
 ## Design System
 
-The system has a fully-implemented visual identity -- this is **not aspirational**. New UI must match the existing language; do not reach for Foundry defaults when system tokens already exist. When you find yourself writing inline `style="..."` or `border-radius: 999px` or `var(--spacer-8)`, stop -- there is almost certainly a litm token or class for what you want.
+The system has a fully-implemented visual identity -- this is **not aspirational**. New UI must match the existing language; do not reach for Foundry defaults when system tokens already exist. When you find yourself writing inline `style="..."` or `border-radius: 999px`, stop -- there is almost certainly a litm token or class for what you want. **Use Foundry's tokens where they exist** (spacing, text colors, font sizes); the litm tokens fill in what Foundry doesn't have (game colors, fonts, custom radii).
 
 ### What the system actually looks like
 
@@ -509,10 +509,10 @@ The system has a fully-implemented visual identity -- this is **not aspirational
 - **Italic blockquote flavor text** sits inside theme/vignette cards, between header and body.
 - **Tracks use `○ ○ ○` empty-circle progress** with custom checkbox SVGs for filled state. See `.progress-box` and `assets/media/checkbox.svg`.
 
-### Design tokens (use these, not Foundry's)
+### Design tokens
 
 ```
-Spacing       --space-xs/sm/md/lg/xl    (0.25 / 0.35 / 0.5 / 0.75 / 1 rem)
+Spacing       --spacer-2/4/8/12/16      (Foundry: 0.125 / 0.25 / 0.5 / 0.75 / 1 rem)
 Radius        --border-radius           (4px, default)
               --radius-sm/md/lg/xl      (3 / 6 / 8 / 10 px)
               --radius-pill             (100px)   ← use this, not "999px"
@@ -537,9 +537,11 @@ Fonts         --font-blackletter        (Ysgarth) -- character/sheet titles only
               --font-blockquote         (Labrada) -- italic flavor text
 ```
 
-**Foundry tokens that are still fine:** `--color-text-primary/secondary/subtle/emphatic`, `--color-form-*`, `--color-border`, `--color-fieldset-border`, `--font-size-11..24`, `--font-monospace`. Foundry layout utilities (`.flexrow`, `.flexcol`, `.flex0/1/2/3`, `.noflex`, `.scrollable`, `.standard-form`, `.form-group`, `.hint`) are imported and expected.
+**Foundry tokens to use directly:** `--spacer-2/4/8/12/16` (spacing), `--color-text-primary/secondary/subtle/emphatic`, `--color-form-*`, `--color-border`, `--color-fieldset-border`, `--font-size-11..24`, `--font-monospace`. Foundry layout utilities (`.flexrow`, `.flexcol`, `.flex0/1/2/3`, `.noflex`, `.scrollable`, `.standard-form`, `.form-group`, `.hint`, `.gap-xs/sm/md/lg`) are imported and expected.
 
-**Foundry tokens to NOT use in new code:** `--spacer-4/8/12/16` (use `--space-xs/sm/md/lg`), `--color-header-background` for card surfaces (let the parchment show through), Foundry's `gap-xs/sm/md/lg` *values* are aliased to `--spacer-*` in this codebase -- those gap utility classes are still fine to use as classes, but don't reach for the underlying `--spacer-*` variable in your own CSS.
+**Foundry tokens to avoid:** `--color-header-background` for card surfaces (let the parchment show through; the flat-grey paint reads as "admin tool").
+
+**No local spacing tokens.** Snap every spacing value at or below 1rem to Foundry's `--spacer-2/4/8/12/16` scale. Don't invent `--space-*` aliases. Values above 1rem (large card padding like `1.25rem`, `1.5rem`, `2rem`) are deliberate surface-scale spacing — keep them as raw rem; they're literal layout values, not redefined tokens.
 
 ### Established UI patterns -- reuse, don't reinvent
 
@@ -558,7 +560,7 @@ Fonts         --font-blackletter        (Ysgarth) -- character/sheet titles only
 Before adding new CSS or templates, work through this:
 
 1. Is there an established `litm--*` class for this concept? (Check section 4 for tags, sections 5--8 for cards/sheets, section 11 for chat, section 16 for embed cards.)
-2. Are spacing values pulled from `--space-*`, not `--spacer-*` or raw rems?
+2. Are spacing values pulled from `--spacer-*` (Foundry), not raw rems?
 3. Are radii pulled from `--radius-*`, not raw `4px` or `999px`?
 4. Are colors pulled from `--color-litm-*` (game) or `--color-text-*` (Foundry text), not `--color-header-background`?
 5. Is body text serif italic where it represents flavor, voice, or in-fiction language? Plain sans is for chrome (buttons, form labels, hints) only.

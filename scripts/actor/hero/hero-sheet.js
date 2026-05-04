@@ -47,7 +47,7 @@ export class HeroSheet extends LitmActorSheet {
 			viewActor: HeroSheet.#onViewActor,
 			adjustProgress: LitmActorSheet._onAdjustProgress,
 			openThemeAdvancement: HeroSheet.#onOpenThemeAdvancement,
-			toggleTier: HeroSheet.#onToggleTier,
+			toggleTier: { handler: HeroSheet.#onToggleTier, buttons: [0, 2] },
 		},
 		form: {
 			handler: HeroSheet.#onSubmitForm,
@@ -71,13 +71,6 @@ export class HeroSheet extends LitmActorSheet {
 	static PLAY_CONTENT_TEMPLATE = "systems/litmv2/templates/actor/hero-play-content.html";
 
 
-	/** @override */
-	async _onRender(context, options) {
-		await super._onRender(context, options);
-		for (const el of this.element.querySelectorAll(".litm--tag-item-status")) {
-			el.addEventListener("contextmenu", HeroSheet.#onReduceStatus.bind(this));
-		}
-	}
 
 	/**
 	 * Inline Actions browser button alongside the edit/play mode toggle. V14's
@@ -578,29 +571,25 @@ export class HeroSheet extends LitmActorSheet {
 	 * @param {HTMLElement} target The target element
 	 * @private
 	 */
-	static async #onToggleTier(_event, target) {
+	static async #onToggleTier(event, target) {
 		const effectId = target.closest("[data-effect-id]")?.dataset.effectId;
-		const tier = Number.parseInt(target.dataset.tier, 10);
-		if (!effectId || !Number.isFinite(tier)) return;
-
+		if (!effectId) return;
 		const effect = resolveEffect(effectId, this.document);
 		if (!effect || effect.type !== "status_tag") return;
 
+		// Right-click reduces the highest filled tier by 1 (legacy contextmenu behavior).
+		if (event.button === 2) {
+			event.preventDefault();
+			if (!effect.system.tiers.some(Boolean)) return;
+			const newTiers = effect.system.calculateReduction(1);
+			await effect.update({ "system.tiers": newTiers });
+			return;
+		}
+
+		const tier = Number.parseInt(target.dataset.tier, 10);
+		if (!Number.isFinite(tier)) return;
 		const newTiers = [...effect.system.tiers];
 		newTiers[tier - 1] = !newTiers[tier - 1];
-		await effect.update({ "system.tiers": newTiers });
-	}
-
-	static async #onReduceStatus(event) {
-		const statusRow = event.target.closest("[data-effect-id]");
-		if (!statusRow) return;
-		event.preventDefault();
-
-		const effect = resolveEffect(statusRow.dataset.effectId, this.document);
-		if (!effect || effect.type !== "status_tag") return;
-		if (!effect.system.tiers.some(Boolean)) return;
-
-		const newTiers = effect.system.calculateReduction(1);
 		await effect.update({ "system.tiers": newTiers });
 	}
 

@@ -34,7 +34,7 @@
 		<ul class="plain">
 			{{#each fixedKits as |kit|}}
 			<li class="form-group">
-				<div class="flex1" style="display:flex; flex-direction:column; gap:0.25rem;">
+				<div class="flex1 gap-xs flexcol">
 					<span>{{#if kit.name}}{{kit.name}}{{else}}{{kit.value}}{{/if}}</span>
 					<span class="hint">
 						{{#if kit.value}}
@@ -42,7 +42,7 @@
 						{{/if}}
 					</span>
 				</div>
-				<button type="button" style="flex:none;" data-action="removeEntry" data-path="system.themeKits.fixed"
+				<button type="button" class="noflex" data-action="removeEntry" data-path="system.themeKits.fixed"
 					data-index="{{@index}}" data-tooltip="{{localize 'LITM.Ui.remove_tag'}}" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
@@ -61,7 +61,7 @@
 		<ul class="plain">
 			{{#each optionalKits as |kit|}}
 			<li class="form-group">
-				<div class="flex1" style="display:flex; flex-direction:column; gap:0.25rem;">
+				<div class="flex1 gap-xs flexcol">
 					<span>{{#if kit.name}}{{kit.name}}{{else}}{{kit.value}}{{/if}}</span>
 					<span class="hint">
 						{{#if kit.value}}
@@ -69,7 +69,7 @@
 						{{/if}}
 					</span>
 				</div>
-				<button type="button" style="flex:none;" data-action="removeEntry" data-path="system.themeKits.optional"
+				<button type="button" class="noflex" data-action="removeEntry" data-path="system.themeKits.optional"
 					data-index="{{@index}}" data-tooltip="{{localize 'LITM.Ui.remove_tag'}}" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
@@ -85,7 +85,7 @@
 			<li class="form-group">
 				<input class="flex1" type="text" name="system.backpackChoices.{{@index}}" value="{{choice}}"
 					placeholder="{{localize 'LITM.Ui.backpack_choice_placeholder'}}" />
-				<button type="button" style="flex:none;" data-action="removeEntry" data-path="system.backpackChoices"
+				<button type="button" class="noflex" data-action="removeEntry" data-path="system.backpackChoices"
 					data-index="{{@index}}" data-tooltip="{{localize 'LITM.Ui.remove_tag'}}" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>

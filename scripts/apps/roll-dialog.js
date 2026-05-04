@@ -40,6 +40,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			sendToNarrator: LitmRollDialog.#onSendToNarrator,
 			viewLinkedRef: viewLinkedRefAction,
 			viewActionCard: LitmRollDialog.#onViewActionCard,
+			toggleRollTag: LitmRollDialog.#onToggleRollTag,
 		},
 	};
 
@@ -78,6 +79,29 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	static async #onViewActionCard() {
 		if (!this.#actionDoc) return;
 		new LitmEmbedPopout({ document: this.#actionDoc, render: renderAction }).render(true);
+	}
+
+	/**
+	 * Click on a tag's label cycles the embedded super-checkbox; shift-click
+	 * jumps straight to (or out of) the "scratched" state when the tag allows
+	 * it. The early return covers re-entry: the programmatic checkbox.click()
+	 * below bubbles a fresh click event back through the same data-action.
+	 */
+	static #onToggleRollTag(event, target) {
+		if (event.target.tagName === "LITM-SUPER-CHECKBOX") return;
+		event.preventDefault();
+		const checkbox = target.querySelector("litm-super-checkbox");
+		if (!checkbox) return;
+
+		if (event.shiftKey && !checkbox.disabled) {
+			const canScratch = checkbox.getAttribute("states")?.includes("scratched");
+			if (canScratch) {
+				checkbox.value = checkbox.value === "scratched" ? "" : "scratched";
+				checkbox.dispatchEvent(new Event("change"));
+				return;
+			}
+		}
+		checkbox.click();
 	}
 
 	extractRollData(formData) {
@@ -825,27 +849,6 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			} else if (target.matches("input[name='type']")) {
 				this.#handleTypeChange(target);
 			}
-		});
-
-		// Delegated click handler for tag label interactions (click to toggle, shift-click to scratch)
-		this.element.addEventListener("click", (event) => {
-			const label = event.target.closest("label.litm--roll-dialog-tag");
-			if (!label || event.target.tagName === "LITM-SUPER-CHECKBOX") return;
-			event.preventDefault();
-			const checkbox = label.querySelector("litm-super-checkbox");
-			if (!checkbox) return;
-
-			if (event.shiftKey && !checkbox.disabled) {
-				const canScratch = checkbox.getAttribute("states")?.includes("scratched");
-				if (canScratch) {
-					const newValue =
-						checkbox.value === "scratched" ? "" : "scratched";
-					checkbox.value = newValue;
-					checkbox.dispatchEvent(new Event("change"));
-					return;
-				}
-			}
-			checkbox.click();
 		});
 	}
 

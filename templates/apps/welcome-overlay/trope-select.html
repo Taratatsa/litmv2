@@ -63,7 +63,7 @@
 
 				<fieldset>
 					<legend>{{localize "LITM.Ui.theme_kits_optional"}}</legend>
-					<div class="flexcol" style="gap: 0.25rem;">
+					<div class="flexcol gap-xs">
 						{{#each selectedTrope.optional as |kit|}}
 						<label class="checkbox trope-optional-kit" {{#if kit.tagTooltip}}data-tooltip="{{kit.tagTooltip}}" {{/if}}>
 							<input type="radio" name="tropeOptional" value="{{kit.uuid}}" data-uuid="{{kit.uuid}}" {{#if (or (eq
@@ -77,7 +77,7 @@
 				{{#if selectedTrope.backpackChoices.length}}
 				<fieldset>
 					<legend>{{localize "LITM.Terms.backpack"}}</legend>
-					<div class="flexcol" style="gap: 0.25rem;">
+					<div class="flexcol gap-xs">
 						{{#each selectedTrope.backpackChoices as |choice|}}
 						<label class="checkbox">
 							<input type="radio" name="tropeBackpack" value="{{choice}}" data-action="selectTropeBackpack"

@@ -17,6 +17,7 @@
 		<ul class="litm-spend-power__options">
 			{{#each actionSuccesses as |item|}}
 			<li class="litm-spend-power__option {{#if item.disabled}}is-disabled{{/if}}"
+				{{#unless item.disabled}}data-action="toggle-option"{{/unless}}
 				data-source="action"
 				data-success-key="{{item.key}}"
 				data-cost="{{item.cost}}"
@@ -43,6 +44,7 @@
 		<ul class="litm-spend-power__options">
 			{{#each options as |option|}}
 			<li class="litm-spend-power__option"
+				data-action="toggle-option"
 				data-option-id="{{option.id}}"
 				data-cost="{{option.cost}}"
 				data-has-tier="{{option.hasTier}}">
@@ -60,7 +62,7 @@
 				<div class="litm-spend-power__entries is-hidden" data-picker="true">
 					<ul class="litm-spend-power__tag-chip-list">
 						{{#each option.scratchedTags as |tag|}}
-						<li class="litm-spend-power__tag-chip" data-tag-id="{{tag.id}}" data-tag-name="{{tag.name}}" data-item-id="{{tag.itemId}}">
+						<li class="litm-spend-power__tag-chip" data-action="toggle-chip" data-tag-id="{{tag.id}}" data-tag-name="{{tag.name}}" data-item-id="{{tag.itemId}}">
 							<span class="litm-tag" data-text="{{tag.name}}">{{tag.name}}</span>
 						</li>
 						{{/each}}
@@ -121,7 +123,7 @@
 	<template id="entry-row-template">
 		<li class="litm-spend-power__entry">
 			<input type="text" class="litm-spend-power__entry-name" placeholder="{{localize 'LITM.Ui.tag_name'}}" />
-			<button type="button" class="litm-spend-power__remove-entry" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
+			<button type="button" class="litm-spend-power__remove-entry" data-action="remove-entry" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 				<i class="fas fa-times" aria-hidden="true"></i>
 			</button>
 		</li>
@@ -130,7 +132,7 @@
 		<li class="litm-spend-power__entry">
 			<input type="text" class="litm-spend-power__entry-name" placeholder="{{localize 'LITM.Ui.status_name'}}" />
 			<input type="number" class="litm-spend-power__entry-tier" value="1" min="1" max="6" />
-			<button type="button" class="litm-spend-power__remove-entry" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
+			<button type="button" class="litm-spend-power__remove-entry" data-action="remove-entry" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 				<i class="fas fa-times" aria-hidden="true"></i>
 			</button>
 		</li>

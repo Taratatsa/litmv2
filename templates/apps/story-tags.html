@@ -152,16 +152,15 @@
 
 <!--This is a really weird bug where clicking a checkbox will shift the whole container up by it's entire scroll height-->
 <div class="flexcol litm--story-tags-wrapper">
-	<form class="litm--grid-form" style="position: relative;top: 0;">
+	<form class="litm--grid-form" style="position: relative;top: 0">
 		<!-- Party: heroes & fellowship -->
 		<div class="litm--grid-col litm--grid-col-party">
 			{{#each partyActors as |actor|}}
 			{{> actorSection actor=actor isGM=@root.isGM}}
 			{{else}}
-			<div style="display: flex; flex-direction: column; align-items: center; margin-top: 2rem;padding: 12px;">
+			<div class="flexcol" style="align-items: center; margin-top: 2rem;padding: 12px">
 				<p>{{localize "LITM.Ui.drop_actors"}}</p>
-				<img src="systems/litmv2/assets/media/birb.webp" alt="" width="75" aria-hidden="true"
-					style="margin-top: 1rem; opacity: 0.7;" />
+				<img src="systems/litmv2/assets/media/birb.webp" alt="" width="75" aria-hidden="true" style="margin-top: 1rem; opacity: 0.7" />
 			</div>
 			{{/each}}
 		</div>

@@ -107,6 +107,9 @@ body,
 	--color-overlay-white-7: rgba(255, 255, 255, 0.07);
 	--color-overlay-white-8: rgba(255, 255, 255, 0.08);
 	--color-overlay-white-10: rgba(255, 255, 255, 0.1);
+	--color-overlay-black-6: rgba(0, 0, 0, 0.06);
+	--color-overlay-black-15: rgba(0, 0, 0, 0.15);
+	--color-overlay-black-40: rgba(0, 0, 0, 0.4);
 
 	/* Might scale tier accent colors */
 	--color-litm-might-origin: #3a7d54;
@@ -122,19 +125,13 @@ body,
 
 	/* Layout — Border Radius */
 	--border-radius: 4px;
+	--radius-xs: 2px;
 	--radius-sm: 3px;
 	--radius-md: 6px;
 	--radius-lg: 8px;
 	--radius-xl: 10px;
 	--radius-pill: 100px;
 	--radius-circle: 50%;
-
-	/* Layout — Spacing */
-	--space-xs: 0.25rem;
-	--space-sm: 0.35rem;
-	--space-md: 0.5rem;
-	--space-lg: 0.75rem;
-	--space-xl: 1rem;
 
 	/* Layout — Line Height */
 	--line-height-tight: 1;
@@ -225,7 +222,7 @@ body,
 	list-style: none;
 	display: flex;
 	flex-flow: column;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 }
 
 .litm blockquote {
@@ -241,6 +238,50 @@ body,
 	resize: vertical;
 	overflow: auto;
 	min-height: 200px;
+}
+
+/* User-resizable text area in sheets/dialogs (free-form description, threat,
+   consequence). Foundry's default textareas don't allow resize. */
+.litm textarea {
+	resize: vertical;
+}
+
+/* Flush <hr> — sits inside cards/lists where the section already supplies
+   spacing. Avoids inline style="margin:0" sprinkled across templates. */
+.litm hr.flush {
+	margin: 0;
+}
+
+/* Make Foundry's .noflex / .flex1/2/3 utilities work inside .form-group rows.
+   Foundry only defines them as direct children of .flexrow/.flexcol. */
+.litm .standard-form .form-group > .noflex {
+	flex: none;
+}
+.litm .standard-form .form-group > .flex1 {
+	flex: 1 1 0;
+	min-width: 0;
+}
+.litm .standard-form .form-group > .flex2 {
+	flex: 2;
+	min-width: 0;
+}
+.litm .standard-form .form-group > .flex3 {
+	flex: 3;
+	min-width: 0;
+}
+
+/* Hint paragraphs inside list rows: zero margin so they sit flush with the
+   adjacent form-group rather than introducing extra leading. */
+.litm fieldset ul.plain p.hint {
+	margin: 0;
+}
+
+/* Interactive elements that aren't <button>/<a>: surface the cursor so they
+   read as clickable. Foundry already handles label[for] and <a>. */
+.litm [role="button"]:not(:disabled),
+.litm [draggable="true"],
+.litm [data-action]:where(label, span, div, li, p):not(:disabled) {
+	cursor: pointer;
 }
 
 /* ========================================
@@ -311,7 +352,7 @@ body,
 /* Responsive grid utilities - uses auto-fit to collapse based on container width */
 .grid-2col {
 	display: grid;
-	gap: var(--space-xl);
+	gap: var(--spacer-16);
 	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 	container-type: inline-size;
 }
@@ -407,7 +448,7 @@ body,
 		top: 0.2em;
 		bottom: 0.2em;
 		background: var(--tag-color, var(--color-cool-5));
-		border-radius: 2px;
+		border-radius: var(--radius-xs);
 		transform: skewX(-3deg);
 	}
 }
@@ -443,14 +484,14 @@ body,
 .litm--section-header > summary {
 	display: flex;
 	align-items: center;
-	gap: var(--space-xs);
+	gap: var(--spacer-4);
 	font-family: var(--font-serif);
 	font-size: var(--font-size-11);
 	font-weight: 600;
 	letter-spacing: 0.15em;
 	text-transform: uppercase;
 	color: var(--color-text-secondary);
-	margin: var(--space-xs) 0;
+	margin: var(--spacer-4) 0;
 	width: 100%;
 }
 .litm--section-header::before,
@@ -472,8 +513,8 @@ body,
 .litm--chat-action {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-xs);
-	padding: var(--space-md) var(--space-lg);
+	gap: var(--spacer-4);
+	padding: var(--spacer-8) var(--spacer-12);
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 }
@@ -539,7 +580,7 @@ body,
 }
 /* Consequence button — rose at rest (adversity, always); fills on apply. */
 .chat-message .litm--chat-action-consequence-btn {
-	padding: 0.1rem 0.4rem;
+	padding: var(--spacer-2) var(--spacer-8);
 	width: 1.75em;
 	height: 1.75em;
 	background: transparent;
@@ -561,8 +602,8 @@ body,
    chat panel. Tag suggestions decorate the picker rows directly. */
 .litm--roll-action-strip {
 	align-items: center;
-	padding: var(--space-sm) var(--space-md);
-	margin-bottom: var(--space-sm);
+	padding: var(--spacer-8) var(--spacer-8);
+	margin-bottom: var(--spacer-8);
 	border-bottom: 1px solid var(--color-border);
 }
 .litm--roll-action-strip-img {
@@ -608,10 +649,10 @@ section.standard-form.litm-actions-app {
 .litm-actions-app .litm--actions-list {
 	flex: 1 1 auto;
 	min-height: 0;
-	margin-top: var(--space-md);
+	margin-top: var(--spacer-8);
 }
 .litm-actions-app .litm--action-card {
-	margin-bottom: var(--space-md);
+	margin-bottom: var(--spacer-8);
 }
 /* Rote variant — gold-tinted border so magical actions read at silhouette
    level, not only by reading the practitioner string. */
@@ -628,10 +669,10 @@ section.standard-form.litm-actions-app {
 }
 .litm--action-card-practitioner {
 	align-self: flex-start;
-	margin-top: var(--space-xs);
+	margin-top: var(--spacer-4);
 }
 .litm--action-card-practitioner > i.fa-wand-sparkles {
-	margin-right: var(--space-xs);
+	margin-right: var(--spacer-4);
 	color: var(--color-litm-tag-text);
 }
 .litm--action-card-name {
@@ -648,8 +689,8 @@ section.standard-form.litm-actions-app {
 /* Roll-from-action: the verb of the card. Labeled, gold accent. */
 .litm-actions-app .litm--action-card-roll {
 	flex: 0 0 auto;
-	gap: var(--space-sm);
-	padding-inline: var(--space-lg);
+	gap: var(--spacer-8);
+	padding-inline: var(--spacer-12);
 	border-color: var(--color-litm-tag);
 	color: var(--color-litm-tag-text);
 	font-weight: 600;
@@ -671,8 +712,8 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: var(--space-md);
-	padding: var(--space-xl) var(--space-lg);
+	gap: var(--spacer-8);
+	padding: var(--spacer-16) var(--spacer-12);
 	text-align: center;
 }
 .litm--actions-empty > i {
@@ -684,8 +725,8 @@ section.standard-form.litm-actions-app {
    separated by middle-dots, framed by faint top/bottom rules. Matches how
    action examples are typeset in the rulebook. */
 .litm--action-examples {
-	margin: var(--space-sm) 0 0;
-	padding: var(--space-sm) var(--space-md);
+	margin: var(--spacer-8) 0 0;
+	padding: var(--spacer-8) var(--spacer-8);
 	border-top: 1px solid var(--color-border);
 	border-bottom: 1px solid var(--color-border);
 	font-family: var(--font-serif);
@@ -751,14 +792,14 @@ section.standard-form.litm-actions-app {
 .litm--success-payload-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr 4rem 1fr;
-	gap: var(--space-md);
+	gap: var(--spacer-8);
 	align-items: end;
 }
 .litm--success-payload-tier {
 	max-width: 4rem;
 }
 .litm--success-payload-toggles {
-	margin-top: var(--space-md);
+	margin-top: var(--spacer-8);
 	align-items: center;
 }
 .litm--success-payload-toggles > label {
@@ -790,10 +831,10 @@ section.standard-form.litm-actions-app {
    The default .litm fieldset ul.plain { gap: 0.25rem } is tight; bump it
    here so the rows don't crowd the [+] button or each other. */
 .litm-action-sheet legend.control {
-	margin-bottom: var(--space-md);
+	margin-bottom: var(--spacer-8);
 }
 .litm-action-sheet fieldset ul.plain {
-	gap: var(--space-md);
+	gap: var(--spacer-8);
 }
 
 /* Power-tag rows — link affordance.
@@ -833,19 +874,19 @@ section.standard-form.litm-actions-app {
 .litm--tag-picker__scroll {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-md);
+	gap: var(--spacer-8);
 	max-height: 60vh;
 }
 .litm--tag-picker__group {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-sm);
+	gap: var(--spacer-8);
 }
 .litm--tag-picker__header {
 	display: flex;
 	align-items: center;
-	gap: var(--space-sm);
-	padding: var(--space-xs) var(--space-sm);
+	gap: var(--spacer-8);
+	padding: var(--spacer-4) var(--spacer-8);
 	border-bottom: 1px solid var(--color-fieldset-border);
 }
 .litm--tag-picker__header--selectable {
@@ -882,14 +923,14 @@ section.standard-form.litm-actions-app {
 .litm--tag-picker__chips {
 	display: flex;
 	flex-flow: row wrap;
-	gap: var(--space-sm);
-	padding: 0 var(--space-sm);
+	gap: var(--spacer-8);
+	padding: 0 var(--spacer-8);
 }
 .litm--tag-picker__chip {
 	display: inline-flex;
 	align-items: center;
 	cursor: pointer;
-	padding: var(--space-xs) var(--space-sm);
+	padding: var(--spacer-4) var(--spacer-8);
 	border-radius: var(--radius-sm);
 	transition: background-color var(--transition-fast);
 }
@@ -911,7 +952,7 @@ section.standard-form.litm-actions-app {
 .litm--success-list {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-md);
+	gap: var(--spacer-8);
 }
 .litm--success-card > header {
 	align-items: center;
@@ -927,7 +968,7 @@ section.standard-form.litm-actions-app {
 .litm--success-payload > summary {
 	cursor: pointer;
 	color: var(--color-text-secondary);
-	padding: var(--space-xs) 0;
+	padding: var(--spacer-4) 0;
 }
 .litm--success-payload > summary:hover {
 	color: var(--color-text-primary);
@@ -954,7 +995,7 @@ section.standard-form.litm-actions-app {
 .litm--roll-request {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-xs);
+	gap: var(--spacer-4);
 }
 .litm--roll-request-header {
 	align-items: center;
@@ -971,11 +1012,11 @@ section.standard-form.litm-actions-app {
 	color: var(--color-litm-tag-text);
 }
 .litm--roll-request-note {
-	margin: var(--space-xs) 0;
+	margin: var(--spacer-4) 0;
 }
 .litm--roll-request-take {
-	gap: var(--space-sm);
-	padding-inline: var(--space-lg);
+	gap: var(--spacer-8);
+	padding-inline: var(--spacer-12);
 	border-color: var(--color-litm-tag);
 	color: var(--color-litm-tag-text);
 	font-weight: 600;
@@ -989,7 +1030,7 @@ section.standard-form.litm-actions-app {
 .litm--ref-drop {
 	display: inline-flex;
 	align-items: center;
-	padding: 0 var(--space-md);
+	padding: 0 var(--spacer-8);
 	color: var(--color-text-subtle);
 	transition: color var(--transition-fast);
 }
@@ -998,7 +1039,7 @@ section.standard-form.litm-actions-app {
 }
 .litm--ref-controls {
 	display: inline-flex;
-	gap: var(--space-xs);
+	gap: var(--spacer-4);
 	align-items: center;
 	flex: none;
 }
@@ -1075,21 +1116,21 @@ section.standard-form.litm-actions-app {
 /* ── @render enricher ── inline embed cards ── */
 
 .litm-render {
-	margin: 0.75rem 0;
+	margin: var(--spacer-12) 0;
 }
 
 /* Shared section header — centered label with decorative lines */
 .litm-render__section-header {
 	display: flex;
 	align-items: center;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 	font-family: var(--font-serif);
 	font-size: var(--font-size-11);
 	font-weight: 600;
 	letter-spacing: 0.15em;
 	text-transform: uppercase;
 	color: var(--color-text-secondary);
-	margin: 0.25rem 0;
+	margin: var(--spacer-4) 0;
 }
 
 .litm-render__section-header::before,
@@ -1118,7 +1159,7 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	flex-direction: column;
 	padding: 1.25rem 1.5rem;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 }
 
 /* Cards wired with [data-render-action] are activated via a body-level
@@ -1146,7 +1187,7 @@ section.standard-form.litm-actions-app {
 .litm-render--challenge__header {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--spacer-16);
 }
 
 .litm-render--challenge__portrait {
@@ -1167,7 +1208,7 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 .litm-render--challenge__stars {
@@ -1202,7 +1243,7 @@ section.standard-form.litm-actions-app {
 
 /* Limit items */
 .litm-render--challenge__limit-item {
-	margin-bottom: 0.35rem;
+	margin-bottom: var(--spacer-4);
 }
 
 .litm-render--challenge__limit-item .litm-limit {
@@ -1229,8 +1270,8 @@ section.standard-form.litm-actions-app {
 	font-style: italic;
 	color: var(--color-text-secondary);
 	font-size: var(--font-size-13);
-	padding-left: 0.5rem;
-	margin-bottom: 0.5rem;
+	padding-left: var(--spacer-8);
+	margin-bottom: var(--spacer-8);
 }
 
 /* Tags & statuses */
@@ -1245,13 +1286,13 @@ section.standard-form.litm-actions-app {
 .litm-render--challenge__might {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 }
 
 .litm-render--challenge__might-entry {
 	display: flex;
 	align-items: center;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 }
 
 .litm-render--challenge__might-icon {
@@ -1268,8 +1309,8 @@ section.standard-form.litm-actions-app {
 /* ── Trope embed card ── */
 
 .litm-render--trope {
-	padding: 1rem 1.25rem;
-	gap: 0.5rem;
+	padding: var(--spacer-16) 1.25rem;
+	gap: var(--spacer-8);
 }
 
 .litm-render--trope__category {
@@ -1288,7 +1329,7 @@ section.standard-form.litm-actions-app {
 .litm-render--trope__kits {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 .litm-render--trope__kits .themekit-list {
@@ -1297,13 +1338,13 @@ section.standard-form.litm-actions-app {
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.2rem;
+	gap: var(--spacer-4);
 }
 
 .litm-render--trope__kits .themekit-list li {
 	display: flex;
 	align-items: center;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 	font-family: var(--font-serif);
 	line-height: var(--line-height-normal);
 }
@@ -1331,7 +1372,7 @@ section.standard-form.litm-actions-app {
    sections (POWER / SUCCESS / CONSEQUENCES). Section banners and the
    helpful/hindering glyphs are the distinctive book chrome. */
 .litm-render--action {
-	gap: var(--space-sm);
+	gap: var(--spacer-8);
 	position: relative;
 }
 
@@ -1340,8 +1381,8 @@ section.standard-form.litm-actions-app {
 
 .litm-render--action__send {
 	position: absolute;
-	top: var(--space-sm);
-	right: var(--space-sm);
+	top: var(--spacer-8);
+	right: var(--spacer-8);
 	width: 2rem;
 	height: 2rem;
 	padding: 0;
@@ -1378,7 +1419,7 @@ section.standard-form.litm-actions-app {
 	line-height: var(--line-height-relaxed);
 }
 .litm-render--action__description > p {
-	margin: 0 0 var(--space-sm);
+	margin: 0 0 var(--spacer-8);
 }
 .litm-render--action__description > p:last-child {
 	margin-bottom: 0;
@@ -1390,13 +1431,13 @@ section.standard-form.litm-actions-app {
 .litm-render--action__tags {
 	display: flex;
 	flex-flow: row wrap;
-	gap: var(--space-sm) var(--space-md);
-	margin: 0 0 var(--space-xs);
+	gap: var(--spacer-8) var(--spacer-8);
+	margin: 0 0 var(--spacer-4);
 }
 
 /* Success entries — short paragraph with the verb in small caps. */
 .litm-render--action__success {
-	margin: 0 0 var(--space-sm);
+	margin: 0 0 var(--spacer-8);
 	font-family: var(--font-serif);
 	line-height: var(--line-height-relaxed);
 }
@@ -1409,7 +1450,7 @@ section.standard-form.litm-actions-app {
 
 /* Subhead inside a section ("EXTRA FEATS"). */
 .litm-render--action__subhead {
-	margin: var(--space-sm) 0 var(--space-xs);
+	margin: var(--spacer-8) 0 var(--spacer-4);
 	font-family: var(--font-serif);
 	font-size: var(--font-size-12);
 	font-weight: 700;
@@ -1425,7 +1466,7 @@ section.standard-form.litm-actions-app {
 	line-height: var(--line-height-relaxed);
 }
 .litm-render--action__feats > li {
-	margin-bottom: var(--space-xs);
+	margin-bottom: var(--spacer-4);
 }
 
 /* Consequences — » arrows in gold to match the book's bullet style. */
@@ -1439,7 +1480,7 @@ section.standard-form.litm-actions-app {
 .litm-render--action__consequences > li {
 	padding-left: 1.4em;
 	text-indent: -1.4em;
-	margin-bottom: var(--space-xs);
+	margin-bottom: var(--spacer-4);
 }
 .litm-render--action__consequences > li::before {
 	content: "»";
@@ -1455,7 +1496,7 @@ section.standard-form.litm-actions-app {
    carries its own chrome (border + padding); the popout just provides a
    draggable, scrollable frame and lets the parchment show through. */
 .litm-embed-popout .window-content {
-	padding: var(--space-md);
+	padding: var(--spacer-8);
 	overflow-y: auto;
 }
 
@@ -1499,7 +1540,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm-render--themebook__questions li {
-	margin-bottom: 0.25rem;
+	margin-bottom: var(--spacer-4);
 	line-height: var(--line-height-normal);
 	font-size: var(--font-size-14);
 }
@@ -1532,7 +1573,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm-render--themebook__improvements li {
-	margin-bottom: 0.35rem;
+	margin-bottom: var(--spacer-4);
 	line-height: var(--line-height-normal);
 }
 
@@ -1549,7 +1590,7 @@ section.standard-form.litm-actions-app {
 .litm-render--hero__header {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--spacer-16);
 }
 
 .litm-render--hero__portrait {
@@ -1567,7 +1608,7 @@ section.standard-form.litm-actions-app {
 .litm-render--hero__promise {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 	font-size: var(--font-size-11);
 	color: var(--color-text-secondary);
 }
@@ -1580,7 +1621,7 @@ section.standard-form.litm-actions-app {
 
 .litm-render--hero__promise-pips {
 	display: flex;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 }
 
 .litm-render--hero__pip {
@@ -1602,27 +1643,27 @@ section.standard-form.litm-actions-app {
 .litm-render--hero__themes {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 }
 
 .litm-render--hero__theme {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 }
 
 .litm-render--hero__theme-tags {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 	justify-content: center;
 }
 
 .litm-render--hero__story-tags {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 }
 
 /* ── Journey embed card ── */
@@ -1638,7 +1679,7 @@ section.standard-form.litm-actions-app {
 .litm-render--journey__header {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--spacer-16);
 }
 
 .litm-render--journey__portrait {
@@ -1710,8 +1751,8 @@ section.standard-form.litm-actions-app {
 .litm .theme-card {
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
-	padding: 0.75rem;
+	gap: var(--spacer-4);
+	padding: var(--spacer-12);
 }
 
 .litm .theme-card__img {
@@ -1726,8 +1767,8 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
-	padding-bottom: 0.25rem;
+	gap: var(--spacer-8);
+	padding-bottom: var(--spacer-4);
 	border-bottom: none;
 }
 
@@ -1769,7 +1810,7 @@ section.standard-form.litm-actions-app {
 .litm .story-theme-card__header {
 	display: flex;
 	align-items: flex-start;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 }
 
 .litm .story-theme-card__portrait {
@@ -1783,8 +1824,8 @@ section.standard-form.litm-actions-app {
 .litm .theme-card-tracks {
 	display: flex;
 	justify-content: space-around;
-	gap: 0.5rem;
-	margin-top: 0.5rem;
+	gap: var(--spacer-8);
+	margin-top: var(--spacer-8);
 	border-top: none;
 }
 
@@ -1805,7 +1846,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm .theme-card__quest {
-	margin: 0.8rem 0 0;
+	margin: var(--spacer-12) 0 0;
 	font-family: var(--font-trattatello);
 	font-style: normal;
 	font-size: var(--font-size-20);
@@ -1833,13 +1874,13 @@ section.standard-form.litm-actions-app {
 ======================================== */
 
 .litm-actor .window-content {
-	padding: 0px 16px 1rem;
+	padding: 0px 16px var(--spacer-16);
 	overflow: hidden auto;
 	scrollbar-width: thin;
 }
 
 .litm-actor [data-application-part="form"]>*:first-child {
-	margin-top: 0.5rem;
+	margin-top: var(--spacer-8);
 }
 
 /* Edit-mode header — replicate .standard-form header.img-name styles
@@ -1847,8 +1888,8 @@ section.standard-form.litm-actions-app {
 .litm-actor [data-application-part="header"].img-name {
 	align-items: center;
 	display: flex;
-	gap: 1rem;
-	margin-top: 0.5rem;
+	gap: var(--spacer-16);
+	margin-top: var(--spacer-8);
 }
 
 .litm-actor [data-application-part="header"].img-name>div {
@@ -1893,7 +1934,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--play-header {
-	padding-top: 0.5rem;
+	padding-top: var(--spacer-8);
 }
 
 .litm-hero-sheet .litm--play-header>.flexcol {
@@ -1948,7 +1989,7 @@ section.standard-form.litm-actions-app {
 /* Tag / status list rows in all play sheets */
 .litm ul.plain li.form-group {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 	align-items: center;
 }
 
@@ -1972,12 +2013,12 @@ section.standard-form.litm-actions-app {
 }
 
 .litm .theme-card-tags+.flexcol:has(.special-improvements-list) {
-	margin-top: 0.35rem;
+	margin-top: var(--spacer-4);
 }
 
 .litm .special-improvements-list li {
 	display: flex;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 	align-items: flex-start;
 }
 
@@ -1986,7 +2027,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm .special-improvements-list h5 {
-	margin: 0 0 0.15rem;
+	margin: 0 0 var(--spacer-2);
 }
 
 .litm .special-improvements-list .enriched-content,
@@ -2003,7 +2044,7 @@ section.standard-form.litm-actions-app {
 .litm .empty-state>img,
 .litm .empty-state>button>img {
 	display: block;
-	margin: 0 auto 0.75rem;
+	margin: 0 auto var(--spacer-12);
 	opacity: 0.4;
 }
 
@@ -2015,8 +2056,8 @@ section.standard-form.litm-actions-app {
 /* Receded sections — visually lighter for lower-priority content */
 .litm-hero-sheet fieldset.litm--receded {
 	border-color: color-mix(in srgb, var(--color-fieldset-border) 30%, transparent);
-	padding: 0.75rem;
-	gap: 0.75rem;
+	padding: var(--spacer-12);
+	gap: var(--spacer-12);
 }
 
 .litm-hero-sheet fieldset.litm--receded>legend {
@@ -2078,14 +2119,14 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 }
 
 .litm .category {
 	align-self: flex-start;
 	font-style: italic;
 	color: var(--color-text-secondary);
-	padding: 0.2rem 0.5rem;
+	padding: var(--spacer-4) var(--spacer-8);
 	background: var(--color-data-background, var(--color-cool-5-25));
 	border-radius: var(--radius-sm);
 	font-size: var(--font-size-13);
@@ -2097,8 +2138,8 @@ section.standard-form.litm-actions-app {
 
 .litm .play-section h3 {
 	font-size: var(--font-size-18);
-	margin: 0 0 0.5rem 0;
-	padding-bottom: 0.25rem;
+	margin: 0 0 var(--spacer-8) 0;
+	padding-bottom: var(--spacer-4);
 	border-bottom: 1px solid var(--color-border);
 	color: var(--color-text-primary);
 }
@@ -2114,11 +2155,11 @@ section.standard-form.litm-actions-app {
 	margin: 0;
 	display: flex;
 	flex-wrap: wrap;
-	gap: var(--space-xl);
+	gap: var(--spacer-16);
 }
 
 .litm-challenge-sheet .limit-item {
-	padding: 0.5rem;
+	padding: var(--spacer-8);
 	border-radius: var(--border-radius);
 	border: 1px solid var(--color-border);
 }
@@ -2127,18 +2168,18 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 1rem;
+	gap: var(--spacer-16);
 	margin-bottom: 0;
 }
 
 .litm-challenge-sheet .limit-header:has(+ .limit-outcome) {
-	margin-bottom: 0.5rem;
+	margin-bottom: var(--spacer-8);
 }
 
 .litm-challenge-sheet .limit-controls {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 .litm-challenge-sheet .limit-shields {
@@ -2191,8 +2232,8 @@ section.standard-form.litm-actions-app {
 .litm-challenge-sheet .limit-outcome {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
-	padding-top: 0.5rem;
+	gap: var(--spacer-8);
+	padding-top: var(--spacer-8);
 	border-top: 1px solid var(--color-border);
 	font-style: italic;
 	color: var(--color-text-secondary);
@@ -2212,7 +2253,7 @@ section.standard-form.litm-actions-app {
 .litm-challenge-sheet .might-entry {
 	display: flex;
 	align-items: center;
-	gap: var(--space-xs);
+	gap: var(--spacer-4);
 }
 
 .litm-challenge-sheet .might-icon {
@@ -2241,7 +2282,7 @@ section.standard-form.litm-actions-app {
 .addon-chevron {
 	background: none;
 	border: none;
-	padding: 0.25rem;
+	padding: var(--spacer-4);
 	color: inherit;
 }
 
@@ -2252,13 +2293,13 @@ section.standard-form.litm-actions-app {
 
 .addon-detail {
 	background: var(--color-text-primary-10);
-	padding: 0.5rem 0.75rem;
+	padding: var(--spacer-8) var(--spacer-12);
 	border-radius: var(--radius-lg);
-	margin-top: 0.25rem;
+	margin-top: var(--spacer-4);
 }
 
 .addon-detail__section+.addon-detail__section {
-	margin-top: 0.5rem;
+	margin-top: var(--spacer-8);
 }
 
 .addon-detail__label {
@@ -2266,22 +2307,22 @@ section.standard-form.litm-actions-app {
 	font-size: var(--font-size-11);
 	text-transform: uppercase;
 	color: var(--color-text-secondary);
-	margin-bottom: 0.25rem;
+	margin-bottom: var(--spacer-4);
 }
 
 .addon-badges {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--space-sm);
+	gap: var(--spacer-8);
 }
 
 .addon-badge {
 	display: inline-flex;
 	align-items: center;
-	gap: var(--space-xs);
+	gap: var(--spacer-4);
 	background: var(--color-text-primary-10);
-	padding: 0.25rem 0.75rem;
+	padding: var(--spacer-4) var(--spacer-12);
 	border-radius: var(--radius-pill);
 	font-size: var(--font-size-13);
 	font-variant: small-caps;
@@ -2320,8 +2361,8 @@ section.standard-form.litm-actions-app {
 .litm .vignette-card {
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
-	padding: 0.75rem;
+	gap: var(--spacer-4);
+	padding: var(--spacer-12);
 }
 
 .litm .vignette-card-label {
@@ -2329,7 +2370,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm .threat-text {
-	margin-bottom: 0.5rem;
+	margin-bottom: var(--spacer-8);
 	color: var(--color-text-primary);
 	font-size: var(--font-size-18);
 	font-family: var(--font-luminari);
@@ -2358,7 +2399,7 @@ section.standard-form.litm-actions-app {
 
 .litm .consequence-item {
 	color: var(--color-text-secondary);
-	margin-bottom: 0.25rem;
+	margin-bottom: var(--spacer-4);
 }
 
 .litm .consequence-item:last-child {
@@ -2393,8 +2434,8 @@ section.standard-form.litm-actions-app {
 	overflow-y: auto;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
-	padding: 0.5rem 0.5rem 0;
+	gap: var(--spacer-8);
+	padding: var(--spacer-8) var(--spacer-8) 0;
 	contain: style;
 }
 
@@ -2440,8 +2481,8 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--roll-type-option {
-	gap: 0.3rem;
-	padding: 0.4rem 0.5rem;
+	gap: var(--spacer-4);
+	padding: var(--spacer-8) var(--spacer-8);
 	font-size: var(--font-size-14);
 	font-weight: 600;
 	text-align: center;
@@ -2449,13 +2490,13 @@ section.standard-form.litm-actions-app {
 
 /* Trade power bar: smaller variant */
 .litm--trade-power-fieldset {
-	margin-top: 0.5rem;
+	margin-top: var(--spacer-8);
 }
 
 .litm--trade-power-bar .litm--roll-type-option {
 	font-size: var(--font-size-13);
 	font-weight: 500;
-	padding: 0.25rem 0.4rem;
+	padding: var(--spacer-4) var(--spacer-8);
 }
 
 .litm--roll-type-option.is-disabled {
@@ -2473,7 +2514,7 @@ section.standard-form.litm-actions-app {
 .litm--roll-dialog-grid {
 	display: grid;
 	grid-template-columns: 1fr;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 	flex: 1;
 	min-height: 0;
 }
@@ -2487,13 +2528,13 @@ section.standard-form.litm-actions-app {
 .litm--roll-dialog-settings {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 /* Compact fieldsets inside the roll dialog */
 .litm--roll-dialog-content fieldset {
-	padding: 0.4rem 0.6rem;
-	gap: 0.3rem;
+	padding: var(--spacer-8) var(--spacer-8);
+	gap: var(--spacer-4);
 }
 
 .litm--roll-dialog-content fieldset legend {
@@ -2507,7 +2548,7 @@ section.standard-form.litm-actions-app {
 .litm--radio-group {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.15rem 0.75rem;
+	gap: var(--spacer-2) var(--spacer-12);
 	align-items: center;
 	font-size: var(--font-size-13);
 }
@@ -2515,7 +2556,7 @@ section.standard-form.litm-actions-app {
 .litm--radio-group label {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.2rem;
+	gap: var(--spacer-4);
 	cursor: pointer;
 	white-space: nowrap;
 }
@@ -2524,7 +2565,7 @@ section.standard-form.litm-actions-app {
 .litm--roll-dialog-might {
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 }
 
 .litm--might-label-row {
@@ -2539,7 +2580,7 @@ section.standard-form.litm-actions-app {
 	cursor: help;
 	display: inline-flex;
 	align-items: center;
-	gap: 0.3rem;
+	gap: var(--spacer-4);
 }
 
 .litm--might-name-wrapper i {
@@ -2555,7 +2596,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--might-option {
-	padding: 0.3rem 0.4rem;
+	padding: var(--spacer-4) var(--spacer-8);
 	font-size: var(--font-size-16);
 	font-weight: 500;
 }
@@ -2566,12 +2607,12 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--might-tooltip {
-	padding: 0.75rem 1rem;
+	padding: var(--spacer-12) var(--spacer-16);
 	width: 36rem;
 }
 
 .litm--might-tooltip-title {
-	margin: 0 0 0.6rem;
+	margin: 0 0 var(--spacer-8);
 	font-weight: 700;
 	font-size: var(--font-size-16);
 	text-align: center;
@@ -2586,7 +2627,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--might-table th {
-	padding: 0.5rem 0.75rem;
+	padding: var(--spacer-8) var(--spacer-12);
 	text-align: center;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
@@ -2597,7 +2638,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--might-table td {
-	padding: 0.5rem 0.75rem;
+	padding: var(--spacer-8) var(--spacer-12);
 	text-align: center;
 }
 
@@ -2648,7 +2689,7 @@ section.standard-form.litm-actions-app {
 	display: block;
 	width: 1.25rem;
 	height: 1.25rem;
-	margin: 0 auto 0.15rem;
+	margin: 0 auto var(--spacer-2);
 }
 
 /* Modifier stepper: -/value/+ */
@@ -2728,16 +2769,16 @@ section.standard-form.litm-actions-app {
 	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
-	padding: 0.5rem;
+	gap: var(--spacer-8);
+	padding: var(--spacer-8);
 	border-top: 1px solid var(--color-border-light);
 }
 
 .litm--roll-dialog-total-power {
 	display: flex;
 	align-items: baseline;
-	gap: 0.5rem;
-	padding: 0.25rem 0;
+	gap: var(--spacer-8);
+	padding: var(--spacer-4) 0;
 	font-weight: bold;
 }
 
@@ -2749,13 +2790,13 @@ section.standard-form.litm-actions-app {
 
 .litm--roll-dialog-tags-summary {
 	display: grid;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 }
 
 .litm--roll-dialog-tag {
 	display: flex;
 	align-items: center;
-	gap: var(--space-xs);
+	gap: var(--spacer-4);
 	cursor: pointer;
 	user-select: none;
 }
@@ -2763,7 +2804,7 @@ section.standard-form.litm-actions-app {
 .litm fieldset ul.litm--roll-dialog-tags-summary {
 	display: flex;
 	flex-flow: row wrap;
-	gap: 0.35rem 0.6rem;
+	gap: var(--spacer-4) var(--spacer-8);
 	align-items: center;
 }
 
@@ -2795,8 +2836,8 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--roll-dialog-theme-group {
-	margin-top: 0.35rem;
-	padding-top: 0.35rem;
+	margin-top: var(--spacer-4);
+	padding-top: var(--spacer-4);
 	border-top: 1px solid var(--color-border-40);
 }
 
@@ -2810,8 +2851,8 @@ section.standard-form.litm-actions-app {
 .litm--roll-dialog-actor-label {
 	display: flex;
 	align-items: center;
-	gap: 0.35rem;
-	margin: 0 0 0.25rem;
+	gap: var(--spacer-4);
+	margin: 0 0 var(--spacer-4);
 	font-size: var(--font-size-11);
 	font-style: italic;
 	color: var(--color-text-secondary);
@@ -2821,7 +2862,7 @@ section.standard-form.litm-actions-app {
 .litm--roll-dialog-theme-label img {
 	width: 14px;
 	height: 14px;
-	border-radius: 2px;
+	border-radius: var(--radius-xs);
 	object-fit: cover;
 }
 
@@ -2834,8 +2875,8 @@ section.standard-form.litm-actions-app {
 
 /* Section dividers between character/fellowship/contributed/story groups */
 .litm--roll-dialog-section-break {
-	margin-top: 0.5rem;
-	padding-top: 0.5rem;
+	margin-top: var(--spacer-8);
+	padding-top: var(--spacer-8);
 	border-top: 1px solid var(--color-border);
 }
 
@@ -2852,7 +2893,7 @@ section.standard-form.litm-actions-app {
 
 /* GM Viewer Tabs */
 .litm--roll-dialog-tabs {
-	margin-bottom: 0.25rem;
+	margin-bottom: var(--spacer-4);
 	flex-shrink: 0;
 	overflow-x: auto;
 	scrollbar-gutter: stable;
@@ -2862,7 +2903,7 @@ section.standard-form.litm-actions-app {
 	display: inline-flex;
 	flex-direction: row;
 	align-items: center;
-	gap: 0.3rem;
+	gap: var(--spacer-4);
 	flex-shrink: 0;
 	white-space: nowrap;
 }
@@ -2893,7 +2934,7 @@ section.standard-form.litm-actions-app {
 	width: 200px;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 .litm-roll-dialog-hud.is-hidden {
@@ -2917,7 +2958,7 @@ section.standard-form.litm-actions-app {
 	display: grid;
 	grid-template-columns: 40px 1fr;
 	grid-template-rows: auto auto;
-	gap: 0.25rem 0.5rem;
+	gap: var(--spacer-4) var(--spacer-8);
 	align-items: center;
 	padding: 8px 10px;
 	min-height: unset;
@@ -2952,7 +2993,7 @@ section.standard-form.litm-actions-app {
 .litm-roll-dialog-hud__text {
 	display: flex;
 	flex-direction: column;
-	gap: 0.1rem;
+	gap: var(--spacer-2);
 }
 
 .litm-roll-dialog-hud__title {
@@ -2971,7 +3012,7 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 	font-size: var(--font-size-11);
 	font-weight: 600;
 	text-transform: uppercase;
@@ -3015,7 +3056,7 @@ section.standard-form.litm-actions-app {
 	font-size: var(--font-size-24);
 	letter-spacing: 0.05em;
 	flex: 1;
-	padding: 0.5rem 0;
+	padding: var(--spacer-8) 0;
 }
 
 .litm.dice-roll .dice-total-wrapper {
@@ -3038,7 +3079,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm.dice-roll .dice-total:last-child {
-	padding-block-end: 0.5rem;
+	padding-block-end: var(--spacer-8);
 }
 
 .litm.dice-roll .dice-result-details {
@@ -3056,8 +3097,8 @@ section.standard-form.litm-actions-app {
 
 .litm.dice-roll .dice-outcome-header {
 	display: flex;
-	gap: 0.5rem;
-	padding: 0.5rem 8px;
+	gap: var(--spacer-8);
+	padding: var(--spacer-8) 8px;
 	border-radius: 0;
 	justify-content: space-between;
 	align-items: center;
@@ -3102,7 +3143,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm.dice-roll .dice-effect p {
-	margin: 0.25rem 0;
+	margin: var(--spacer-4) 0;
 }
 
 .litm.dice-roll .dice-effect p em {
@@ -3128,15 +3169,15 @@ section.standard-form.litm-actions-app {
 
 .litm.dice-roll.expanded .dice-tooltip {
 	grid-template-rows: 1fr;
-	padding: 0.5rem;
-	margin-block: 0.5rem 1rem;
+	padding: var(--spacer-8);
+	margin-block: var(--spacer-8) var(--spacer-16);
 	border-radius: var(--border-radius);
 	background: var(--color-overlay-light);
 	border: 1px solid var(--chat-message-border-color);
 }
 
 .litm.dice-roll .tooltip-part {
-	padding: 0.2rem 0;
+	padding: var(--spacer-4) 0;
 }
 
 .litm.dice-roll .tooltip-part:last-child {
@@ -3159,8 +3200,8 @@ section.standard-form.litm-actions-app {
 	width: -webkit-fill-available;
 	width: stretch;
 	margin-inline: -16px;
-	padding: 0.5rem 16px 0.75rem;
-	gap: 0.5rem;
+	padding: var(--spacer-8) 16px var(--spacer-12);
+	gap: var(--spacer-8);
 	border-top: var(--hr-border);
 	background: var(--color-overlay-light);
 }
@@ -3169,7 +3210,7 @@ section.standard-form.litm-actions-app {
 	flex: 1;
 	font-size: var(--font-size-14);
 	font-weight: 700;
-	padding: 0.4rem 0.5rem;
+	padding: var(--spacer-8) var(--spacer-8);
 	height: auto;
 	line-height: var(--line-height-snug);
 	border-radius: var(--radius-sm);
@@ -3177,7 +3218,7 @@ section.standard-form.litm-actions-app {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0.4rem;
+	gap: var(--spacer-8);
 	transition:
 		color var(--transition-slow),
 		background var(--transition-slow),
@@ -3189,8 +3230,8 @@ section.standard-form.litm-actions-app {
 .litm.dice-roll .litm--dice-roll-subtle {
 	font-size: var(--font-size-13);
 	font-style: italic;
-	margin-top: 0.5rem;
-	padding: 0.5rem;
+	margin-top: var(--spacer-8);
+	padding: var(--spacer-8);
 	border-radius: var(--border-radius);
 	line-height: var(--line-height-normal);
 	background: var(--color-overlay-light);
@@ -3225,8 +3266,8 @@ section.standard-form.litm-actions-app {
 .litm-track-complete__header {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem 0.75rem;
+	gap: var(--spacer-8);
+	padding: var(--spacer-8) var(--spacer-12);
 	font-family: var(--font-powell);
 	font-size: var(--font-size-14);
 	font-weight: 700;
@@ -3238,7 +3279,7 @@ section.standard-form.litm-actions-app {
 
 .litm-track-complete__body {
 	text-align: center;
-	padding: 0.6rem 0.75rem;
+	padding: var(--spacer-8) var(--spacer-12);
 	font-family: var(--font-blockquote);
 	font-size: var(--font-size-14);
 	letter-spacing: 0.03em;
@@ -3246,8 +3287,8 @@ section.standard-form.litm-actions-app {
 
 .litm-track-complete__footer {
 	display: flex;
-	padding: 0.4rem 0.75rem;
-	background: rgba(0, 0, 0, 0.06);
+	padding: var(--spacer-8) var(--spacer-12);
+	background: var(--color-overlay-black-6);
 	border-top: var(--hr-border);
 }
 
@@ -3283,16 +3324,16 @@ section.standard-form.litm-actions-app {
 /* --- Spend Power Chat Cards --- */
 
 .litm-spend-chat {
-	padding: 0.5rem 0.75rem;
+	padding: var(--spacer-8) var(--spacer-12);
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 .litm-spend-chat__header {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 }
 
 .litm-spend-chat__header img {
@@ -3328,7 +3369,7 @@ section.standard-form.litm-actions-app {
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: center;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 	font-size: var(--font-size-16);
 	line-height: var(--line-height-normal);
 }
@@ -3341,9 +3382,9 @@ section.standard-form.litm-actions-app {
 .litm-spend-chat__count {
 	font-weight: 700;
 	font-size: var(--font-size-14);
-	background: rgba(0, 0, 0, 0.15);
-	padding: 0.15rem 0.5rem;
-	border-radius: 1rem;
+	background: var(--color-overlay-black-15);
+	padding: var(--spacer-2) var(--spacer-8);
+	border-radius: var(--radius-pill);
 }
 
 .litm-spend-chat__cost {
@@ -3351,7 +3392,7 @@ section.standard-form.litm-actions-app {
 	font-style: italic;
 	color: var(--color-text-secondary);
 	border-top: 1px solid var(--color-border);
-	padding-top: 0.35rem;
+	padding-top: var(--spacer-4);
 }
 
 /* ========================================
@@ -3378,7 +3419,7 @@ section.standard-form.litm-actions-app {
 	flex: 1;
 	min-height: 0;
 	gap: 0;
-	padding: 0.25rem 0;
+	padding: var(--spacer-4) 0;
 	width: 100%;
 	overflow-y: auto;
 	scrollbar-gutter: stable;
@@ -3412,26 +3453,26 @@ section.standard-form.litm-actions-app {
 
 /* Spacing hierarchy: categories > actors > limits > tags */
 .litm--grid-col section {
-	gap: 0.15rem;
+	gap: var(--spacer-2);
 }
 
 /* Category boundary: story → party */
 .litm--grid-col-story {
-	margin-bottom: 0.5rem;
-	padding-bottom: 0.5rem;
+	margin-bottom: var(--spacer-8);
+	padding-bottom: var(--spacer-8);
 	border-bottom: var(--hr-border);
 }
 
 /* Category boundary: party → scene */
 .litm--grid-col-scene {
-	margin-top: 0.5rem;
-	padding-top: 0.5rem;
+	margin-top: var(--spacer-8);
+	padding-top: var(--spacer-8);
 	border-top: var(--hr-border);
 }
 
 /* Between actors of the same category */
 .litm--grid-col section[data-actor-type]+section[data-actor-type] {
-	margin-top: 0.35rem;
+	margin-top: var(--spacer-4);
 }
 
 .litm--story-tags .litm--section-header {
@@ -3464,7 +3505,7 @@ section.standard-form.litm-actions-app {
 
 /* Limit groups — small gap between them */
 .litm--limit-group+.litm--limit-group {
-	margin-top: 0.2rem;
+	margin-top: var(--spacer-4);
 }
 
 .litm--story-tags .litm--story-tags-wrapper {
@@ -3527,7 +3568,7 @@ section.standard-form.litm-actions-app {
 		display: flex;
 		flex-direction: row;
 		flex: 2;
-		gap: 0.75rem;
+		gap: var(--spacer-12);
 		overflow: visible;
 	}
 
@@ -3542,7 +3583,7 @@ section.standard-form.litm-actions-app {
 }
 
 .litm--story-tags .litm--add-actor-btn {
-	margin: 0.25rem 4px;
+	margin: var(--spacer-4) 4px;
 	flex: none;
 	font-size: var(--font-size-11);
 	opacity: 0.75;
@@ -3554,7 +3595,7 @@ section.standard-form.litm-actions-app {
 
 @container (min-width: 480px) {
 	.litm--story-tags .litm--add-actor-btn {
-		margin: 0.5rem 0.75rem;
+		margin: var(--spacer-8) var(--spacer-12);
 	}
 
 	.litm--story-tags .litm--quick-add-input {
@@ -3569,13 +3610,13 @@ section.standard-form.litm-actions-app {
 @container (min-width: 720px) {
 	.litm--story-tags .litm--add-actor-btn {
 		width: calc(100% / 3);
-		margin: 0px auto 0.25rem;
+		margin: 0px auto var(--spacer-4);
 	}
 }
 
 .litm--story-tags .litm--load-scene-btns {
-	margin: 0 4px 0.25rem;
-	gap: var(--space-xs);
+	margin: 0 4px var(--spacer-4);
+	gap: var(--spacer-4);
 	flex: none;
 }
 
@@ -3591,14 +3632,14 @@ section.standard-form.litm-actions-app {
 
 @container (min-width: 480px) {
 	.litm--story-tags .litm--load-scene-btns {
-		margin: 0 0.75rem 0.25rem;
+		margin: 0 var(--spacer-12) var(--spacer-4);
 	}
 }
 
 @container (min-width: 720px) {
 	.litm--story-tags .litm--load-scene-btns {
 		width: calc(100% / 3);
-		margin: 0 auto 0.25rem;
+		margin: 0 auto var(--spacer-4);
 	}
 }
 
@@ -3606,7 +3647,7 @@ section.standard-form.litm-actions-app {
 .litm--tag-item {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.1rem;
+	gap: var(--spacer-2);
 	padding: 0;
 	margin: 0;
 	cursor: grab;
@@ -3845,7 +3886,7 @@ section.standard-form.litm-actions-app {
 .litm--section-body-inner {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 	overflow: hidden;
 }
 
@@ -3928,7 +3969,7 @@ input[type="text"].litm--quick-add-input,
 /* Limit group — group header with nested statuses */
 .litm--limit-group {
 	margin: 3px 0;
-	padding: 0.25rem 1px;
+	padding: var(--spacer-4) 1px;
 	background: color-mix(in srgb, var(--color-litm-limit-accent) 12%, transparent);
 	border-radius: var(--border-radius);
 }
@@ -4157,7 +4198,7 @@ input[type="text"].litm--quick-add-input,
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-md);
+	gap: var(--spacer-8);
 }
 .litm-spend-power .litm-spend-power__body > fieldset {
 	flex: none;
@@ -4173,7 +4214,7 @@ input[type="text"].litm--quick-add-input,
 
 .litm-spend-power .litm-spend-power__header {
 	align-items: center;
-	padding: 0.5rem 0.75rem;
+	padding: var(--spacer-8) var(--spacer-12);
 	border-bottom: 1px solid var(--color-border);
 	font-weight: bold;
 }
@@ -4205,8 +4246,8 @@ input[type="text"].litm--quick-add-input,
 .litm-spend-power .litm-spend-power__option {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
-	padding: 0.6rem 0.75rem;
+	gap: var(--spacer-4);
+	padding: var(--spacer-8) var(--spacer-12);
 	border-bottom: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 	cursor: pointer;
@@ -4230,13 +4271,13 @@ input[type="text"].litm--quick-add-input,
 .litm-spend-power .litm-spend-power__option-row {
 	display: flex;
 	align-items: center;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 }
 
 .litm-spend-power .litm-spend-power__option-label {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--spacer-8);
 	flex: 1;
 	cursor: pointer;
 	font-weight: bold;
@@ -4263,7 +4304,7 @@ input[type="text"].litm--quick-add-input,
 /* --- Entries (tags, statuses, counters) --- */
 
 .litm-spend-power .litm-spend-power__tier {
-	margin: 0.15rem 0 0;
+	margin: var(--spacer-2) 0 0;
 }
 
 .litm-spend-power .litm-spend-power__tier input {
@@ -4274,8 +4315,8 @@ input[type="text"].litm--quick-add-input,
 .litm-spend-power .litm-spend-power__entries {
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
-	margin-top: 0.5rem;
+	gap: var(--spacer-4);
+	margin-top: var(--spacer-8);
 }
 
 .litm-spend-power .litm-spend-power__entries.is-hidden {
@@ -4288,13 +4329,13 @@ input[type="text"].litm--quick-add-input,
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 }
 
 .litm-spend-power .litm-spend-power__entry {
 	display: flex;
 	align-items: center;
-	gap: 0.4rem;
+	gap: var(--spacer-8);
 }
 
 .litm-spend-power .litm-spend-power__entry-name {
@@ -4308,7 +4349,7 @@ input[type="text"].litm--quick-add-input,
 
 .litm-spend-power .litm-spend-power__remove-entry {
 	flex: none;
-	padding: 0.2rem 0.4rem;
+	padding: var(--spacer-4) var(--spacer-8);
 	line-height: 1;
 	background: transparent;
 	border: 1px solid var(--color-border);
@@ -4324,7 +4365,7 @@ input[type="text"].litm--quick-add-input,
 
 .litm-spend-power .litm-spend-power__add-entry {
 	align-self: flex-start;
-	padding: 0.25rem 0.6rem;
+	padding: var(--spacer-4) var(--spacer-8);
 	font-size: var(--font-size-14);
 	background: transparent;
 	border: 1px solid var(--color-border);
@@ -4333,7 +4374,7 @@ input[type="text"].litm--quick-add-input,
 	color: var(--color-text-secondary);
 	display: flex;
 	align-items: center;
-	gap: 0.3rem;
+	gap: var(--spacer-4);
 }
 
 .litm-spend-power .litm-spend-power__add-entry:hover {
@@ -4344,8 +4385,8 @@ input[type="text"].litm--quick-add-input,
 .litm-spend-power .litm-spend-power__counter {
 	align-items: center;
 	justify-content: center;
-	gap: 0.5rem;
-	padding: 0.25rem 0;
+	gap: var(--spacer-8);
+	padding: var(--spacer-4) 0;
 }
 
 .litm-spend-power .litm-spend-power__counter-value {
@@ -4381,7 +4422,7 @@ input[type="text"].litm--quick-add-input,
 	margin: 0;
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.35rem 0.6rem;
+	gap: var(--spacer-4) var(--spacer-8);
 }
 
 .litm-spend-power .litm-spend-power__tag-chip {
@@ -4405,15 +4446,15 @@ input[type="text"].litm--quick-add-input,
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.4rem;
+	gap: var(--spacer-8);
 }
 
 .litm-spend-power .litm-spend-power__status-item {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
-	padding: 0.25rem 0.5rem;
+	gap: var(--spacer-8);
+	padding: var(--spacer-4) var(--spacer-8);
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 }
@@ -4424,7 +4465,7 @@ input[type="text"].litm--quick-add-input,
 
 .litm-spend-power .litm-spend-power__status-reduce {
 	align-items: center;
-	gap: 0.35rem;
+	gap: var(--spacer-4);
 }
 
 /* ========================================
@@ -4435,7 +4476,7 @@ input[type="text"].litm--quick-add-input,
 .litm-trope-sheet .theme-kit-drop {
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	padding: 0.75rem;
+	padding: var(--spacer-12);
 	text-align: center;
 	background: var(--color-data-background);
 	transition:
@@ -4621,7 +4662,7 @@ fieldset.litm-party-overview {
 
 .litm-party-overview__quest-text {
 	display: flex;
-	gap: 0.25rem;
+	gap: var(--spacer-4);
 	margin-left: -1.25em;
 }
 
@@ -4645,7 +4686,7 @@ fieldset.litm-party-overview {
 .litm-party-overview__quest-tracks {
 	display: flex;
 	justify-content: flex-start;
-	gap: 0.75rem;
+	gap: var(--spacer-12);
 }
 
 .litm-party-overview__quest-track {
@@ -4771,7 +4812,7 @@ body.theme-dark .application:not(.theme-light),
 	}
 
 	& .litm.dice-roll.expanded .dice-tooltip {
-		background: rgba(0, 0, 0, 0.4);
+		background: var(--color-overlay-black-40);
 		border: 1px solid var(--color-litm-chat-border);
 	}
 
@@ -4905,7 +4946,7 @@ body.theme-dark .application:not(.theme-light),
 
 .litm--scene-tag-dialog .litm--section-actions-bottom {
 	flex: none;
-	margin-top: 0.5rem;
+	margin-top: var(--spacer-8);
 }
 
 .litm--scene-tag-dialog .litm--quick-add-input {
@@ -4917,15 +4958,15 @@ body.theme-dark .application:not(.theme-light),
 }
 
 .litm--scene-tag-dialog .litm--scene-tag-hint {
-	margin: 0 0 0.5rem;
+	margin: 0 0 var(--spacer-8);
 	font-size: var(--font-size-12);
 	color: var(--color-text-secondary);
 }
 
 .litm--scene-tag-dialog .litm--scene-tag-row {
 	align-items: center;
-	gap: 0.25rem;
-	margin-bottom: 0.25rem;
+	gap: var(--spacer-4);
+	margin-bottom: var(--spacer-4);
 }
 
 .litm--scene-tag-dialog .litm--scene-tag-row>span {
@@ -4957,7 +4998,7 @@ body.theme-dark .application:not(.theme-light),
 	font-size: var(--font-size-11);
 	height: 1.5rem;
 	line-height: 1.5rem;
-	padding: 0 0.2rem;
+	padding: 0 var(--spacer-4);
 	border: 1px solid var(--color-border-light-tertiary);
 	background: transparent;
 }
@@ -5054,7 +5095,7 @@ body.theme-dark .application:not(.theme-light),
 ======================================== */
 
 .litm-active-effect-sheet .standard-form {
-	gap: 0.375rem;
+	gap: var(--spacer-4);
 }
 
 .litm-active-effect-sheet .standard-form .form-group>label {
@@ -5078,7 +5119,7 @@ body.theme-dark .application:not(.theme-light),
 
 .litm--picker .litm--picker-row {
 	align-items: center;
-	padding: var(--space-xs) 0;
+	padding: var(--spacer-4) 0;
 	cursor: pointer;
 }
 

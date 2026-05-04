@@ -9,7 +9,7 @@
 	<!-- General Consequences -->
 	<fieldset data-drop-zone="general-consequences">
 		<legend class="control flexrow gap-sm">
-			<span style="white-space:nowrap;">{{localize "LITM.Terms.general_consequences"}}</span>
+			<span style="white-space:nowrap">{{localize "LITM.Terms.general_consequences"}}</span>
 			{{#if generalConsequence}}
 			<button type="button" data-action="editVignette" data-item-id="{{generalConsequence._id}}"
 				data-tooltip="{{localize 'LITM.Ui.edit'}}" aria-label="{{localize 'LITM.Ui.edit'}}">
@@ -34,8 +34,8 @@
 	</fieldset>
 
 	<!-- Vignettes -->
-	<div class="flexrow gap-sm" style="align-items: center; justify-content: space-between;">
-		<h4 style="margin: 0;">{{localize "LITM.Terms.vignettes"}}</h4>
+	<div class="flexrow gap-sm" style="justify-content: space-between">
+		<h4 style="margin: 0">{{localize "LITM.Terms.vignettes"}}</h4>
 		<button type="button" class="noflex" data-action="addVignette" data-tooltip="{{localize 'LITM.Ui.add_vignette'}}" aria-label="{{localize 'LITM.Ui.add_vignette'}}">
 			<i class="fa-solid fa-plus" aria-hidden="true"></i>
 		</button>
