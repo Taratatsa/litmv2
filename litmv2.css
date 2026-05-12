@@ -623,19 +623,48 @@ body,
 	font-size: var(--font-size-12);
 }
 
-/* Tags suggested by the active action — soft warm halo so the tag chrome
-   stays the primary read and the suggestion is a hint, not a verdict.
-   Helpful = gold (matches power-tag accent), Hindering = apricot. */
+/* Tags suggested by the active action — paired sparkle glyphs floating
+   off the top-right corner of the row in the suggestion's own colour.
+   ::after carries the larger filled ✦ near the corner; ::before carries
+   a smaller outline ✧ raised a bit higher and to the left, so the two
+   read as a sparkle constellation rather than two co-equal stars on a
+   baseline. Both are absolutely positioned so they don't consume row
+   space or compete with the tag's own gold underline. Soft text-shadow
+   glow stays visible against parchment and dark surfaces. */
 .litm--roll-dialog-tag.is-suggested-positive,
 .litm--roll-dialog-tag.is-suggested-negative {
-	border-radius: var(--border-radius);
-	transition: box-shadow var(--transition-fast);
+	position: relative;
 }
-.litm--roll-dialog-tag.is-suggested-positive {
-	box-shadow: 0 0 0 1px var(--color-litm-tag), 0 0 8px 1px var(--color-warm-1-25);
+.litm--roll-dialog-tag.is-suggested-positive::before,
+.litm--roll-dialog-tag.is-suggested-positive::after,
+.litm--roll-dialog-tag.is-suggested-negative::before,
+.litm--roll-dialog-tag.is-suggested-negative::after {
+	position: absolute;
+	line-height: 1;
+	pointer-events: none;
+	text-shadow: 0 0 3px currentColor, 0 0 7px currentColor;
 }
-.litm--roll-dialog-tag.is-suggested-negative {
-	box-shadow: 0 0 0 1px var(--color-litm-weakness), 0 0 8px 1px var(--color-warm-1-25);
+.litm--roll-dialog-tag.is-suggested-positive::after,
+.litm--roll-dialog-tag.is-suggested-negative::after {
+	content: "\2726"; /* ✦ large filled */
+	top: -0.55em;
+	inset-inline-end: -0.85em;
+	font-size: 0.85em;
+}
+.litm--roll-dialog-tag.is-suggested-positive::before,
+.litm--roll-dialog-tag.is-suggested-negative::before {
+	content: "\2727"; /* ✧ small outline, raised and shifted left */
+	top: -0.95em;
+	inset-inline-end: -0.05em;
+	font-size: 0.6em;
+}
+.litm--roll-dialog-tag.is-suggested-positive::before,
+.litm--roll-dialog-tag.is-suggested-positive::after {
+	color: var(--color-litm-tag-text);
+}
+.litm--roll-dialog-tag.is-suggested-negative::before,
+.litm--roll-dialog-tag.is-suggested-negative::after {
+	color: var(--color-litm-weakness-text);
 }
 
 /* Actions browser app — list of action cards on a hero */
@@ -1977,8 +2006,21 @@ section.standard-form.litm-actions-app {
 	flex-shrink: 0;
 }
 
+.litm i.litm-tag-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 11px;
+	color: var(--color-text-subtle);
+}
+
 .litm .is-inactive {
 	opacity: 0.4;
+}
+
+.litm .special-improvements-list li.is-locked {
+	opacity: 0.55;
+	font-style: italic;
 }
 
 /* Clickable tags in play mode */

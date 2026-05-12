@@ -36,6 +36,7 @@ export class HeroSheet extends LitmActorSheet {
 			openRollDialog: HeroSheet.#onOpenRollDialog,
 			openActionsApp: HeroSheet.#onOpenActionsApp,
 			addStoryTag: LitmActorSheet._onAddStoryTag,
+			addStoryTheme: HeroSheet.#onAddStoryTheme,
 			addMomentOfFulfillment: HeroSheet.#onAddMomentOfFulfillment,
 			removeMomentOfFulfillment: HeroSheet.#onRemoveMomentOfFulfillment,
 			removeEffect: LitmActorSheet._onRemoveEffect,
@@ -323,38 +324,9 @@ export class HeroSheet extends LitmActorSheet {
 	 * @param {object} fellowship
 	 */
 	async #prepareSpecialImprovements(themes, fellowship) {
-		const enrichImprovements = async (improvements = []) =>
-			Promise.all(
-				improvements.map(async (imp) => ({
-					...imp,
-					enrichedDescription: await enrichHTML(
-						imp.description || "",
-						this.document,
-					),
-				})),
-			);
-
-		for (const theme of themes) {
-			theme.system.specialImprovements = await enrichImprovements(
-				theme.system.specialImprovements,
-			);
-		}
-		if (fellowship.hasTheme) {
-			fellowship.system.specialImprovements = await enrichImprovements(
-				fellowship.system.specialImprovements,
-			);
-		}
-
-		if (!this._isEditMode) {
-			for (const theme of themes) {
-				theme.system.specialImprovements =
-					theme.system.specialImprovements.filter((imp) => imp.isActive);
-			}
-			if (fellowship.hasTheme) {
-				fellowship.system.specialImprovements =
-					fellowship.system.specialImprovements.filter((imp) => imp.isActive);
-			}
-		}
+		const themebookCache = new Map();
+		for (const theme of themes) await this._prepareThemeImprovements(theme, themebookCache);
+		if (fellowship.hasTheme) await this._prepareThemeImprovements(fellowship, themebookCache);
 	}
 
 	/**
@@ -445,6 +417,20 @@ export class HeroSheet extends LitmActorSheet {
 
 	_buildAllRollTags() {
 		return this.system.allRollTags.map(effectToPlain);
+	}
+
+	/**
+	 * Create a new story theme item on this hero and open its sheet.
+	 * @private
+	 */
+	static async #onAddStoryTheme(_event, _target) {
+		const [storyTheme] = await this.document.createEmbeddedDocuments("Item", [
+			{
+				name: game.i18n.localize("LITM.Ui.new_story_theme"),
+				type: "story_theme",
+			},
+		]);
+		storyTheme?.sheet.render(true);
 	}
 
 	/**

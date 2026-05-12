@@ -145,8 +145,10 @@
 	{{/if}}
 
 	<!-- Story Themes -->
-	{{#if storyThemes.length}}
-	<div class="grid-2col">
+	<fieldset>
+		{{> systems/litmv2/templates/partials/control-legend.html label="LITM.Terms.story_themes" action="addStoryTheme" tooltip="LITM.Terms.add"}}
+		{{#if storyThemes.length}}
+		<div class="grid-2col">
 		{{#each storyThemes as |theme|}}
 		<fieldset class="theme-card story-theme-card item draggable" data-item-id="{{theme._id}}">
 			<legend class="flexrow gap-xs">
@@ -188,8 +190,9 @@
 			</div>
 		</fieldset>
 		{{/each}}
-	</div>
-	{{/if}}
+		</div>
+		{{/if}}
+	</fieldset>
 
 	<!-- Backpack & Story Tags -->
 	{{#if backpack}}

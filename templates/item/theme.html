@@ -129,5 +129,28 @@
 			</li>
 			{{/each}}
 		</ul>
+
+		{{#if availableSpecialImprovements.length}}
+		<header class="litm--section-header"><span>{{localize "LITM.Ui.from_themebook"}}</span></header>
+		<ul class="plain special-improvements-list">
+			{{#each availableSpecialImprovements as |improvement|}}
+			<li class="is-locked">
+				<i class="fa-solid fa-lock litm-tag-check" aria-hidden="true"></i>
+				<div class="flex1">
+					<h5>{{improvement.name}}</h5>
+					{{#if improvement.description}}
+					<p>{{improvement.description}}</p>
+					{{/if}}
+				</div>
+				<button type="button" class="noflex" data-action="addSpecialImprovementFromThemebook"
+					data-index="{{improvement.index}}"
+					data-tooltip="{{localize 'LITM.Ui.add_improvement'}}"
+					aria-label="{{localize 'LITM.Ui.add_improvement'}}">
+					<i class="fa-solid fa-plus" aria-hidden="true"></i>
+				</button>
+			</li>
+			{{/each}}
+		</ul>
+		{{/if}}
 	</fieldset>
 </section>

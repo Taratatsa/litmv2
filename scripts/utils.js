@@ -91,6 +91,26 @@ export async function findThemebookByName(name) {
 }
 
 /**
+ * Compute the set of themebook special-improvement entries not yet claimed on
+ * a theme. Two entries are considered the same when both `name` and
+ * `description` match. Empty entries (no name and no description) are skipped.
+ * @param {Array<{name?: string, description?: string}>} claimed
+ * @param {Array<{name?: string, description?: string}>} themebookEntries
+ * @returns {Array<{index: number, name: string, description: string}>}
+ */
+export function availableThemebookImprovements(claimed = [], themebookEntries = []) {
+	return themebookEntries
+		.map((entry, index) => ({ ...entry, index }))
+		.filter((entry) => entry?.name || entry?.description)
+		.filter(
+			(entry) =>
+				!claimed.some(
+					(c) => c.name === entry.name && c.description === entry.description,
+				),
+		);
+}
+
+/**
  * Enrich HTML text with Foundry enrichers.
  * @param {string} text          The HTML text to enrich
  * @param {Document} document    The document context for enrichment

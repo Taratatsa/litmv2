@@ -2,9 +2,14 @@
 <div class="flexcol gap-xs">
 	<ul class="plain special-improvements-list">
 		{{#each system.specialImprovements as |improvement|}}
-		<li class="{{#unless improvement.isActive}}is-inactive{{/unless}}">
+		<li class="{{#if improvement.isLocked}}is-locked{{else}}{{#unless improvement.isActive}}is-inactive{{/unless}}{{/if}}"
+			{{#if improvement.isLocked}}data-tooltip="{{localize 'LITM.Ui.improvement_locked_hint'}}"{{/if}}>
+			{{#if improvement.isLocked}}
+			<i class="fa-solid fa-lock litm-tag-check" aria-hidden="true"></i>
+			{{else}}
 			<img class="litm-tag-check" alt=""
 				src="systems/litmv2/assets/media/{{#if improvement.isActive}}checkbox-c.svg{{else}}checkbox.svg{{/if}}" />
+			{{/if}}
 			<div>
 				<h5>{{improvement.name}}</h5>
 				{{#if improvement.enrichedDescription}}
