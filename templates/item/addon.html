@@ -153,10 +153,10 @@
 				</div>
 				{{#each t.consequences as |consequence|}}
 				<div class="flexrow gap-sm" style="align-items: flex-start">
-					<textarea name="system.threats.{{../t.index}}.consequences.{{@index}}" rows="2"
+					<textarea name="system.threats.{{t.index}}.consequences.{{@index}}" rows="2"
 						placeholder="{{localize 'LITM.Ui.name_consequence'}}">{{consequence}}</textarea>
 					<button type="button" class="noflex" data-action="removeConsequence"
-						data-threat-index="{{../t.index}}" data-consequence-index="{{@index}}"
+						data-threat-index="{{t.index}}" data-consequence-index="{{@index}}"
 						data-tooltip="{{localize 'LITM.Ui.remove_consequence'}}" aria-label="{{localize 'LITM.Ui.remove_consequence'}}">
 						<i class="fa-solid fa-trash" aria-hidden="true"></i>
 					</button>
