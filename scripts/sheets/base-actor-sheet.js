@@ -1,7 +1,7 @@
 import { buildTrackCompleteContent, detectTrackCompletion } from "../system/chat.js";
 import { THEME_TAG_TYPES } from "../system/config.js";
 import { Sockets } from "../system/sockets.js";
-import { addStoryTagToActor, confirmDelete, enrichHTML, getStoryTagSidebar, levelIcon, parseEmbeddedFormKeys, resolveEffect, statusTagEffect, storyTagEffect, updateEffectsByParent, viewLinkedRefAction } from "../utils.js";
+import { addStoryTagToActor, availableThemebookImprovements, confirmDelete, enrichHTML, findThemebookByName, getStoryTagSidebar, levelIcon, parseEmbeddedFormKeys, resolveEffect, statusTagEffect, storyTagEffect, updateEffectsByParent, viewLinkedRefAction } from "../utils.js";
 import { mapEffectForUI, toTiers } from "../apps/story-tag-helpers.js";
 import { LitmSheetMixin } from "./litm-sheet-mixin.js";
 
@@ -79,6 +79,59 @@ export class LitmActorSheet extends LitmSheetMixin(
 	 */
 	get _isEditMode() {
 		return this._mode === LitmActorSheet.MODES.EDIT;
+	}
+
+	/**
+	 * Replaces `themeContext.system.specialImprovements` with an enriched array.
+	 * In play mode only active improvements are kept; in edit mode locked
+	 * previews from the linked themebook are appended.
+	 *
+	 * Locked entries carry `isLocked: true` so the rendering partial swaps the
+	 * checkbox for a lock icon and applies the locked styling.
+	 *
+	 * @param {{ system: { themebook?: string, specialImprovements: object[] } }} themeContext
+	 * @param {Map<string, Promise<object|null>|object|null>} [themebookCache]
+	 *   Optional cache to dedupe themebook lookups across multiple themes in one render pass.
+	 */
+	async _prepareThemeImprovements(themeContext, themebookCache) {
+		const enriched = await Promise.all(
+			themeContext.system.specialImprovements.map(async (imp) => ({
+				...imp,
+				enrichedDescription: await enrichHTML(imp.description || "", this.document),
+			})),
+		);
+
+		if (!this._isEditMode) {
+			themeContext.system.specialImprovements = enriched.filter((imp) => imp.isActive);
+			return;
+		}
+
+		const themebookName = themeContext.system?.themebook;
+		let themebook;
+		if (themebookCache && themebookName) {
+			if (!themebookCache.has(themebookName)) {
+				themebookCache.set(themebookName, findThemebookByName(themebookName));
+			}
+			themebook = await themebookCache.get(themebookName);
+		} else {
+			themebook = await findThemebookByName(themebookName);
+		}
+		const available = themebook?.system?.specialImprovements ?? [];
+		const locked = availableThemebookImprovements(enriched, available).map(
+			(entry) => ({
+				name: entry.name || "",
+				description: entry.description || "",
+				isActive: false,
+				isLocked: true,
+			}),
+		);
+		const lockedEnriched = await Promise.all(
+			locked.map(async (imp) => ({
+				...imp,
+				enrichedDescription: await enrichHTML(imp.description || "", this.document),
+			})),
+		);
+		themeContext.system.specialImprovements = [...enriched, ...lockedEnriched];
 	}
 
 	static PLAY_HEADER_TEMPLATE = "systems/litmv2/templates/parts/play-header.html";

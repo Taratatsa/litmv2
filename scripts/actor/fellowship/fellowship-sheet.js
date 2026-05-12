@@ -72,6 +72,7 @@ export class FellowshipSheet extends LitmActorSheet {
 			(i) => i.type === "theme" && i.system.isFellowship,
 		);
 		const theme = themeItem ? this._prepareThemeData(themeItem) : null;
+		if (theme) await this._prepareThemeImprovements(theme);
 
 		// Prepare story themes
 		const storyThemes = this.document.items

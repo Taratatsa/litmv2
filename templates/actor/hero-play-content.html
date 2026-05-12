@@ -40,21 +40,21 @@
 				<div>{{{ fellowship.system.description }}}</div>
 			</div>
 			{{else}}
-			<p class="hint" style="text-align: center;">
+			<p class="hint" style="text-align: center">
 				<button type="button" data-action="viewActor" data-actor-id="{{fellowshipActorId}}"
-					data-tooltip="{{localize 'LITM.Ui.click_to_edit_fellowship'}}" style="cursor: pointer;margin-inline:auto;">
+					data-tooltip="{{localize 'LITM.Ui.click_to_edit_fellowship'}}" style="cursor: pointer;margin-inline:auto">
 					{{> systems/litmv2/templates/partials/icon-fellowship-hint.html}}
 					{{localize "LITM.Ui.fellowship_no_theme"}}
 				</button>
 			</p>
 			{{/if}}
 			{{#if relationshipVisible.length}}
-			<hr style="margin: 0" />
+			<hr class="flush" />
 			<ul class="plain">
 				{{#each relationshipVisible as |relationship|}}
 				<li class="flexrow gap-sm">
 					<div class="flexrow noflex gap-sm" data-action="viewActor" data-actor-id="{{relationship.actorId}}"
-						data-tooltip="{{localize 'LITM.Ui.click_to_view_actor'}}" role="button" tabindex="0" style="cursor: pointer">
+						data-tooltip="{{localize 'LITM.Ui.click_to_view_actor'}}" role="button" tabindex="0">
 						{{#if relationship.img}}
 						<img class="relationship-img noflex" src="{{relationship.img}}" alt="{{relationship.name}}" />
 						{{/if}}
@@ -140,7 +140,7 @@
 	{{#if backpack}}
 	<fieldset>
 		<legend class="flexrow gap-sm">
-			<span class="litm-banner" style="font-size: var(--font-size-11);">{{backpack.name}}</span>
+			<span class="litm-banner" style="font-size: var(--font-size-11)">{{backpack.name}}</span>
 			<button type="button" class="noflex" data-action="editItem" data-item-id="{{backpack.id}}"
 				data-tooltip="{{localize 'LITM.Ui.edit_backpack'}}" aria-label="{{localize 'LITM.Ui.edit_backpack'}}">
 				<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
@@ -148,7 +148,7 @@
 		</legend>
 
 		{{#if backpack.tags.length}}
-		<div class="flexrow gap-sm" style="flex-wrap: wrap;">
+		<div class="flexrow gap-sm" style="flex-wrap: wrap">
 			{{#each backpack.tags as |tag|}} {{#unless tag.disabled}}
 			{{> systems/litmv2/templates/partials/play-tag.html
 				_id=tag._id
@@ -180,10 +180,10 @@
 			{{#each statuses as |tag|}}
 			<span class="litm-status{{#if tag.system.isHidden}} litm--tag-hidden{{/if}}" data-tag-type="{{tag.type}}" data-tag-id="{{tag.id}}"
 				data-text="{{tag.name}}" data-effect-id="{{tag.id}}">
-				<span {{#if @root.isOwner}}data-action="selectTag" style="cursor: pointer"
+				<span {{#if @root.isOwner}}data-action="selectTag"
 					data-tooltip="{{localize 'LITM.Ui.click_to_add_tag_only'}}"
 					{{/if}}>{{tag.name}}</span>
-				<span class="litm--tag-item-status" data-tooltip="{{localize 'LITM.Ui.right_click_reduce_status'}}">
+				<span class="litm--tag-item-status" data-action="toggleTier" data-tooltip="{{localize 'LITM.Ui.right_click_reduce_status'}}">
 					{{#each tag.system.tiers as |filled|}}
 					<img class="litm--tier-box" data-action="toggleTier" data-tier="{{add @index 1}}"
 						alt="" aria-hidden="true"

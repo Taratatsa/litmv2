@@ -24,7 +24,7 @@
 			<li class="form-group">
 				<input class="flex1" type="text" name="system.envisioningTags.{{@index}}" value="{{tag}}"
 					placeholder="{{localize 'LITM.Ui.themebook_tag'}}" />
-				<button type="button" style="flex:none;" data-action="removeEntry" data-path="system.envisioningTags"
+				<button type="button" class="noflex" data-action="removeEntry" data-path="system.envisioningTags"
 					data-index="{{@index}}" data-tooltip="{{localize 'LITM.Ui.remove_tag'}}" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
@@ -46,10 +46,10 @@
 		<ul class="plain">
 			{{#each powerTagQuestions as |entry|}}
 			<li class="form-group">
-				<label style="flex:none; min-width: 2rem;">{{entry.label}}</label>
+				<label class="noflex" style="min-width: 2rem">{{entry.label}}</label>
 				<input class="flex1" type="text" name="system.powerTagQuestions.{{entry.index}}"
 					value="{{entry.question}}" placeholder="{{localize 'LITM.Ui.themebook_question'}}" />
-				<button type="button" style="flex:none;" data-action="removeEntry" data-path="system.powerTagQuestions"
+				<button type="button" class="noflex" data-action="removeEntry" data-path="system.powerTagQuestions"
 					data-index="{{entry.index}}" data-tooltip="{{localize 'LITM.Ui.remove_question'}}" aria-label="{{localize 'LITM.Ui.remove_question'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
@@ -63,10 +63,10 @@
 		<ul class="plain">
 			{{#each weaknessTagQuestions as |entry|}}
 			<li class="form-group">
-				<label style="flex:none; min-width: 2rem;">{{entry.label}}</label>
+				<label class="noflex" style="min-width: 2rem">{{entry.label}}</label>
 				<input class="flex1" type="text" name="system.weaknessTagQuestions.{{entry.index}}"
 					value="{{entry.question}}" placeholder="{{localize 'LITM.Ui.themebook_question'}}" />
-				<button type="button" style="flex:none;" data-action="removeEntry"
+				<button type="button" class="noflex" data-action="removeEntry"
 					data-path="system.weaknessTagQuestions" data-index="{{entry.index}}"
 					data-tooltip="{{localize 'LITM.Ui.remove_question'}}" aria-label="{{localize 'LITM.Ui.remove_question'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
@@ -83,7 +83,7 @@
 			<li class="form-group">
 				<input class="flex1" type="text" name="system.questIdeas.{{@index}}" value="{{idea}}"
 					placeholder="{{localize 'LITM.Ui.themebook_quest_idea'}}" />
-				<button type="button" style="flex:none;" data-action="removeEntry" data-path="system.questIdeas"
+				<button type="button" class="noflex" data-action="removeEntry" data-path="system.questIdeas"
 					data-index="{{@index}}" data-tooltip="{{localize 'LITM.Ui.remove_tag'}}" aria-label="{{localize 'LITM.Ui.remove_tag'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
@@ -96,15 +96,15 @@
 		{{> systems/litmv2/templates/partials/control-legend.html label="LITM.Ui.special_improvements" action="addEntry" path="system.specialImprovements" tooltip="LITM.Ui.add_improvement"}}
 		<ul class="plain">
 			{{#each system.specialImprovements as |improvement|}}
-			<li class="form-group" style="align-items:flex-start;">
-				<div class="flex1 gap-sm" style="display:flex; flex-direction:column;">
+			<li class="form-group" style="align-items:flex-start">
+				<div class="flex1 gap-sm flexcol">
 					<input type="text" name="system.specialImprovements.{{@index}}.name" value="{{improvement.name}}"
 						placeholder="{{localize 'LITM.Ui.improvement_name'}}" />
 					<textarea name="system.specialImprovements.{{@index}}.description" rows="2"
 						aria-label="{{localize 'LITM.Ui.improvement_description'}}"
 						placeholder="{{localize 'LITM.Ui.improvement_description'}}">{{improvement.description}}</textarea>
 				</div>
-				<button type="button" style="flex:none;" data-action="removeEntry"
+				<button type="button" class="noflex" data-action="removeEntry"
 					data-path="system.specialImprovements" data-index="{{@index}}"
 					data-tooltip="{{localize 'LITM.Ui.remove_improvement'}}" aria-label="{{localize 'LITM.Ui.remove_improvement'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>

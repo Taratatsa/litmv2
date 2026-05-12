@@ -2,6 +2,7 @@ import { error } from "../../logger.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import { getThemeLevels } from "../../system/config.js";
 import {
+	availableThemebookImprovements,
 	fellowshipTagEffect,
 	findThemebookByName,
 	powerTagEffect,
@@ -34,6 +35,7 @@ export class ThemeSheet extends LitmItemSheet {
 			removeTag: ThemeSheet.#onRemoveTag,
 			adjustProgress: ThemeSheet.#onAdjustProgress,
 			addSpecialImprovement: ThemeSheet.#onAddSpecialImprovement,
+			addSpecialImprovementFromThemebook: ThemeSheet.#onAddSpecialImprovementFromThemebook,
 			removeSpecialImprovement: ThemeSheet.#onRemoveSpecialImprovement,
 		},
 		form: {
@@ -100,6 +102,11 @@ export class ThemeSheet extends LitmItemSheet {
 		// Theme tag question (Question A) for placeholder
 		const themeTagQuestion = `${allPowerQuestions[0] ?? ""}`.trim();
 
+		const availableSpecialImprovements = availableThemebookImprovements(
+			this.system.specialImprovements,
+			selectedThemebook?.system?.specialImprovements ?? [],
+		);
+
 		return {
 			...context,
 			enriched,
@@ -117,6 +124,7 @@ export class ThemeSheet extends LitmItemSheet {
 			powerQuestionTexts,
 			weaknessQuestionTexts,
 			themeTagQuestion,
+			availableSpecialImprovements,
 
 			// Display data
 			title: this.document.name,
@@ -231,6 +239,30 @@ export class ThemeSheet extends LitmItemSheet {
 		});
 		await this.document.update({
 			"system.specialImprovements": specialImprovements,
+		});
+	}
+
+	/**
+	 * Copy a special improvement entry from the linked themebook onto this theme.
+	 * @private
+	 */
+	static async #onAddSpecialImprovementFromThemebook(_event, target) {
+		const index = Number.parseInt(target.dataset.index, 10);
+		if (!Number.isFinite(index)) return;
+		const themebook = await findThemebookByName(this.system.themebook);
+		const entry = themebook?.system?.specialImprovements?.[index];
+		if (!entry) return;
+		const claimed = this.system.specialImprovements;
+		if (claimed.some((c) => c.name === entry.name && c.description === entry.description)) return;
+		await this.document.update({
+			"system.specialImprovements": [
+				...claimed,
+				{
+					name: entry.name || "",
+					description: entry.description || "",
+					isActive: true,
+				},
+			],
 		});
 	}
 

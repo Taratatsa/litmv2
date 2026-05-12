@@ -70,6 +70,14 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 			handler: SpendPowerApp.#onSubmit,
 			closeOnSubmit: true,
 		},
+		actions: {
+			"counter-inc": SpendPowerApp.#onCounter,
+			"counter-dec": SpendPowerApp.#onCounter,
+			"add-entry": SpendPowerApp.#onAddEntryAction,
+			"remove-entry": SpendPowerApp.#onRemoveEntry,
+			"toggle-chip": SpendPowerApp.#onToggleChip,
+			"toggle-option": SpendPowerApp.#onToggleOption,
+		},
 	};
 
 	static PARTS = {
@@ -254,56 +262,15 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 
 		const form = this.element;
 
-		// Delegated: counter buttons (standalone counters and status picker counters)
-		form.addEventListener("click", (event) => {
-			const btn = event.target.closest(
-				"[data-action='counter-inc'], [data-action='counter-dec']",
-			);
-			if (!btn) return;
-			const container = btn.closest(
-				".litm-spend-power__counter, .litm-spend-power__status-reduce",
-			);
-			const valueEl = container.querySelector(
-				".litm-spend-power__counter-value",
-			);
-			const current = Number(valueEl.textContent);
-			const statusItem = btn.closest(".litm-spend-power__status-item");
-			const min = statusItem ? 0 : 1;
-			const max = statusItem ? Number(statusItem.dataset.maxTier) : Infinity;
-			const next =
-				btn.dataset.action === "counter-inc"
-					? Math.min(current + 1, max)
-					: Math.max(min, current - 1);
-			valueEl.textContent = next;
-			this.#updatePower(form);
-		});
-
-		// Delegated: remove entry rows
-		form.addEventListener("click", (event) => {
-			const removeBtn = event.target.closest(".litm-spend-power__remove-entry");
-			if (removeBtn) {
-				removeBtn.closest(".litm-spend-power__entry").remove();
-				this.#updatePower(form);
-			}
-		});
-
-		// Delegated: scratched tag chip selection
-		form.addEventListener("click", (event) => {
-			const chip = event.target.closest(".litm-spend-power__tag-chip");
-			if (chip) {
-				chip.classList.toggle("is-selected");
-				this.#updatePower(form);
-			}
-		});
-
-		// Delegated: tier input changes
+		// Tier input changes — non-click event, must stay manual.
 		form.addEventListener("input", (event) => {
 			if (event.target.classList.contains("litm-spend-power__entry-tier")) {
 				this.#updatePower(form);
 			}
 		});
 
-		// Delegated: checkbox toggles — reveal/hide entry section
+		// Checkbox toggles reveal/hide their entry section. Native change event,
+		// not covered by [data-action].
 		form.addEventListener("change", (event) => {
 			const checkbox = event.target.closest("[data-option-check]");
 			if (!checkbox) return;
@@ -311,32 +278,61 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 			this.#toggleEntries(li);
 			this.#updatePower(form);
 		});
+	}
 
-		// Delegated: make the whole option card clickable (excluding entries section and labels)
-		form.addEventListener("click", (event) => {
-			const li = event.target.closest(".litm-spend-power__option");
-			if (!li) return;
-			// Ignore clicks inside the entries section (inputs/buttons/chips there)
-			if (event.target.closest(".litm-spend-power__entries")) return;
-			// Ignore clicks on the label — it already toggles the checkbox natively
-			if (event.target.closest("label")) return;
-			// Ignore clicks on the checkbox itself — handled by the change listener
-			if (event.target.closest("[data-option-check]")) return;
+	/** @this {SpendPowerApp} */
+	static #onCounter(_event, target) {
+		const container = target.closest(
+			".litm-spend-power__counter, .litm-spend-power__status-reduce",
+		);
+		const valueEl = container.querySelector(".litm-spend-power__counter-value");
+		const current = Number(valueEl.textContent);
+		const statusItem = target.closest(".litm-spend-power__status-item");
+		const min = statusItem ? 0 : 1;
+		const max = statusItem ? Number(statusItem.dataset.maxTier) : Infinity;
+		const next =
+			target.dataset.action === "counter-inc"
+				? Math.min(current + 1, max)
+				: Math.max(min, current - 1);
+		valueEl.textContent = next;
+		this.#updatePower(this.element);
+	}
 
-			const checkbox = li.querySelector("[data-option-check]");
-			checkbox.checked = !checkbox.checked;
-			this.#toggleEntries(li);
-			this.#updatePower(form);
-		});
+	/** @this {SpendPowerApp} */
+	static #onRemoveEntry(_event, target) {
+		target.closest(".litm-spend-power__entry").remove();
+		this.#updatePower(this.element);
+	}
 
-		// Delegated: add-entry buttons
-		form.addEventListener("click", (event) => {
-			const btn = event.target.closest("[data-action='add-entry']");
-			if (!btn) return;
-			const li = btn.closest(".litm-spend-power__option");
-			this.#addEntry(li);
-			this.#updatePower(form);
-		});
+	/** @this {SpendPowerApp} */
+	static #onToggleChip(_event, target) {
+		target.classList.toggle("is-selected");
+		this.#updatePower(this.element);
+	}
+
+	/** @this {SpendPowerApp} */
+	static #onAddEntryAction(_event, target) {
+		const li = target.closest(".litm-spend-power__option");
+		this.#addEntry(li);
+		this.#updatePower(this.element);
+	}
+
+	// The whole option card is clickable so users can hit anywhere on the row.
+	// Clicks on chips, counters, add-entry, and remove-entry buttons resolve to
+	// their own [data-action] first via closest() and never reach this handler.
+	// Labels and the checkbox itself are excluded so native behavior (label
+	// toggles checkbox, checkbox fires `change`) handles those paths instead —
+	// otherwise we'd double-toggle.
+	/** @this {SpendPowerApp} */
+	static #onToggleOption(event, target) {
+		if (event.target.closest(".litm-spend-power__entries")) return;
+		if (event.target.closest("label")) return;
+		if (event.target.closest("[data-option-check]")) return;
+
+		const checkbox = target.querySelector("[data-option-check]");
+		checkbox.checked = !checkbox.checked;
+		this.#toggleEntries(target);
+		this.#updatePower(this.element);
 	}
 
 	#toggleEntries(li) {

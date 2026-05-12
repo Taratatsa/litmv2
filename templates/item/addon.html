@@ -9,7 +9,7 @@
 	<!-- Rating Bonus -->
 	<div class="form-group">
 		<label for="ratingBonus">{{localize "LITM.Terms.rating_bonus"}}</label>
-		<input id="ratingBonus" type="number" name="system.ratingBonus" value="{{system.ratingBonus}}" min="0" step="1" style="width: 4.5rem;" />
+		<input id="ratingBonus" type="number" name="system.ratingBonus" value="{{system.ratingBonus}}" min="0" step="1" style="width: 4.5rem" />
 	</div>
 
 	<!-- Categories -->
@@ -21,7 +21,7 @@
 			<li class="form-group gap-sm">
 				<input class="flex1" type="text" name="system.categories.{{@index}}" value="{{cat}}"
 					placeholder="{{localize 'LITM.Ui.category_placeholder'}}" />
-				<button type="button" style="flex:none;" data-action="removeCategory" data-index="{{@index}}"
+				<button type="button" class="noflex" data-action="removeCategory" data-index="{{@index}}"
 					data-tooltip="{{localize 'LITM.Ui.remove'}}" aria-label="{{localize 'LITM.Ui.remove'}}">
 					<i class="fa-solid fa-trash" aria-hidden="true"></i>
 				</button>
@@ -69,19 +69,19 @@
 					<input class="flex2" type="text" name="system.limits.{{@index}}.label" value="{{limit.label}}"
 						placeholder="{{localize 'LITM.Ui.limit_label'}}" />
 					<input class="flex0" type="number" name="system.limits.{{@index}}.max" value="{{limit.max}}"
-						min="0" step="1" style="width: 4.5rem;" placeholder="{{localize 'LITM.Terms.max'}}" />
+						min="0" step="1" style="width: 4.5rem" placeholder="{{localize 'LITM.Terms.max'}}" />
 					<button type="button" class="noflex" data-action="removeLimit" data-index="{{@index}}"
 						data-tooltip="{{localize 'LITM.Ui.remove_limit'}}" aria-label="{{localize 'LITM.Ui.remove_limit'}}">
 						<i class="fa-solid fa-trash" aria-hidden="true"></i>
 					</button>
 				</div>
-				<div class="flexrow gap-sm" style="align-items: center;">
+				<div class="flexrow gap-sm">
 					<i class="fa-solid fa-arrow-right noflex" aria-hidden="true"></i>
 					<input class="flex1" type="text" name="system.limits.{{@index}}.outcome" value="{{limit.outcome}}"
 						placeholder="{{localize 'LITM.Ui.limit_outcome_placeholder'}}" />
 				</div>
 				{{#unless @last}}
-				<hr style="margin:0;"/>
+				<hr class="flush" />
 				{{/unless}}
 			</li>
 			{{/each}}
@@ -95,7 +95,7 @@
 		{{#if system.might.length}}
 		<ul class="plain">
 			{{#each system.might as |entry|}}
-			<li class="form-group gap-sm" style="align-items: center;">
+			<li class="form-group gap-sm" style="align-items: center">
 				<select class="flex0" name="system.might.{{@index}}.level" aria-label="{{localize 'LITM.Terms.might'}}">
 					{{selectOptions ../mightOptions selected=entry.level localize=true}}
 				</select>
@@ -119,7 +119,7 @@
 		{{#if threats.length}}
 		<ul class="plain">
 			{{#each threats as |t|}}
-			<li class="flexcol gap-md" style="border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 0.5rem;">
+			<li class="flexcol gap-md" style="border: 1px solid var(--color-border); border-radius: var(--border-radius); padding: 0.5rem">
 				<div class="flexrow gap-sm">
 					<input class="flex1" type="text" name="system.threats.{{t.index}}.name" value="{{t.name}}"
 						placeholder="{{localize 'LITM.Ui.threat_name_placeholder'}}" />
@@ -130,7 +130,7 @@
 				</div>
 
 				<!-- Consequence Only Toggle -->
-				<div class="form-group" style="margin-bottom: 0.25rem;">
+				<div class="form-group" style="margin-bottom: 0.25rem">
 					<input id="consequenceOnly-{{t.index}}" type="checkbox" name="system.threats.{{t.index}}.isConsequenceOnly"
 						{{checked t.isConsequenceOnly}} data-dtype="Boolean" />
 					<label for="consequenceOnly-{{t.index}}">{{localize "LITM.Ui.consequences_only"}}</label>
@@ -138,26 +138,24 @@
 
 				{{#unless t.isConsequenceOnly}}
 				<textarea name="system.threats.{{t.index}}.threat" rows="2"
-					placeholder="{{localize 'LITM.Ui.vignette_description_placeholder'}}"
-					style="resize: vertical;">{{t.threat}}</textarea>
+					placeholder="{{localize 'LITM.Ui.vignette_description_placeholder'}}">{{t.threat}}</textarea>
 				{{else}}
 				<input type="hidden" name="system.threats.{{t.index}}.threat" value="{{t.threat}}" />
 				{{/unless}}
 
 				<!-- Consequences -->
-				<div class="flexrow gap-sm" style="align-items: center;">
-					<strong class="flex1" style="font-size: var(--font-size-12);">{{localize "LITM.Terms.consequences"}}</strong>
+				<div class="flexrow gap-sm">
+					<strong class="flex1" style="font-size: var(--font-size-12)">{{localize "LITM.Terms.consequences"}}</strong>
 					<button type="button" class="noflex" data-action="addConsequence" data-threat-index="{{t.index}}"
 						data-tooltip="{{localize 'LITM.Ui.add_consequence'}}" aria-label="{{localize 'LITM.Ui.add_consequence'}}">
 						<i class="fa-solid fa-plus" aria-hidden="true"></i>
 					</button>
 				</div>
 				{{#each t.consequences as |consequence|}}
-				<div class="flexrow gap-sm" style="align-items: flex-start;">
+				<div class="flexrow gap-sm" style="align-items: flex-start">
 					<textarea name="system.threats.{{../t.index}}.consequences.{{@index}}" rows="2"
-						placeholder="{{localize 'LITM.Ui.name_consequence'}}"
-						style="resize: vertical;">{{consequence}}</textarea>
-					<button type="button" style="flex:none;" data-action="removeConsequence"
+						placeholder="{{localize 'LITM.Ui.name_consequence'}}">{{consequence}}</textarea>
+					<button type="button" class="noflex" data-action="removeConsequence"
 						data-threat-index="{{../t.index}}" data-consequence-index="{{@index}}"
 						data-tooltip="{{localize 'LITM.Ui.remove_consequence'}}" aria-label="{{localize 'LITM.Ui.remove_consequence'}}">
 						<i class="fa-solid fa-trash" aria-hidden="true"></i>
@@ -166,7 +164,7 @@
 				{{/each}}
 			</li>
 			{{#unless @last}}
-			<hr style="margin:0;"/>
+			<hr class="flush" />
 			{{/unless}}
 			{{/each}}
 		</ul>

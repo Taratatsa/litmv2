@@ -2,7 +2,7 @@
 <li>
 	<label
 		class="litm--roll-dialog-tag litm--{{tag.type}} {{#if tag.locked}}is-locked{{/if}} {{#if tag.state}}is-selected{{/if}} {{#if tag.isPositiveSuggestion}}is-suggested-positive{{/if}} {{#if tag.isNegativeSuggestion}}is-suggested-negative{{/if}}"
-		for="rd-{{tag.key}}" data-tag-type="{{tag.type}}"
+		for="rd-{{tag.key}}" data-action="toggleRollTag" data-tag-type="{{tag.type}}"
 		{{#if tag.isPositiveSuggestion}}data-tooltip="{{localize 'LITM.Actions.suggestion_helpful'}}"{{else if tag.isNegativeSuggestion}}data-tooltip="{{localize 'LITM.Actions.suggestion_hindering'}}"{{/if}}>
 		<span class="litm--sro">{{localize "LITM.Ui.select"}}</span>
 		<litm-super-checkbox name="{{tag.key}}" id="rd-{{tag.key}}" value="{{tag.state}}" data-type="{{tag.type}}"
@@ -350,7 +350,7 @@
 		</div>
 
 		<!-- Footer Buttons -->
-		<div class="form-footer flexrow gap-md" style="align-items: center;">
+		<div class="form-footer flexrow gap-md">
 			{{#if isOwner}}
 			<button type="button" class="flex1" data-action="sendToNarrator">
 				<i class="fa-solid fa-envelope" aria-hidden="true"></i>
