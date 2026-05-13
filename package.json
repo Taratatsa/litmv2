@@ -1,0 +1,19 @@
+{
+	"name": "litmv2",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"format": "biome format --write .",
+		"lint": "biome lint .",
+		"check": "biome check .",
+		"check:fix": "biome check --write .",
+		"i18n:check": "node scripts/lang-check-keys.js",
+		"i18n:diff": "node scripts/lang-diff.js lang/en.json lang/de.json lang/es.json lang/cn.json lang/fr.json lang/no.json"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.15",
+		"vitest": "2.1.0"
+	}
+}

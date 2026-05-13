@@ -8,9 +8,9 @@ Legend in the Mist is a Foundry Virtual Tabletop (v14 minimum) system for a rust
 
 ## Commands
 
-- `node check-keys.js` -- find missing localization keys across language files
-- `node diff.js` -- diff localization keys between language files
-- `node scripts/system/build-packs.js` -- generate status card source files in `packs/status-effects/_source/`, then compile with `fvtt package pack status-effects`
+- `npm test` -- run the Vitest unit-test suite
+- `npm run i18n:check` -- find missing/superfluous localization keys (wraps `scripts/lang-check-keys.js`)
+- `npm run i18n:diff` -- diff each non-English language file against `lang/en.json` (wraps `scripts/lang-diff.js`)
 
 ## Architecture
 
@@ -24,7 +24,7 @@ Legend in the Mist is a Foundry Virtual Tabletop (v14 minimum) system for a rust
 ### Directory Structure
 
 ```
-scripts/
+modules/
   actor/                    # Actor data models + sheets (hero, challenge, journey, fellowship, story-theme)
   item/                     # Item data models + sheets (theme, story-theme, backpack, themebook, vignette, trope, addon)
   apps/                     # Standalone ApplicationV2 apps (roll dialog, roll, sidebar, spend-power, etc.)
@@ -46,11 +46,11 @@ packs/                      # Compendium packs (status-effects)
 
 | Document | Types | Data Model Location |
 |----------|-------|---------------------|
-| **Actor** | `hero`, `journey`, `challenge`, `fellowship`, `story_theme` | `scripts/actor/{type}/{type}-data.js` |
-| **Item** | `theme`, `themebook`, `trope`, `backpack`, `story_theme`, `vignette`, `addon` | `scripts/item/{type}/{type}-data.js` |
-| **ActiveEffect** | `power_tag`, `weakness_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`, `status_tag` | `scripts/data/active-effects/{type}-data.js` |
+| **Actor** | `hero`, `journey`, `challenge`, `fellowship`, `story_theme` | `modules/actor/{type}/{type}-data.js` |
+| **Item** | `theme`, `themebook`, `trope`, `backpack`, `story_theme`, `vignette`, `addon` | `modules/item/{type}/{type}-data.js` |
+| **ActiveEffect** | `power_tag`, `weakness_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`, `status_tag` | `modules/data/active-effects/{type}-data.js` |
 
-Custom document classes: `LitmItem` (`scripts/item/litm-item.js`) handles legacy tag-to-effect migration. `LitmActiveEffect` (`scripts/data/active-effects/litm-active-effect.js`) is the custom AE document class.
+Custom document classes: `LitmItem` (`modules/item/litm-item.js`) handles legacy tag-to-effect migration. `LitmActiveEffect` (`modules/data/active-effects/litm-active-effect.js`) is the custom AE document class.
 
 ### Sheet Inheritance
 
@@ -131,33 +131,33 @@ Eight socket events on `system.litmv2`:
 
 | Class | File | Purpose |
 |-------|------|---------|
-| LitmRollDialog | `scripts/apps/roll-dialog.js` | Tag selection, power calculation, roll submission |
-| LitmRoll | `scripts/apps/roll.js` | Roll formula, outcome resolution, chat display |
-| StoryTagSidebar | `scripts/apps/story-tag-sidebar.js` | Scene tags, effects UI (replaces combat tracker) |
-| SpendPowerApp | `scripts/apps/spend-power.js` | Post-roll power spending dialog |
-| ThemeAdvancementApp | `scripts/apps/theme-advancement.js` | Quest/improvement advancement UI |
-| WelcomeOverlay | `scripts/apps/welcome-overlay.js` | First-time setup wizard |
-| DoubleSix | `scripts/apps/dice.js` | Custom d12-to-2d6 dice term |
+| LitmRollDialog | `modules/apps/roll-dialog.js` | Tag selection, power calculation, roll submission |
+| LitmRoll | `modules/apps/roll.js` | Roll formula, outcome resolution, chat display |
+| StoryTagSidebar | `modules/apps/story-tag-sidebar.js` | Scene tags, effects UI (replaces combat tracker) |
+| SpendPowerApp | `modules/apps/spend-power.js` | Post-roll power spending dialog |
+| ThemeAdvancementApp | `modules/apps/theme-advancement.js` | Quest/improvement advancement UI |
+| WelcomeOverlay | `modules/apps/welcome-overlay.js` | First-time setup wizard |
+| DoubleSix | `modules/apps/dice.js` | Custom d12-to-2d6 dice term |
 
 ### System Infrastructure
 
 | Module | File | Purpose |
 |--------|------|---------|
-| LitmConfig | `scripts/system/config.js` | Theme tiers, `BURN_POWER` constant, roll formula overrides, asset paths, regex patterns, `THEME_TAG_TYPES`/`POWER_TAG_TYPES` sets |
-| LitmSettings | `scripts/system/settings.js` | World/client settings with static getter/setter accessors |
-| Sockets | `scripts/system/sockets.js` | Socket event dispatch and handler registration |
-| Migrations | `scripts/system/migrations.js` | Sequential world-migration system (prefer `migrateData()` in DataModels) |
-| Enrichers | `scripts/system/enrichers.js` | `@render`, `@banner`, `@might`, `[tag]` text enrichers |
-| Handlebars | `scripts/system/handlebars.js` | Template helpers (`add`, `progress-buttons`, `toJSON`, `join`) and partials |
-| Fonts | `scripts/system/fonts.js` | Custom font registration (Ysgarth, Luminari, Labrada, Fraunces, etc.) |
-| KeyBindings | `scripts/system/keybindings.js` | `E` (toggle edit), `Alt+T` (wrap tag markup), `T` (toggle sidebar), `F` (fellowship sheet), `R` (dice roller) |
-| Renderers | `scripts/system/renderers/` | Document-to-HTML renderers for `@render` enricher |
-| Chat | `scripts/system/chat.js` | Track completion detection and chat message builders |
-| ContentSources | `scripts/system/content-sources.js` | Compendium pack management and status seeding |
-| Logger | `scripts/logger.js` | Styled `error`, `warn`, `info`, `success` wrappers -- use instead of bare `console.*` |
-| LitmItem | `scripts/item/litm-item.js` | Custom Item class with legacy tag-to-effect migration |
-| LitmActiveEffect | `scripts/data/active-effects/litm-active-effect.js` | Custom ActiveEffect document class |
-| SuperCheckbox | `scripts/components/super-checkbox.js` | `<litm-super-checkbox>` -- cycles: "" -> positive -> negative -> scratched |
+| LitmConfig | `modules/system/config.js` | Theme tiers, `BURN_POWER` constant, roll formula overrides, asset paths, regex patterns, `THEME_TAG_TYPES`/`POWER_TAG_TYPES` sets |
+| LitmSettings | `modules/system/settings.js` | World/client settings with static getter/setter accessors |
+| Sockets | `modules/system/sockets.js` | Socket event dispatch and handler registration |
+| Migrations | `modules/system/migrations.js` | Sequential world-migration system (prefer `migrateData()` in DataModels) |
+| Enrichers | `modules/system/enrichers.js` | `@render`, `@banner`, `@might`, `[tag]` text enrichers |
+| Handlebars | `modules/system/handlebars.js` | Template helpers (`add`, `progress-buttons`, `toJSON`, `join`) and partials |
+| Fonts | `modules/system/fonts.js` | Custom font registration (Ysgarth, Luminari, Labrada, Fraunces, etc.) |
+| KeyBindings | `modules/system/keybindings.js` | `E` (toggle edit), `Alt+T` (wrap tag markup), `T` (toggle sidebar), `F` (fellowship sheet), `R` (dice roller) |
+| Renderers | `modules/system/renderers/` | Document-to-HTML renderers for `@render` enricher |
+| Chat | `modules/system/chat.js` | Track completion detection and chat message builders |
+| ContentSources | `modules/system/content-sources.js` | Compendium pack management and status seeding |
+| Logger | `modules/logger.js` | Styled `error`, `warn`, `info`, `success` wrappers -- use instead of bare `console.*` |
+| LitmItem | `modules/item/litm-item.js` | Custom Item class with legacy tag-to-effect migration |
+| LitmActiveEffect | `modules/data/active-effects/litm-active-effect.js` | Custom ActiveEffect document class |
+| SuperCheckbox | `modules/components/super-checkbox.js` | `<litm-super-checkbox>` -- cycles: "" -> positive -> negative -> scratched |
 
 ## Game Concepts
 
@@ -198,7 +198,7 @@ Legend in the Mist is a tag-based RPG. Instead of numeric stats, characters are 
 
 ## Active Effects
 
-Active Effects are the **canonical data store** for all tags and statuses. Each effect has a `type` that maps to a TypeDataModel subclass in `scripts/data/active-effects/`.
+Active Effects are the **canonical data store** for all tags and statuses. Each effect has a `type` that maps to a TypeDataModel subclass in `modules/data/active-effects/`.
 
 ### Effect Types
 
@@ -251,7 +251,7 @@ Static methods: `markTier(tiers, tier)`, `stackTiers(tierArrays)`. Instance: `ca
 | `story_tag` | backpack items / actors | Yes (backpack) | Context | Optional | Yes |
 | `status_tag` | actors | No | Context | N/A | N/A |
 
-### ScratchableMixin (`scripts/data/active-effects/scratchable-mixin.js`)
+### ScratchableMixin (`modules/data/active-effects/scratchable-mixin.js`)
 
 Adds `isSuppressed` getter (returns `this.isScratched` -- Foundry skips suppressed effects) and `toggleScratch()` method. Used by `power_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`.
 
@@ -270,11 +270,11 @@ Effects can live on actors or embedded items. Updates must be routed to the corr
 - **Challenge/Journey** (`TagStringSyncMixin`): Dual representation -- `system.tags` string (canonical in edit mode) and ActiveEffects (canonical in play mode). Mixin synchronizes between them on mode switch.
 - **Addon items**: `syncAddonEffects` parses addon's `system.tags` string, creates effects flagged with `flags.litmv2.addonId`. `resyncAddonEffects` deletes and recreates on addon update.
 
-### EffectTagsMixin (`scripts/actor/effect-tags-mixin.js`)
+### EffectTagsMixin (`modules/actor/effect-tags-mixin.js`)
 
 Mixin for actor data models providing: `storyTags` (all `story_tag` effects), `statusEffects` (all `status_tag` effects), `statusParent` (override point for routing), `addStatus(name, {tiers, img})`, `removeStatus(effectId)`. Uses `allApplicableEffects()` internally.
 
-### HeroData Getters (`scripts/actor/hero/hero-data.js`)
+### HeroData Getters (`modules/actor/hero/hero-data.js`)
 
 - `fellowshipActor` -- linked fellowship actor (falls back to singleton)
 - `themes` -- `[{ theme: Item, tags: ActiveEffect[] }]` own non-fellowship themes
@@ -321,13 +321,13 @@ template: "systems/litmv2/templates/actor/hero.html"
 
 ### Localization
 
-All user-facing strings use keys from `lang/en.json`. Use the `localize` utility (aliased as `t`) from `scripts/utils.js`:
+All user-facing strings use keys from `lang/en.json`. Use the `localize` utility (aliased as `t`) from `modules/utils.js`:
 
 ```javascript
 import { localize as t } from "../utils.js";
 ```
 
-When adding new keys, add them to all language files (`node diff.js` or `node check-keys.js` to find gaps).
+When adding new keys, add them to all language files (`npm run i18n:diff` or `npm run i18n:check` to find gaps).
 
 ### CSS Class Naming
 
@@ -340,7 +340,7 @@ System-specific classes use `litm--` prefix (BEM-inspired). Use Foundry's built-
 
 ### Logging
 
-Use the system logger (`scripts/logger.js`) instead of bare `console.log/warn/error`:
+Use the system logger (`modules/logger.js`) instead of bare `console.log/warn/error`:
 
 ```javascript
 import { error, warn, info, success } from "../logger.js";
@@ -377,9 +377,9 @@ Foundry's `changeTab()` handles all switching, active-class toggling, and state 
 
 Prefer `static migrateData(source)` in DataModel subclasses for data shape changes. Foundry calls `migrateData` automatically on document load -- transparent, idempotent, no version tracking. Always call `return super.migrateData(source)` at the end.
 
-`scripts/system/migrations.js` is only for bulk operations that `migrateData` can't handle (e.g., renaming document types, moving data between documents).
+`modules/system/migrations.js` is only for bulk operations that `migrateData` can't handle (e.g., renaming document types, moving data between documents).
 
-### Settings (`scripts/system/settings.js`)
+### Settings (`modules/system/settings.js`)
 
 `LitmSettings.register()` registers world and client settings with static getter/setter accessors:
 
@@ -387,11 +387,11 @@ Prefer `static migrateData(source)` in DataModel subclasses for data shape chang
 
 **Client:** `customDice`, `popoutTagsSidebar`
 
-### Effect Factory Functions (`scripts/utils.js`)
+### Effect Factory Functions (`modules/utils.js`)
 
 Use factory functions to create properly-shaped effect data: `powerTagEffect()`, `weaknessTagEffect()`, `fellowshipTagEffect()`, `relationshipTagEffect()`, `storyTagEffect()`, `statusTagEffect()`. Use `updateEffectsByParent(actor, updates)` to route batched effect updates to the correct parent document.
 
-### Utility Functions (`scripts/utils.js`)
+### Utility Functions (`modules/utils.js`)
 
 - `localize(...keys)` (alias `t`) -- `game.i18n.localize()` wrapper
 - `queryItemsFromPacks({ type, filter, indexFields, map })` -- queries world items and compendium packs
@@ -411,11 +411,11 @@ Use factory functions to create properly-shaped effect data: `powerTagEffect()`,
 
 ### Hooks Organization
 
-Hooks registered via `LitmHooks.register()` in `scripts/system/hooks/index.js`, delegating to domain-specific modules: `actor-hooks.js`, `chat-hooks.js`, `compat-hooks.js`, `fellowship-hooks.js`, `item-hooks.js`, `preloads.js`, `ready-hooks.js`, `ui-hooks.js`, `token-hooks.js`. Add new hooks to the appropriate domain file.
+Hooks registered via `LitmHooks.register()` in `modules/system/hooks/index.js`, delegating to domain-specific modules: `actor-hooks.js`, `chat-hooks.js`, `compat-hooks.js`, `fellowship-hooks.js`, `item-hooks.js`, `preloads.js`, `ready-hooks.js`, `ui-hooks.js`, `token-hooks.js`. Add new hooks to the appropriate domain file.
 
 ### Asset Preloads
 
-New `.webp` assets must be added to the `preloads` array in `LitmConfig` (`scripts/system/config.js`). All images use `.webp` format. Icons use `.svg`.
+New `.webp` assets must be added to the `preloads` array in `LitmConfig` (`modules/system/config.js`). All images use `.webp` format. Icons use `.svg`.
 
 ## Foundry CSS Reference
 

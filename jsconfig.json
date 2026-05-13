@@ -2,5 +2,5 @@
 	"compilerOptions": {
 		"strict": true
 	},
-	"include": ["litmv2.js", "scripts", "foundry.js"]
+	"include": ["litmv2.js", "modules", "foundry/public/scripts/foundry.mjs"]
 }

@@ -94,11 +94,31 @@ body,
 	--color-warm-1-10: color-mix(in srgb, var(--color-warm-1) 10%, transparent);
 	--color-warm-1-25: color-mix(in srgb, var(--color-warm-1) 25%, transparent);
 	--color-warm-1-50: color-mix(in srgb, var(--color-warm-1) 50%, transparent);
-	--color-litm-limit-15: color-mix(in srgb, var(--color-litm-limit) 15%, transparent);
-	--color-litm-limit-30: color-mix(in srgb, var(--color-litm-limit) 30%, transparent);
-	--color-text-primary-10: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
-	--color-text-primary-15: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
-	--color-text-primary-40: color-mix(in srgb, var(--color-text-primary) 40%, transparent);
+	--color-litm-limit-15: color-mix(
+		in srgb,
+		var(--color-litm-limit) 15%,
+		transparent
+	);
+	--color-litm-limit-30: color-mix(
+		in srgb,
+		var(--color-litm-limit) 30%,
+		transparent
+	);
+	--color-text-primary-10: color-mix(
+		in srgb,
+		var(--color-text-primary) 10%,
+		transparent
+	);
+	--color-text-primary-15: color-mix(
+		in srgb,
+		var(--color-text-primary) 15%,
+		transparent
+	);
+	--color-text-primary-40: color-mix(
+		in srgb,
+		var(--color-text-primary) 40%,
+		transparent
+	);
 
 	/* Overlay colors */
 	--color-overlay-light: color-mix(in srgb, white 25%, transparent);
@@ -166,7 +186,11 @@ body,
 .application {
 	--color-border-30: color-mix(in srgb, var(--color-border) 30%, transparent);
 	--color-border-40: color-mix(in srgb, var(--color-border) 40%, transparent);
-	--color-litm-limit-border-hover: color-mix(in srgb, var(--color-litm-limit) 60%, var(--color-border));
+	--color-litm-limit-border-hover: color-mix(
+		in srgb,
+		var(--color-litm-limit) 60%,
+		var(--color-border)
+	);
 }
 
 .litm .window-content {
@@ -198,11 +222,13 @@ body,
 	--color-litm-track-abandon: #583a3a;
 	--color-litm-track-limit: #6e3a3a;
 	--underline-url: url(assets/media/underline.webp) center / contain no-repeat;
-	--sidebar-background: url("/systems/litmv2/assets/media/sheet-background.webp") repeat;
+	--sidebar-background: url("/systems/litmv2/assets/media/sheet-background.webp")
+		repeat;
 }
 
 .chat-message {
-	--chat-message-background: url("/systems/litmv2/assets/media/sheet-background.webp") repeat;
+	--chat-message-background: url("/systems/litmv2/assets/media/sheet-background.webp")
+		repeat;
 }
 
 /* ========================================
@@ -309,7 +335,12 @@ body,
 :where(.litm, .litm-landscape) a:focus-visible,
 :where(.litm, .litm-landscape) [tabindex="0"]:focus-visible,
 :where(.litm, .litm-landscape) select:focus-visible,
-:where(.litm, .litm-landscape) input:not([type="hidden"]):not([type="checkbox"]):not(.litm--tag-item-name):not(.litm--quick-add-input):not(.litm--limit-label):not(.litm--limit-max):focus-visible,
+:where(.litm, .litm-landscape)
+	input:not([type="hidden"]):not([type="checkbox"]):not(
+		.litm--tag-item-name
+	):not(.litm--quick-add-input):not(.litm--limit-label):not(
+		.litm--limit-max
+	):focus-visible,
 :where(.litm, .litm-landscape) textarea:focus-visible,
 :where(.litm, .litm-landscape) litm-super-checkbox:focus-visible {
 	outline: 2px solid var(--color-litm-tag);
@@ -454,13 +485,15 @@ body,
 }
 
 /* Story/power/theme tag badges */
-:is(.litm-tag,
+:is(
+	.litm-tag,
 	.litm-power_tag,
 	.litm-fellowship_tag,
 	.litm-story_tag,
 	.litm-theme_tag,
 	.litm-relationship_tag,
-	.litm-backpack) {
+	.litm-backpack
+) {
 	--tag-color: var(--color-litm-tag);
 }
 
@@ -587,7 +620,8 @@ body,
 	border: 1px solid var(--color-litm-limit);
 	color: var(--color-litm-limit-accent);
 }
-.chat-message .litm--chat-action-consequence-btn:hover:not(:disabled):not(.is-applied) {
+.chat-message
+	.litm--chat-action-consequence-btn:hover:not(:disabled):not(.is-applied) {
 	background: var(--color-litm-limit-15);
 }
 .chat-message .litm--chat-action-consequence-btn.is-applied {
@@ -642,7 +676,9 @@ body,
 	position: absolute;
 	line-height: 1;
 	pointer-events: none;
-	text-shadow: 0 0 3px currentColor, 0 0 7px currentColor;
+	text-shadow:
+		0 0 3px currentColor,
+		0 0 7px currentColor;
 }
 .litm--roll-dialog-tag.is-suggested-positive::after,
 .litm--roll-dialog-tag.is-suggested-negative::after {
@@ -1119,18 +1155,30 @@ section.standard-form.litm-actions-app {
 	text-transform: uppercase;
 	color: var(--color-text-primary);
 	mask:
-		radial-gradient(circle at 0 0,
+		radial-gradient(
+			circle at 0 0,
 			transparent var(--banner-notch),
-			black calc(var(--banner-notch) + 0.5px)) top left,
-		radial-gradient(circle at 100% 0,
+			black calc(var(--banner-notch) + 0.5px)
+		)
+		top left,
+		radial-gradient(
+			circle at 100% 0,
 			transparent var(--banner-notch),
-			black calc(var(--banner-notch) + 0.5px)) top right,
-		radial-gradient(circle at 0 100%,
+			black calc(var(--banner-notch) + 0.5px)
+		)
+		top right,
+		radial-gradient(
+			circle at 0 100%,
 			transparent var(--banner-notch),
-			black calc(var(--banner-notch) + 0.5px)) bottom left,
-		radial-gradient(circle at 100% 100%,
+			black calc(var(--banner-notch) + 0.5px)
+		)
+		bottom left,
+		radial-gradient(
+			circle at 100% 100%,
 			transparent var(--banner-notch),
-			black calc(var(--banner-notch) + 0.5px)) bottom right;
+			black calc(var(--banner-notch) + 0.5px)
+		)
+		bottom right;
 	mask-size: 51% 51%;
 	mask-repeat: no-repeat;
 }
@@ -1194,7 +1242,9 @@ section.standard-form.litm-actions-app {
 /* Cards wired with [data-render-action] are activated via a body-level
    delegated handler. Surface that with a clear hover and focus affordance. */
 .litm-render--card[data-render-action] {
-	transition: background var(--transition-fast), border-color var(--transition-fast);
+	transition:
+		background var(--transition-fast),
+		border-color var(--transition-fast);
 }
 
 .litm-render--card[data-render-action]:focus-visible {
@@ -1264,9 +1314,12 @@ section.standard-form.litm-actions-app {
 	text-align: center;
 }
 
-:is(.litm-render--challenge__description,
-	.litm-render--trope__description,
-	.litm-render--themebook__description) p:last-child {
+:is(
+		.litm-render--challenge__description,
+		.litm-render--trope__description,
+		.litm-render--themebook__description
+	)
+	p:last-child {
 	margin-bottom: 0;
 }
 
@@ -1420,7 +1473,10 @@ section.standard-form.litm-actions-app {
 	border-radius: var(--radius-sm);
 	color: var(--color-text-secondary);
 	cursor: pointer;
-	transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+	transition:
+		color var(--transition-fast),
+		border-color var(--transition-fast),
+		background var(--transition-fast);
 }
 
 .litm-render--action__send:hover {
@@ -1530,8 +1586,6 @@ section.standard-form.litm-actions-app {
 }
 
 /* ── Themebook embed card ── */
-
-.litm-render--themebook {}
 
 .litm-render--themebook__level {
 	text-align: center;
@@ -1801,7 +1855,7 @@ section.standard-form.litm-actions-app {
 	border-bottom: none;
 }
 
-.litm .theme-card-header>.flexrow {
+.litm .theme-card-header > .flexrow {
 	flex: 1 1 auto;
 	min-width: 0;
 	flex-wrap: nowrap;
@@ -1820,16 +1874,17 @@ section.standard-form.litm-actions-app {
 	gap: 12px;
 }
 
-:is(.litm-tag,
+:is(
+	.litm-tag,
 	.litm-power_tag,
 	.litm-fellowship_tag,
 	.litm-story_tag,
 	.litm-theme_tag,
 	.litm-relationship_tag,
-	.litm-backpack).scratched {
+	.litm-backpack
+).scratched {
 	text-decoration: line-through;
 }
-
 
 /* Story theme cards — portrait + tag header layout */
 .litm .story-theme-card {
@@ -1908,7 +1963,7 @@ section.standard-form.litm-actions-app {
 	scrollbar-width: thin;
 }
 
-.litm-actor [data-application-part="form"]>*:first-child {
+.litm-actor [data-application-part="form"] > *:first-child {
 	margin-top: var(--spacer-8);
 }
 
@@ -1921,7 +1976,7 @@ section.standard-form.litm-actions-app {
 	margin-top: var(--spacer-8);
 }
 
-.litm-actor [data-application-part="header"].img-name>div {
+.litm-actor [data-application-part="header"].img-name > div {
 	width: 100%;
 }
 
@@ -1936,7 +1991,7 @@ section.standard-form.litm-actions-app {
 	font-size: var(--font-size-16);
 }
 
-.litm-actor fieldset>.litm-banner {
+.litm-actor fieldset > .litm-banner {
 	font-size: var(--font-size-11);
 }
 
@@ -1958,7 +2013,7 @@ section.standard-form.litm-actions-app {
 	transform: scale(1.05);
 }
 
-.litm-actor .enriched-content>p:first-child {
+.litm-actor .enriched-content > p:first-child {
 	margin-top: 0px;
 }
 
@@ -1966,15 +2021,14 @@ section.standard-form.litm-actions-app {
 	padding-top: var(--spacer-8);
 }
 
-.litm-hero-sheet .litm--play-header>.flexcol {
+.litm-hero-sheet .litm--play-header > .flexcol {
 	flex: 0;
 	min-width: 25ch;
 }
 
-.litm-hero-sheet .litm--play-header>.flexcol:first-child {
+.litm-hero-sheet .litm--play-header > .flexcol:first-child {
 	margin-left: 16px;
 }
-
 
 /* Hero name with decorative underline */
 .litm-hero-sheet .litm--hero-name {
@@ -2054,7 +2108,7 @@ section.standard-form.litm-actions-app {
 	padding-left: 0;
 }
 
-.litm .theme-card-tags+.flexcol:has(.special-improvements-list) {
+.litm .theme-card-tags + .flexcol:has(.special-improvements-list) {
 	margin-top: var(--spacer-4);
 }
 
@@ -2083,31 +2137,35 @@ section.standard-form.litm-actions-app {
 	padding: 2rem;
 }
 
-.litm .empty-state>img,
-.litm .empty-state>button>img {
+.litm .empty-state > img,
+.litm .empty-state > button > img {
 	display: block;
 	margin: 0 auto var(--spacer-12);
 	opacity: 0.4;
 }
 
-.litm .empty-state>button {
+.litm .empty-state > button {
 	all: unset;
 	cursor: pointer;
 }
 
 /* Receded sections — visually lighter for lower-priority content */
 .litm-hero-sheet fieldset.litm--receded {
-	border-color: color-mix(in srgb, var(--color-fieldset-border) 30%, transparent);
+	border-color: color-mix(
+		in srgb,
+		var(--color-fieldset-border) 30%,
+		transparent
+	);
 	padding: var(--spacer-12);
 	gap: var(--spacer-12);
 }
 
-.litm-hero-sheet fieldset.litm--receded>legend {
+.litm-hero-sheet fieldset.litm--receded > legend {
 	font-size: var(--font-size-13);
 	color: var(--color-text-secondary);
 }
 
-.litm-hero-sheet fieldset.litm--receded>legend.litm-banner {
+.litm-hero-sheet fieldset.litm--receded > legend.litm-banner {
 	--banner-bg: var(--color-border-30);
 	font-size: var(--font-size-11);
 }
@@ -2264,10 +2322,12 @@ section.standard-form.litm-actions-app {
 	border-color: var(--color-border);
 }
 
-:is(.litm-challenge-sheet .limit-track,
+:is(
+	.litm-challenge-sheet .limit-track,
 	.litm-hero-sheet .promise-display,
 	.litm-hero-sheet .progress-display,
-	.litm-fellowship-sheet .progress-display) {
+	.litm-fellowship-sheet .progress-display
+) {
 	display: flex;
 }
 
@@ -2340,7 +2400,7 @@ section.standard-form.litm-actions-app {
 	margin-top: var(--spacer-4);
 }
 
-.addon-detail__section+.addon-detail__section {
+.addon-detail__section + .addon-detail__section {
 	margin-top: var(--spacer-8);
 }
 
@@ -2984,7 +3044,6 @@ section.standard-form.litm-actions-app {
 }
 
 @keyframes rollHudPulse {
-
 	0%,
 	100% {
 		opacity: 1;
@@ -3069,12 +3128,15 @@ section.standard-form.litm-actions-app {
    Roll results, outcome colors, spend-power cards.
 ======================================== */
 
-.chat-message:has(:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)) {
+.chat-message:has(
+	:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)
+) {
 	padding: 0;
 	contain: layout style;
 }
 
-.chat-message:has(:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)) .message-header {
+.chat-message:has(:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat))
+	.message-header {
 	padding: 4px 10px;
 	border-bottom: var(--hr-border);
 }
@@ -3205,7 +3267,7 @@ section.standard-form.litm-actions-app {
 	grid-template-rows: 0fr;
 }
 
-.litm.dice-roll .dice-tooltip>.wrapper {
+.litm.dice-roll .dice-tooltip > .wrapper {
 	overflow: hidden;
 }
 
@@ -3513,7 +3575,7 @@ section.standard-form.litm-actions-app {
 }
 
 /* Between actors of the same category */
-.litm--grid-col section[data-actor-type]+section[data-actor-type] {
+.litm--grid-col section[data-actor-type] + section[data-actor-type] {
 	margin-top: var(--spacer-4);
 }
 
@@ -3529,7 +3591,7 @@ section.standard-form.litm-actions-app {
 	margin: 0 4px;
 }
 
-.litm--story-tags ul.plain .litm--tag-row+.litm--tag-row {
+.litm--story-tags ul.plain .litm--tag-row + .litm--tag-row {
 	margin-top: -0.15em;
 }
 
@@ -3540,13 +3602,13 @@ section.standard-form.litm-actions-app {
 	gap: 0;
 }
 
-.litm--tag-row>.litm--tag-item {
+.litm--tag-row > .litm--tag-item {
 	flex: 1;
 	min-width: 0;
 }
 
 /* Limit groups — small gap between them */
-.litm--limit-group+.litm--limit-group {
+.litm--limit-group + .litm--limit-group {
 	margin-top: var(--spacer-4);
 }
 
@@ -3695,7 +3757,7 @@ section.standard-form.litm-actions-app {
 	cursor: grab;
 	font-size: var(--font-size-16);
 
-	&>* {
+	& > * {
 		position: relative;
 		z-index: 1;
 	}
@@ -3798,8 +3860,14 @@ section.standard-form.litm-actions-app {
 }
 
 /* Compact button style — shared by visibility toggles, add-tag, and any tag-row buttons */
-.litm--story-tags .window-content button:not(.litm--add-actor-btn):not(.litm--action-bottom):not(.litm--quick-add-btn):not(.litm--load-scene-btn),
-.litm--story-tags.sidebar-tab button:not(.litm--add-actor-btn):not(.litm--action-bottom):not(.litm--quick-add-btn):not(.litm--load-scene-btn),
+.litm--story-tags .window-content
+	button:not(.litm--add-actor-btn):not(.litm--action-bottom):not(
+		.litm--quick-add-btn
+	):not(.litm--load-scene-btn),
+.litm--story-tags.sidebar-tab
+	button:not(.litm--add-actor-btn):not(.litm--action-bottom):not(
+		.litm--quick-add-btn
+	):not(.litm--load-scene-btn),
 .litm--story-tags .window-content .litm--visibility-toggle,
 .litm--story-tags.sidebar-tab .litm--visibility-toggle {
 	padding: 0.2em 0.35em;
@@ -3857,8 +3925,11 @@ section.standard-form.litm-actions-app {
 }
 
 /* Always show toggle indicators when checked */
-.litm--story-tags .litm--tag-row:has(.litm--single-use:checked) .litm--single-use-label,
-.litm--story-tags .litm--tag-row:has(.litm--scratch:checked) .litm--scratch-label {
+.litm--story-tags .litm--tag-row:has(.litm--single-use:checked)
+	.litm--single-use-label,
+.litm--story-tags
+	.litm--tag-row:has(.litm--scratch:checked)
+	.litm--scratch-label {
 	opacity: 1;
 	pointer-events: auto;
 	cursor: pointer;
@@ -3869,7 +3940,6 @@ section.standard-form.litm-actions-app {
 	text-decoration: line-through;
 	opacity: 0.5;
 }
-
 
 /* Section header — name only, divider lines handle decoration */
 .litm--story-tags .litm--section-header {
@@ -4012,7 +4082,11 @@ input[type="text"].litm--quick-add-input,
 .litm--limit-group {
 	margin: 3px 0;
 	padding: var(--spacer-4) 1px;
-	background: color-mix(in srgb, var(--color-litm-limit-accent) 12%, transparent);
+	background: color-mix(
+		in srgb,
+		var(--color-litm-limit-accent) 12%,
+		transparent
+	);
 	border-radius: var(--border-radius);
 }
 
@@ -4084,7 +4158,11 @@ input[type="text"].litm--quick-add-input,
 
 /* Dragover highlight on limit headers */
 .litm--limit-header.dragover {
-	background: color-mix(in srgb, var(--color-litm-limit-accent) 20%, transparent);
+	background: color-mix(
+		in srgb,
+		var(--color-litm-limit-accent) 20%,
+		transparent
+	);
 	border-radius: var(--border-radius);
 }
 
@@ -4172,7 +4250,7 @@ input[type="text"].litm--quick-add-input,
 	opacity: 0.35;
 }
 
-.litm--single-use:checked~.litm--single-use-indicator {
+.litm--single-use:checked ~ .litm--single-use-indicator {
 	opacity: 1;
 	color: var(--color-text-primary);
 }
@@ -4209,7 +4287,7 @@ input[type="text"].litm--quick-add-input,
 	filter: invert(1);
 }
 
-.litm--scratch:checked~.litm--scratch-indicator {
+.litm--scratch:checked ~ .litm--scratch-indicator {
 	opacity: 1;
 }
 
@@ -4559,7 +4637,7 @@ input[type="text"].litm--quick-add-input,
    ProseMirror secret reveal button styling.
 ======================================== */
 
-.litm section.secret>button.reveal {
+.litm section.secret > button.reveal {
 	border: none;
 	background: url("assets/media/icons/torch.svg") no-repeat center / contain;
 	width: 26px;
@@ -4579,9 +4657,10 @@ input[type="text"].litm--quick-add-input,
 	}
 }
 
-.litm section.secret.revealed>button.reveal {
+.litm section.secret.revealed > button.reveal {
 	opacity: 1;
-	filter: drop-shadow(0 0 4px var(--color-litm-secret-glow)) drop-shadow(0 0 8px var(--color-litm-secret-glow-soft));
+	filter: drop-shadow(0 0 4px var(--color-litm-secret-glow))
+		drop-shadow(0 0 8px var(--color-litm-secret-glow-soft));
 }
 
 /* ========================================
@@ -4593,18 +4672,26 @@ input[type="text"].litm--quick-add-input,
 	background: unset;
 }
 
-:is(body, .themed).theme-light .litm.application:not(.theme-dark) .window-header,
+:is(body, .themed).theme-light
+	.litm.application:not(.theme-dark)
+	.window-header,
 .litm.application.theme-light .window-header {
 	color: var(--color-dark-2);
 	border-bottom: var(--sidebar-separator);
 }
 
-:is(body, .themed).theme-light .litm.application:not(.theme-dark) .window-header .window-title,
+:is(body, .themed).theme-light
+	.litm.application:not(.theme-dark)
+	.window-header
+	.window-title,
 .litm.application.theme-light .window-header .window-title {
 	color: var(--color-dark-2);
 }
 
-:is(body, .themed).theme-light .litm.application:not(.theme-dark) .window-header button.header-control,
+:is(body, .themed).theme-light
+	.litm.application:not(.theme-dark)
+	.window-header
+	button.header-control,
 .litm.application.theme-light .window-header button.header-control {
 	--button-text-color: var(--color-dark-3);
 }
@@ -4612,7 +4699,12 @@ input[type="text"].litm--quick-add-input,
 /* Light-themed sheets on a dark body: undo dark-mode overrides for hr and resize handle */
 .litm.application.theme-light hr {
 	border-top: 0;
-	background-image: linear-gradient(90deg, transparent 0%, var(--color-light-5) 50%, transparent 100%);
+	background-image: linear-gradient(
+		90deg,
+		transparent 0%,
+		var(--color-light-5) 50%,
+		transparent 100%
+	);
 }
 
 .litm.application.theme-light .window-resize-handle {
@@ -4794,7 +4886,7 @@ body.theme-dark .application:not(.theme-light),
 	--color-litm-secret-glow-soft: rgba(232, 168, 50, 0.33);
 
 	& .hint img:not(.litm--inline-icon),
-	& .empty-state>img {
+	& .empty-state > img {
 		filter: invert(1) sepia(0.3) hue-rotate(305deg);
 	}
 
@@ -4803,7 +4895,10 @@ body.theme-dark .application:not(.theme-light),
 	}
 
 	/* Chat message container overrides — shared across all chat card types */
-	& .chat-message:has(:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)) {
+	&
+		.chat-message:has(
+			:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)
+		) {
 		--color-scheme: dark;
 		--chat-message-border-color: var(--color-litm-chat-border);
 		--color-text-primary: var(--color-light-2);
@@ -4812,7 +4907,11 @@ body.theme-dark .application:not(.theme-light),
 		color-scheme: var(--color-scheme);
 	}
 
-	& .chat-message:has(:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)) .message-header {
+	&
+		.chat-message:has(
+			:is(.litm.dice-roll, .litm-track-complete, .litm-spend-chat)
+		)
+		.message-header {
 		border-bottom: 1px solid var(--color-litm-chat-border);
 		text-shadow: 0 0 2px black;
 		color: var(--color-light-3);
@@ -5011,7 +5110,7 @@ body.theme-dark .application:not(.theme-light),
 	margin-bottom: var(--spacer-4);
 }
 
-.litm--scene-tag-dialog .litm--scene-tag-row>span {
+.litm--scene-tag-dialog .litm--scene-tag-row > span {
 	flex: 1;
 	min-width: 0;
 }
@@ -5075,7 +5174,10 @@ body.theme-dark .application:not(.theme-light),
 
 .litm-hud-grid {
 	display: grid;
-	grid-template-columns: repeat(var(--effect-columns, 5), var(--effect-size, 24px));
+	grid-template-columns: repeat(
+			var(--effect-columns, 5),
+			var(--effect-size, 24px)
+		);
 	gap: var(--effect-gap, 3px);
 	padding: var(--effect-gap, 3px);
 	margin-inline: auto;
@@ -5140,7 +5242,7 @@ body.theme-dark .application:not(.theme-light),
 	gap: var(--spacer-4);
 }
 
-.litm-active-effect-sheet .standard-form .form-group>label {
+.litm-active-effect-sheet .standard-form .form-group > label {
 	font-weight: normal;
 }
 
