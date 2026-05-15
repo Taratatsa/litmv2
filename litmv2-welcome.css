@@ -12,19 +12,63 @@
 	--color-warm-1-12: color-mix(in srgb, var(--color-warm-1) 12%, transparent);
 	--color-warm-1-15: color-mix(in srgb, var(--color-warm-1) 15%, transparent);
 	--color-warm-1-40: color-mix(in srgb, var(--color-warm-1) 40%, transparent);
-	--color-text-primary-5: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
-	--color-text-primary-8: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
-	--color-text-primary-20: color-mix(in srgb, var(--color-text-primary) 20%, transparent);
-	--color-text-primary-25: color-mix(in srgb, var(--color-text-primary) 25%, transparent);
-	--color-text-primary-30: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
-	--color-text-primary-70: color-mix(in srgb, var(--color-text-primary) 70%, transparent);
-	--color-text-subtle-8: color-mix(in srgb, var(--color-text-subtle) 8%, transparent);
-	--color-text-subtle-10: color-mix(in srgb, var(--color-text-subtle) 10%, transparent);
+	--color-text-primary-5: color-mix(
+		in srgb,
+		var(--color-text-primary) 5%,
+		transparent
+	);
+	--color-text-primary-8: color-mix(
+		in srgb,
+		var(--color-text-primary) 8%,
+		transparent
+	);
+	--color-text-primary-20: color-mix(
+		in srgb,
+		var(--color-text-primary) 20%,
+		transparent
+	);
+	--color-text-primary-25: color-mix(
+		in srgb,
+		var(--color-text-primary) 25%,
+		transparent
+	);
+	--color-text-primary-30: color-mix(
+		in srgb,
+		var(--color-text-primary) 30%,
+		transparent
+	);
+	--color-text-primary-70: color-mix(
+		in srgb,
+		var(--color-text-primary) 70%,
+		transparent
+	);
+	--color-text-subtle-8: color-mix(
+		in srgb,
+		var(--color-text-subtle) 8%,
+		transparent
+	);
+	--color-text-subtle-10: color-mix(
+		in srgb,
+		var(--color-text-subtle) 10%,
+		transparent
+	);
 	--color-border-15: color-mix(in srgb, var(--color-border) 15%, transparent);
 	--color-border-50: color-mix(in srgb, var(--color-border) 50%, transparent);
-	--color-data-background-40: color-mix(in srgb, var(--color-data-background) 40%, transparent);
-	--color-overlay-hover: color-mix(in srgb, var(--color-data-background) 80%, var(--color-text-primary));
-	--color-overlay-hover-strong: color-mix(in srgb, var(--color-data-background) 70%, var(--color-text-primary));
+	--color-data-background-40: color-mix(
+		in srgb,
+		var(--color-data-background) 40%,
+		transparent
+	);
+	--color-overlay-hover: color-mix(
+		in srgb,
+		var(--color-data-background) 80%,
+		var(--color-text-primary)
+	);
+	--color-overlay-hover-strong: color-mix(
+		in srgb,
+		var(--color-data-background) 70%,
+		var(--color-text-primary)
+	);
 	--color-warm-1-light: color-mix(in srgb, var(--color-warm-1) 70%, white);
 	--color-litm-success-bg: rgba(100, 200, 100, 0.1);
 	--color-litm-success-border: rgba(100, 200, 100, 0.2);
@@ -589,10 +633,12 @@
 .hero-created__line {
 	flex: 1;
 	height: 1px;
-	background: linear-gradient(90deg,
-			transparent,
-			var(--color-border-light-tertiary, #7a7971) 50%,
-			transparent);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		var(--color-border-light-tertiary, #7a7971) 50%,
+		transparent
+	);
 	opacity: 0.4;
 }
 
@@ -773,7 +819,9 @@
 	border-bottom: 1px solid var(--color-border-50);
 }
 
-.litm--welcome-overlay__wizard-body .hero-creation__group+.hero-creation__group {
+.litm--welcome-overlay__wizard-body
+	.hero-creation__group
+	+ .hero-creation__group {
 	margin-top: var(--spacer-12);
 }
 
@@ -969,7 +1017,7 @@
 	gap: var(--spacer-4);
 }
 
-.tag-tooltip-group>label {
+.tag-tooltip-group > label {
 	display: block;
 	width: 100%;
 	margin-bottom: var(--spacer-4);
@@ -1222,7 +1270,9 @@
 	color: var(--color-text-primary);
 }
 
-.litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link.active {
+.litm--welcome-overlay__wizard-body
+	.custom-themekit-list
+	.themekit-link.active {
 	background: var(--color-warm-1-10);
 	color: var(--color-text-emphatic);
 	font-weight: 600;
@@ -1233,8 +1283,14 @@
 	transition: opacity var(--transition-normal) ease;
 }
 
-.litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link:hover img,
-.litm--welcome-overlay__wizard-body .custom-themekit-list .themekit-link.active img {
+.litm--welcome-overlay__wizard-body
+	.custom-themekit-list
+	.themekit-link:hover
+	img,
+.litm--welcome-overlay__wizard-body
+	.custom-themekit-list
+	.themekit-link.active
+	img {
 	opacity: 0.8;
 }
 
@@ -1252,7 +1308,7 @@
 	gap: var(--spacer-4);
 }
 
-.litm--welcome-overlay__wizard-body .litm-field-stacked>label {
+.litm--welcome-overlay__wizard-body .litm-field-stacked > label {
 	font-size: var(--font-size-12);
 	font-weight: bold;
 	color: var(--color-form-label);
@@ -1352,7 +1408,8 @@
 
 .litm--welcome-overlay__wizard-body .tag-questions li.hint {
 	padding-left: var(--spacer-8);
-	border-left: 2px solid color-mix(in srgb, var(--color-warm-1) 30%, transparent);
+	border-left: 2px solid
+		color-mix(in srgb, var(--color-warm-1) 30%, transparent);
 }
 
 /* Collapsible tag questions */
@@ -1360,7 +1417,7 @@
 	margin: 0 0 var(--spacer-4);
 }
 
-.litm--welcome-overlay__wizard-body .tag-questions-details>summary {
+.litm--welcome-overlay__wizard-body .tag-questions-details > summary {
 	cursor: pointer;
 	list-style: none;
 	display: flex;
@@ -1368,7 +1425,7 @@
 	gap: var(--spacer-4);
 }
 
-.litm--welcome-overlay__wizard-body .tag-questions-details>summary::before {
+.litm--welcome-overlay__wizard-body .tag-questions-details > summary::before {
 	content: "\f059";
 	/* fa-circle-question */
 	font-family: var(--font-awesome);
@@ -1378,12 +1435,16 @@
 	transition: transform var(--transition-slow) ease;
 }
 
-.litm--welcome-overlay__wizard-body .tag-questions-details[open]>summary::before {
+.litm--welcome-overlay__wizard-body
+	.tag-questions-details[open]
+	> summary::before {
 	content: "\f13a";
 	/* fa-circle-chevron-down */
 }
 
-.litm--welcome-overlay__wizard-body .tag-questions-details>summary::-webkit-details-marker {
+.litm--welcome-overlay__wizard-body
+	.tag-questions-details
+	> summary::-webkit-details-marker {
 	display: none;
 }
 
@@ -1607,7 +1668,6 @@
 }
 
 @media (prefers-reduced-transparency) {
-
 	.litm--welcome-overlay__wizard,
 	.litm--welcome-overlay__hero-created {
 		backdrop-filter: none;
@@ -1646,10 +1706,12 @@ body.theme-dark .application:not(.theme-light),
 	}
 
 	& .hero-created__line {
-		background: linear-gradient(90deg,
-				transparent,
-				color-mix(in srgb, var(--color-warm-1) 30%, transparent) 50%,
-				transparent);
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in srgb, var(--color-warm-1) 30%, transparent) 50%,
+			transparent
+		);
 		opacity: 1;
 	}
 }

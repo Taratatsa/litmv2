@@ -21,7 +21,7 @@
 				"noDescendingSpecificity": "off"
 			}
 		},
-		"includes": ["**", "!**/check-keys.js", "!**/diff.js"]
+		"includes": ["**", "!**/lang-check-keys.js", "!**/lang-diff.js"]
 	},
 	"files": {
 		"includes": ["**", "!!foundry", "!**/*.html"]

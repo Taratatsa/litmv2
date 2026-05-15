@@ -1,0 +1,770 @@
+import {
+	computePowerBudget,
+	getAllowedQualities,
+	getSuccessCost,
+} from "../item/action/action-rules.js";
+import { getVerbDef } from "../item/action/verb-definitions.js";
+import { error } from "../logger.js";
+import { applySuccess } from "../system/chat-actions.js";
+import { resolveEffect, localize as t } from "../utils.js";
+
+/** Cost calculators by option type. Each receives (li, cost, entriesSection, hasTier). */
+const COST_CALCULATORS = {
+	statusPicker(_li, cost, entriesSection) {
+		let total = 0;
+		entriesSection
+			.querySelectorAll(".litm-spend-power__status-item")
+			.forEach((item) => {
+				const count = Number(
+					item.querySelector(".litm-spend-power__counter-value")?.textContent ??
+						0,
+				);
+				total += cost * count;
+			});
+		return total;
+	},
+	counter(_li, cost, entriesSection) {
+		const count = Number(
+			entriesSection.querySelector(".litm-spend-power__counter-value")
+				?.textContent ?? 1,
+		);
+		return cost * count;
+	},
+	picker(_li, cost, entriesSection) {
+		const selected = entriesSection.querySelectorAll(
+			".litm-spend-power__tag-chip.is-selected",
+		);
+		return cost * selected.length;
+	},
+};
+
+function defaultCostCalculator(li, cost, _entriesSection, hasTier) {
+	const entries = li.querySelectorAll(".litm-spend-power__entry");
+	if (entries.length === 0) return cost;
+	if (!hasTier) {
+		// Single-use story tags cost 1 Power per entry (p.165); normal tags cost `cost`.
+		let total = 0;
+		entries.forEach((entry) => {
+			const isSingleUse =
+				entry.querySelector(".litm-spend-power__entry-single-use")?.checked ===
+				true;
+			total += isSingleUse ? 1 : cost;
+		});
+		return total;
+	}
+	let total = 0;
+	entries.forEach((entry) => {
+		const tier = Math.max(
+			Number(entry.querySelector(".litm-spend-power__entry-tier")?.value ?? 1),
+			1,
+		);
+		total += cost * tier;
+	});
+	return total;
+}
+
+export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicationMixin(
+	foundry.applications.api.ApplicationV2,
+) {
+	static DEFAULT_OPTIONS = {
+		id: "litm-spend-power",
+		classes: ["litm", "litm-spend-power"],
+		tag: "form",
+		window: {
+			title: "LITM.Ui.spend_power_title",
+			resizable: true,
+		},
+		position: {
+			width: 600,
+			height: 640,
+		},
+		form: {
+			handler: SpendPowerApp.#onSubmit,
+			closeOnSubmit: true,
+		},
+		actions: {
+			"counter-inc": SpendPowerApp.#onCounter,
+			"counter-dec": SpendPowerApp.#onCounter,
+			"add-entry": SpendPowerApp.#onAddEntryAction,
+			"remove-entry": SpendPowerApp.#onRemoveEntry,
+			"toggle-chip": SpendPowerApp.#onToggleChip,
+			"toggle-option": SpendPowerApp.#onToggleOption,
+		},
+	};
+
+	static PARTS = {
+		form: {
+			template: "systems/litmv2/templates/apps/spend-power.html",
+		},
+	};
+
+	constructor(options = {}) {
+		super(options);
+		this.actorId = options.actorId;
+		this.messageId = options.messageId;
+		this.totalPower = options.power || 0;
+		const message = this.messageId ? game.messages.get(this.messageId) : null;
+		this.alreadySpent = message?.getFlag("litmv2", "spentPower") ?? 0;
+		this.power = this.totalPower - this.alreadySpent;
+		this.spendingOptions = [
+			{
+				id: "create_recover_tag",
+				label: "LITM.Effects.create.action",
+				cost: 2,
+				description: "LITM.Effects.create.description",
+				draggable: true,
+			},
+			{
+				id: "scratch_tag",
+				label: "LITM.Effects.scratch.action",
+				cost: 2,
+				description: "LITM.Effects.scratch.description",
+				draggable: true,
+			},
+			{
+				id: "inflict_status",
+				label: "LITM.Effects.inflict.action",
+				cost: 1,
+				description: "LITM.Effects.inflict.description",
+				hasTier: true,
+				draggable: true,
+			},
+			{
+				id: "reduce_status",
+				label: "LITM.Effects.reduce.action",
+				cost: 1,
+				description: "LITM.Effects.reduce.description",
+				hasTier: true,
+				draggable: true,
+			},
+			{
+				id: "discover_detail",
+				label: "LITM.Effects.discover.action",
+				cost: 1,
+				description: "LITM.Effects.discover.description",
+				hasCounter: true,
+			},
+			{
+				id: "extra_feat",
+				label: "LITM.Effects.extra_feat.action",
+				cost: 1,
+				description: "LITM.Effects.extra_feat.description",
+			},
+		];
+	}
+
+	async _prepareContext(_options) {
+		const actor = game.actors.get(this.actorId);
+		const scratchedTags = actor ? this.#getScratchedTags(actor) : [];
+		const statusCards = actor ? this.#getStatusCards(actor) : [];
+
+		const options = this.spendingOptions
+			.filter((o) => o.id !== "scratch_tag" || scratchedTags.length > 0)
+			.filter((o) => o.id !== "reduce_status" || statusCards.length > 0)
+			.map((o) => {
+				if (o.id === "scratch_tag") return { ...o, scratchedTags };
+				if (o.id === "reduce_status") return { ...o, statusCards };
+				return o;
+			});
+
+		const actionSuccesses = await this.#getActionSuccesses();
+
+		// Power displayed at the top must account for BOTH the generic options
+		// already spent (spentPower flag) and the action successes already
+		// applied (appliedSuccesses flag). Two flags, one budget.
+		const message = this.messageId ? game.messages.get(this.messageId) : null;
+		const action = await this.#getAction();
+		const appliedKeys = message?.getFlag("litmv2", "appliedSuccesses") ?? [];
+		const appliedSuccessesCost = action
+			? appliedKeys.reduce((sum, key) => {
+					const s = (action.system.successes ?? []).find((o) => o.id === key);
+					return sum + (s ? getSuccessCost(s) : 0);
+				}, 0)
+			: 0;
+		this.power = this.totalPower - this.alreadySpent - appliedSuccessesCost;
+
+		return {
+			actorId: this.actorId,
+			power: this.power,
+			options,
+			actionSuccesses,
+		};
+	}
+
+	async #getAction() {
+		const message = this.messageId ? game.messages.get(this.messageId) : null;
+		const uuid = message?.getFlag("litmv2", "actionUuid");
+		if (!uuid) return null;
+		const a = await foundry.utils.fromUuid(uuid);
+		return a?.type === "action" ? a : null;
+	}
+
+	/**
+	 * Build the action-success rows shown above the generic spend options.
+	 * Empty array if the message wasn't bound to an action (eg. plain Tracked
+	 * roll without an Action Grimoire entry).
+	 */
+	async #getActionSuccesses() {
+		const message = this.messageId ? game.messages.get(this.messageId) : null;
+		const action = await this.#getAction();
+		if (!message || !action) return [];
+
+		const sys = action.system;
+		const applied = new Set(
+			message.getFlag("litmv2", "appliedSuccesses") ?? [],
+		);
+		const roll = message.rolls?.[0];
+		const allowedQualities = getAllowedQualities(roll);
+		// Affordability uses the combined remaining (action-aware budget minus
+		// generic power already spent on Create/Inflict/etc.).
+		const { remaining: actionRemaining } = computePowerBudget(roll, sys, [
+			...applied,
+		]);
+		const remaining = actionRemaining - this.alreadySpent;
+
+		// Hide already-applied successes — their cost is baked into `this.power`,
+		// so showing them as checked-and-disabled would double-count in
+		// #updatePower. The chat history of action-applied messages is the
+		// canonical record of what's been used.
+		return (sys.successes ?? [])
+			.filter((s) => allowedQualities.has(s.quality))
+			.filter((s) => !applied.has(s.id))
+			.map((s) => {
+				const def = getVerbDef(s.verb);
+				const cost = getSuccessCost(s);
+				const isUnsupported = def?.kind === "unsupported";
+				const cantAfford = cost > remaining;
+				return {
+					key: s.id,
+					verbLabel: t(`LITM.Actions.verbs.${s.verb}`),
+					verbKind: def?.displayKind ?? "self",
+					qualityLabel: t(`LITM.Actions.qualities.${s.quality}`),
+					label: s.label,
+					description: s.description,
+					cost,
+					disabled: isUnsupported || cantAfford,
+					reasonKey: isUnsupported
+						? def.unsupportedMessageKey
+						: cantAfford
+							? "LITM.Actions.cant_afford_short"
+							: null,
+				};
+			});
+	}
+
+	#getScratchedTags(actor) {
+		return (actor.system.scratchedTags ?? []).map((effect) => ({
+			id: effect.id,
+			name: effect.name,
+			itemId: effect.parent !== actor ? effect.parent?.id : "",
+		}));
+	}
+
+	#getStatusCards(actor) {
+		const statuses = [];
+		for (const effect of actor.allApplicableEffects()) {
+			if (effect.type === "status_tag") {
+				const tier = effect.system?.currentTier ?? 0;
+				if (tier > 0) {
+					statuses.push({ id: effect.id, name: effect.name, tier });
+				}
+			}
+		}
+		return statuses;
+	}
+
+	_onFirstRender(context, options) {
+		super._onFirstRender(context, options);
+
+		const form = this.element;
+
+		// Tier input changes — non-click event, must stay manual.
+		form.addEventListener("input", (event) => {
+			if (event.target.classList.contains("litm-spend-power__entry-tier")) {
+				this.#updatePower(form);
+			}
+		});
+
+		// Checkbox toggles reveal/hide their entry section. Native change event,
+		// not covered by [data-action].
+		form.addEventListener("change", (event) => {
+			if (
+				event.target.classList.contains("litm-spend-power__entry-single-use")
+			) {
+				this.#updatePower(form);
+				return;
+			}
+			const checkbox = event.target.closest("[data-option-check]");
+			if (!checkbox) return;
+			const li = checkbox.closest(".litm-spend-power__option");
+			this.#toggleEntries(li);
+			this.#updatePower(form);
+		});
+	}
+
+	/** @this {SpendPowerApp} */
+	static #onCounter(_event, target) {
+		const container = target.closest(
+			".litm-spend-power__counter, .litm-spend-power__status-reduce",
+		);
+		const valueEl = container.querySelector(".litm-spend-power__counter-value");
+		const current = Number(valueEl.textContent);
+		const statusItem = target.closest(".litm-spend-power__status-item");
+		const min = statusItem ? 0 : 1;
+		const max = statusItem ? Number(statusItem.dataset.maxTier) : Infinity;
+		const next =
+			target.dataset.action === "counter-inc"
+				? Math.min(current + 1, max)
+				: Math.max(min, current - 1);
+		valueEl.textContent = next;
+		this.#updatePower(this.element);
+	}
+
+	/** @this {SpendPowerApp} */
+	static #onRemoveEntry(_event, target) {
+		target.closest(".litm-spend-power__entry").remove();
+		this.#updatePower(this.element);
+	}
+
+	/** @this {SpendPowerApp} */
+	static #onToggleChip(_event, target) {
+		target.classList.toggle("is-selected");
+		this.#updatePower(this.element);
+	}
+
+	/** @this {SpendPowerApp} */
+	static #onAddEntryAction(_event, target) {
+		const li = target.closest(".litm-spend-power__option");
+		this.#addEntry(li);
+		this.#updatePower(this.element);
+	}
+
+	// The whole option card is clickable so users can hit anywhere on the row.
+	// Clicks on chips, counters, add-entry, and remove-entry buttons resolve to
+	// their own [data-action] first via closest() and never reach this handler.
+	// Labels and the checkbox itself are excluded so native behavior (label
+	// toggles checkbox, checkbox fires `change`) handles those paths instead —
+	// otherwise we'd double-toggle.
+	/** @this {SpendPowerApp} */
+	static #onToggleOption(event, target) {
+		if (event.target.closest(".litm-spend-power__entries")) return;
+		if (event.target.closest("label")) return;
+		if (event.target.closest("[data-option-check]")) return;
+
+		const checkbox = target.querySelector("[data-option-check]");
+		checkbox.checked = !checkbox.checked;
+		this.#toggleEntries(target);
+		this.#updatePower(this.element);
+	}
+
+	#toggleEntries(li) {
+		const entriesSection = li.querySelector(".litm-spend-power__entries");
+		if (!entriesSection) return;
+
+		const checkbox = li.querySelector("[data-option-check]");
+		const isPicker = "picker" in entriesSection.dataset;
+		const isCounter = "counter" in entriesSection.dataset;
+		const isStatusPicker = "statusPicker" in entriesSection.dataset;
+
+		if (checkbox.checked) {
+			entriesSection.classList.remove("is-hidden");
+			if (!isPicker && !isCounter && !isStatusPicker) {
+				const entryList = entriesSection.querySelector(
+					".litm-spend-power__entry-list",
+				);
+				entryList.appendChild(
+					this.#makeEntryRow(li.dataset.hasTier === "true"),
+				);
+			}
+		} else {
+			entriesSection.classList.add("is-hidden");
+			if (isPicker) {
+				// Deselect all chips when unchecking the option
+				entriesSection
+					.querySelectorAll(".litm-spend-power__tag-chip")
+					.forEach((chip) => {
+						chip.classList.remove("is-selected");
+					});
+			} else if (isStatusPicker) {
+				// Reset all status counters to 0
+				entriesSection
+					.querySelectorAll(".litm-spend-power__counter-value")
+					.forEach((el) => {
+						el.textContent = "0";
+					});
+			} else if (isCounter) {
+				// Reset counter to 1
+				const valueEl = entriesSection.querySelector(
+					".litm-spend-power__counter-value",
+				);
+				if (valueEl) valueEl.textContent = "1";
+			} else {
+				const entryList = entriesSection.querySelector(
+					".litm-spend-power__entry-list",
+				);
+				entryList.innerHTML = "";
+			}
+		}
+	}
+
+	#addEntry(li) {
+		const entryList = li.querySelector(".litm-spend-power__entry-list");
+		entryList.appendChild(this.#makeEntryRow(li.dataset.hasTier === "true"));
+	}
+
+	#makeEntryRow(hasTier) {
+		const templateId = hasTier
+			? "entry-row-tier-template"
+			: "entry-row-template";
+		const template = this.element.querySelector(`#${templateId}`);
+		return template.content.firstElementChild.cloneNode(true);
+	}
+
+	#updatePower(form) {
+		let spent = 0;
+
+		form.querySelectorAll(".litm-spend-power__option").forEach((li) => {
+			const checkbox = li.querySelector("[data-option-check]");
+			if (!checkbox.checked) return;
+
+			const cost = Number(li.dataset.cost);
+			spent += this.#calculateOptionCost(li, cost);
+		});
+
+		const remainingEl = form.querySelector(
+			".litm-spend-power__power-remaining",
+		);
+		const remaining = this.power - spent;
+		if (remainingEl) remainingEl.textContent = remaining;
+
+		// Highlight if over budget and disable submit
+		const overBudget = remaining < 0;
+		remainingEl?.classList.toggle("is-over-budget", overBudget);
+		const submitBtn = form.querySelector("[type='submit']");
+		if (submitBtn) submitBtn.disabled = overBudget || spent === 0;
+	}
+
+	/**
+	 * Determine the option type from its DOM structure.
+	 * @param {HTMLElement} li  The option list item
+	 * @returns {{ type: string, entriesSection: HTMLElement|null, hasTier: boolean }}
+	 */
+	static #getOptionType(li) {
+		const entriesSection = li.querySelector(".litm-spend-power__entries");
+		const hasTier = li.dataset.hasTier === "true";
+		if (entriesSection && "statusPicker" in entriesSection.dataset)
+			return { type: "statusPicker", entriesSection, hasTier };
+		if (entriesSection && "counter" in entriesSection.dataset)
+			return { type: "counter", entriesSection, hasTier };
+		if (entriesSection && "picker" in entriesSection.dataset)
+			return { type: "picker", entriesSection, hasTier };
+		return { type: "default", entriesSection, hasTier };
+	}
+
+	/**
+	 * Calculate the power cost for a single checked option.
+	 * @param {HTMLElement} li   The option list item
+	 * @param {number} cost      Base cost per unit
+	 * @returns {number}
+	 */
+	#calculateOptionCost(li, cost) {
+		const { type, hasTier } = SpendPowerApp.#getOptionType(li);
+		const entriesSection = li.querySelector(".litm-spend-power__entries");
+		const calculator = COST_CALCULATORS[type] ?? defaultCostCalculator;
+		return calculator(li, cost, entriesSection, hasTier);
+	}
+
+	static #chatCard({ actor, action, body, power }) {
+		return foundry.applications.handlebars.renderTemplate(
+			"systems/litmv2/templates/chat/spend-power.html",
+			{
+				actorImg: actor.img,
+				actorName: actor.name,
+				action,
+				body,
+				costLine: `${power} ${t("LITM.Tags.power")}`,
+			},
+		);
+	}
+
+	static async #onSubmit(_event, form, _formData) {
+		const actor = game.actors.get(this.actorId);
+		const speaker = foundry.documents.ChatMessage.getSpeaker({ actor });
+
+		const checkedOptions = [
+			...form.querySelectorAll(".litm-spend-power__option"),
+		].filter((li) => li.querySelector("[data-option-check]").checked);
+
+		let totalSpent = 0;
+
+		// Apply action-success rows first — they sit above the generic options
+		// in the dialog and represent the action's authored outcomes. Routed
+		// through the standard applySuccess pipeline so target pickers, status
+		// stacking, etc. all work the same as before.
+		for (const li of checkedOptions) {
+			if (li.dataset.source !== "action") continue;
+			const spent = await this._applyActionSuccess(li, actor);
+			totalSpent += spent;
+		}
+
+		for (const li of checkedOptions) {
+			if (li.dataset.source === "action") continue;
+			const optionId = li.dataset.optionId;
+			const option = this.spendingOptions.find((o) => o.id === optionId);
+			if (!option) continue;
+
+			const { type, entriesSection, hasTier } =
+				SpendPowerApp.#getOptionType(li);
+
+			// Status picker (reduce status) — each status has its own tier counter
+			if (type === "statusPicker") {
+				const reductions = [
+					...entriesSection.querySelectorAll(".litm-spend-power__status-item"),
+				]
+					.map((item) => ({
+						effectId: item.dataset.effectId,
+						name: item.dataset.statusName,
+						tiers: Number(
+							item.querySelector(".litm-spend-power__counter-value")
+								?.textContent ?? 0,
+						),
+					}))
+					.filter(({ tiers }) => tiers > 0);
+				if (reductions.length === 0) continue;
+
+				const power = reductions.reduce(
+					(sum, { tiers }) => sum + option.cost * tiers,
+					0,
+				);
+				totalSpent += power;
+
+				// Apply the reductions to the actual effects
+				const bodyLines = [];
+				for (const { effectId, name, tiers } of reductions) {
+					const effect = resolveEffect(effectId, actor);
+					if (!effect) continue;
+					const oldTier = effect.system.currentTier;
+					const newTiers = effect.system.calculateReduction(tiers);
+					const newTier = newTiers.lastIndexOf(true) + 1;
+					if (newTier <= 0) {
+						await effect.delete();
+					} else {
+						await effect.update({ "system.tiers": newTiers });
+					}
+					const after =
+						newTier > 0
+							? `<strong>${name}-${newTier}</strong>`
+							: `<em>${t("LITM.Ui.removed")}</em>`;
+					bodyLines.push(`<span>${name}-${oldTier} &rarr; ${after}</span>`);
+				}
+
+				await foundry.documents.ChatMessage.create({
+					content: await SpendPowerApp.#chatCard({
+						actor,
+						action: t(option.label),
+						body: bodyLines.join(""),
+						power,
+					}),
+					speaker,
+				});
+				continue;
+			}
+
+			// Counter options (e.g. discover detail) — just a count, no named entries
+			if (type === "counter") {
+				const count = Number(
+					entriesSection.querySelector(".litm-spend-power__counter-value")
+						?.textContent ?? 1,
+				);
+				const power = option.cost * count;
+				totalSpent += power;
+
+				await foundry.documents.ChatMessage.create({
+					content: await SpendPowerApp.#chatCard({
+						actor,
+						action: t(option.label),
+						body:
+							count > 1
+								? `<span class="litm-spend-chat__count">&times;${count}</span>`
+								: "",
+						power,
+					}),
+					speaker,
+				});
+				continue;
+			}
+
+			// Scratched tag picker — unscratch the selected tags
+			if (type === "picker") {
+				const selectedChips = [
+					...entriesSection.querySelectorAll(
+						".litm-spend-power__tag-chip.is-selected",
+					),
+				];
+				if (selectedChips.length === 0) continue;
+
+				const power = option.cost * selectedChips.length;
+				totalSpent += power;
+
+				const names = [];
+				for (const chip of selectedChips) {
+					const { tagId, tagName } = chip.dataset;
+					names.push(tagName);
+					const effect = resolveEffect(tagId, actor);
+					if (effect) await effect.update({ "system.isScratched": false });
+				}
+
+				await foundry.documents.ChatMessage.create({
+					content: await SpendPowerApp.#chatCard({
+						actor,
+						action: t(option.label),
+						body: names
+							.map((n) => `<strong>${foundry.utils.escapeHTML(n)}</strong>`)
+							.join(" "),
+						power,
+					}),
+					speaker,
+				});
+				continue;
+			}
+
+			const entries = [...li.querySelectorAll(".litm-spend-power__entry")]
+				.map((row) => ({
+					name: row.querySelector(".litm-spend-power__entry-name").value.trim(),
+					tier: hasTier
+						? Number(
+								row.querySelector(".litm-spend-power__entry-tier")?.value ?? 1,
+							)
+						: null,
+					isSingleUse:
+						!hasTier &&
+						row.querySelector(".litm-spend-power__entry-single-use")
+							?.checked === true,
+				}))
+				.filter(({ name }) => name !== "");
+
+			// Build tag/status using enricher syntax ({tag}, {tag:1} for single-use, {status-tier})
+			let body = "";
+			if (entries.length > 0) {
+				const tags = entries.map(({ name, tier, isSingleUse }) => {
+					const escaped = foundry.utils.escapeHTML(name);
+					if (hasTier) return `{${escaped}-${Math.max(tier, 1)}}`;
+					if (option.draggable) {
+						return isSingleUse ? `{${escaped}:1}` : `{${escaped}}`;
+					}
+					return `<em>${escaped}</em>`;
+				});
+				body = tags.join(" ");
+			}
+
+			// Calculate power cost
+			let power;
+			if (entries.length === 0) {
+				power = option.cost;
+			} else if (hasTier) {
+				power = entries.reduce(
+					(sum, { tier }) => sum + option.cost * Math.max(tier, 1),
+					0,
+				);
+			} else {
+				// Single-use entries cost 1 Power; normal entries cost option.cost (p.165).
+				power = entries.reduce(
+					(sum, { isSingleUse }) => sum + (isSingleUse ? 1 : option.cost),
+					0,
+				);
+			}
+
+			totalSpent += power;
+
+			await foundry.documents.ChatMessage.create({
+				content: await SpendPowerApp.#chatCard({
+					actor,
+					action: t(option.label),
+					body,
+					power,
+				}),
+				speaker,
+			});
+		}
+
+		// Persist spent power on the originating roll message
+		if (this.messageId && totalSpent > 0) {
+			const message = game.messages.get(this.messageId);
+			await message?.setFlag(
+				"litmv2",
+				"spentPower",
+				this.alreadySpent + totalSpent,
+			);
+		}
+	}
+
+	/**
+	 * Apply a single action-success option, routing through the standard
+	 * applySuccess pipeline. Updates the originating message's
+	 * `appliedSuccesses` flag and posts an action-applied chat card.
+	 *
+	 * @param {HTMLElement} li     The checked option list item
+	 * @param {Actor} actor        The acting character
+	 * @returns {Promise<number>}  Power spent on this option
+	 */
+	async _applyActionSuccess(li, actor) {
+		const message = this.messageId ? game.messages.get(this.messageId) : null;
+		const actionUuid = message?.getFlag("litmv2", "actionUuid");
+		if (!actionUuid) return 0;
+		const action = await foundry.utils.fromUuid(actionUuid);
+		if (!action || action.type !== "action") return 0;
+
+		const key = li.dataset.successKey;
+		const success = (action.system.successes ?? []).find((o) => o.id === key);
+		if (!success) return 0;
+
+		// Skip if already applied since the dialog last opened (race-safe)
+		const appliedNow = message.getFlag("litmv2", "appliedSuccesses") ?? [];
+		if (appliedNow.includes(key)) return 0;
+
+		let result;
+		try {
+			result = await applySuccess({ success, actor });
+		} catch (err) {
+			error("Failed to apply action success:", err);
+			ui.notifications.error(t("LITM.Actions.apply_failed"));
+			return 0;
+		}
+		if (!result) return 0;
+
+		await message.setFlag("litmv2", "appliedSuccesses", [...appliedNow, key]);
+		await foundry.documents.ChatMessage.create({
+			speaker: foundry.documents.ChatMessage.getSpeaker({ actor }),
+			content: await foundry.applications.handlebars.renderTemplate(
+				"systems/litmv2/templates/chat/action-applied.html",
+				{
+					actorImg: actor.img,
+					actorName: actor.name,
+					label: t(`LITM.Actions.verbs.${success.verb}`),
+					summary: stripActorPrefix(result.appliedSummary, actor.name),
+					footer: action.name,
+				},
+			),
+		});
+
+		return getSuccessCost(success);
+	}
+}
+
+/**
+ * Strip a leading "ActorName: " or "ActorName → / ← " prefix from an applied
+ * summary. The chat header shows the actor already, so the prefix is just
+ * noise when the summary is rendered as a body. Leaves prefixes intact when
+ * the actor in the summary differs (eg. opponent-targeted weakens), since
+ * those convey a target distinct from the speaker.
+ */
+function stripActorPrefix(summary, actorName) {
+	if (!summary || !actorName) return summary;
+	const prefixes = [`${actorName}: `, `${actorName} → `, `${actorName} ← `];
+	for (const p of prefixes) {
+		if (summary.startsWith(p)) return summary.slice(p.length);
+	}
+	return summary;
+}
+
+export { stripActorPrefix };

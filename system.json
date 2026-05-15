@@ -104,7 +104,14 @@
 	"flags": {
 		"hotReload": {
 			"extensions": ["css", "html", "js", "json"],
-			"paths": ["styles", "templates", "lang", "litmv2.css", "litmv2-welcome.css", "litmv2.js"]
+			"paths": [
+				"styles",
+				"templates",
+				"lang",
+				"litmv2.css",
+				"litmv2-welcome.css",
+				"litmv2.js"
+			]
 		}
 	},
 	"relationships": {

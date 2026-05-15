@@ -1,0 +1,74 @@
+import { LitmSettings } from "../settings.js";
+
+export function registerCompatHooks() {
+	_patchUserIdleProperty();
+	_customizeDiceSoNice();
+}
+
+/**
+ * Workaround for Foundry V14 bug: #onModifyDocument sets user.idle = false,
+ * but the property is read-only on User instances during socket events.
+ */
+function _patchUserIdle(user) {
+	const desc = Object.getOwnPropertyDescriptor(user, "idle");
+	if (desc && !desc.writable && !desc.set) {
+		Object.defineProperty(user, "idle", {
+			value: desc.value,
+			writable: true,
+			enumerable: desc.enumerable,
+			configurable: true,
+		});
+	}
+}
+
+function _patchUserIdleProperty() {
+	Hooks.once("setup", () => {
+		for (const user of game.users) {
+			_patchUserIdle(user);
+		}
+	});
+	Hooks.on("userConnected", (user) => {
+		_patchUserIdle(user);
+	});
+}
+
+function _customizeDiceSoNice() {
+	if (!LitmSettings.customDice) return;
+	Hooks.on("diceSoNiceReady", (dice3d) => {
+		dice3d.addSystem(
+			{
+				id: "litmv2",
+				name: game.i18n.localize("LITM.Name"),
+				group: game.i18n.localize("LITM.Name"),
+			},
+			"preferred",
+		);
+
+		dice3d.addDicePreset(
+			{
+				type: "d6",
+				labels: ["1", "2", "3", "4", "5", "F", "1", "2", "3", "4", "5", "F"],
+				font: "LitM Dice",
+				system: "litmv2",
+				colorset: "litmv2",
+			},
+			"d12",
+		);
+
+		dice3d.addColorset(
+			{
+				name: "litmv2",
+				description: `${game.i18n.localize("LITM.Name")} Default`,
+				category: game.i18n.localize("LITM.Name"),
+				foreground: ["#f1e7d4", "#f1e7d4", "#1c1509", "#1c1509", "#1c1509"],
+				background: ["#877376", "#446674", "#708768", "#A8A7A3", "#ac9e77"],
+				outline: ["#1c1509", "#1c1509", "#f1e7d4", "#f1e7d4", "#f1e7d4"],
+				texture: "stone",
+				material: "stone",
+				font: "Norse Bold",
+				visibility: "visible",
+			},
+			"preferred",
+		);
+	});
+}

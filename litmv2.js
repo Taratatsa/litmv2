@@ -1,71 +1,71 @@
-import { ChallengeData } from "./scripts/actor/challenge/challenge-data.js";
-import { ChallengeSheet } from "./scripts/actor/challenge/challenge-sheet.js";
-import { FellowshipData } from "./scripts/actor/fellowship/fellowship-data.js";
-import { FellowshipSheet } from "./scripts/actor/fellowship/fellowship-sheet.js";
-import { HeroData } from "./scripts/actor/hero/hero-data.js";
-import { HeroSheet } from "./scripts/actor/hero/hero-sheet.js";
-import { JourneyData } from "./scripts/actor/journey/journey-data.js";
-import { JourneySheet } from "./scripts/actor/journey/journey-sheet.js";
-import { StoryThemeActorData } from "./scripts/actor/story-theme/story-theme-actor-data.js";
-import { StoryThemeActorSheet } from "./scripts/actor/story-theme/story-theme-actor-sheet.js";
-import { DoubleSix } from "./scripts/apps/dice.js";
-import { LitmRoll } from "./scripts/apps/roll.js";
-import { LitmRollDialog } from "./scripts/apps/roll-dialog.js";
-import { ApplyActionMenuApp } from "./scripts/apps/apply-action-menu.js";
-import { SpendPowerApp } from "./scripts/apps/spend-power.js";
-import { StoryTagSidebar } from "./scripts/apps/story-tag-sidebar.js";
-import { ThemeAdvancementApp } from "./scripts/apps/theme-advancement.js";
-import { WelcomeOverlay } from "./scripts/apps/welcome-overlay.js";
-import { SuperCheckbox } from "./scripts/components/super-checkbox.js";
-import { LitmTokenHUD } from "./scripts/hud/litm-token-hud.js";
+import { ChallengeData } from "./modules/actor/challenge/challenge-data.js";
+import { ChallengeSheet } from "./modules/actor/challenge/challenge-sheet.js";
+import { FellowshipData } from "./modules/actor/fellowship/fellowship-data.js";
+import { FellowshipSheet } from "./modules/actor/fellowship/fellowship-sheet.js";
+import { HeroData } from "./modules/actor/hero/hero-data.js";
+import { HeroSheet } from "./modules/actor/hero/hero-sheet.js";
+import { JourneyData } from "./modules/actor/journey/journey-data.js";
+import { JourneySheet } from "./modules/actor/journey/journey-sheet.js";
+import { StoryThemeActorData } from "./modules/actor/story-theme/story-theme-actor-data.js";
+import { StoryThemeActorSheet } from "./modules/actor/story-theme/story-theme-actor-sheet.js";
+import { ApplyActionMenuApp } from "./modules/apps/apply-action-menu.js";
+import { DoubleSix } from "./modules/apps/dice.js";
+import { LitmRoll } from "./modules/apps/roll.js";
+import { LitmRollDialog } from "./modules/apps/roll-dialog.js";
+import { SpendPowerApp } from "./modules/apps/spend-power.js";
+import { StoryTagSidebar } from "./modules/apps/story-tag-sidebar.js";
+import { ThemeAdvancementApp } from "./modules/apps/theme-advancement.js";
+import { WelcomeOverlay } from "./modules/apps/welcome-overlay.js";
+import { SuperCheckbox } from "./modules/components/super-checkbox.js";
+import { LitmActiveEffectSheet } from "./modules/data/active-effects/active-effect-sheet.js";
 import {
-	PowerTagData,
-	WeaknessTagData,
 	FellowshipTagData,
+	PowerTagData,
 	RelationshipTagData,
-	StoryTagData,
 	StatusTagData,
-} from "./scripts/data/active-effects/index.js";
-import { LitmActiveEffect } from "./scripts/data/active-effects/litm-active-effect.js";
-import { LitmActiveEffectSheet } from "./scripts/data/active-effects/active-effect-sheet.js";
-import { BackpackData } from "./scripts/item/backpack/backpack-data.js";
-import { BackpackSheet } from "./scripts/item/backpack/backpack-sheet.js";
-import { LitmItem } from "./scripts/item/litm-item.js";
-import { StoryThemeData } from "./scripts/item/story-theme/story-theme-data.js";
-import { StoryThemeSheet } from "./scripts/item/story-theme/story-theme-sheet.js";
-import { ThemeData } from "./scripts/item/theme/theme-data.js";
-import { ThemeSheet } from "./scripts/item/theme/theme-sheet.js";
-import { ThemebookData } from "./scripts/item/themebook/themebook-data.js";
-import { ThemebookSheet } from "./scripts/item/themebook/themebook-sheet.js";
-import { TropeData } from "./scripts/item/trope/trope-data.js";
-import { TropeSheet } from "./scripts/item/trope/trope-sheet.js";
-import { VignetteData } from "./scripts/item/vignette/vignette-data.js";
-import { VignetteSheet } from "./scripts/item/vignette/vignette-sheet.js";
-import { AddonData } from "./scripts/item/addon/addon-data.js";
-import { AddonSheet } from "./scripts/item/addon/addon-sheet.js";
-import { ActionData } from "./scripts/item/action/action-data.js";
-import { ActionSheet } from "./scripts/item/action/action-sheet.js";
-import { info, success } from "./scripts/logger.js";
+	StoryTagData,
+	WeaknessTagData,
+} from "./modules/data/active-effects/index.js";
+import { LitmActiveEffect } from "./modules/data/active-effects/litm-active-effect.js";
+import { LitmTokenHUD } from "./modules/hud/litm-token-hud.js";
+import { ActionData } from "./modules/item/action/action-data.js";
+import { ActionSheet } from "./modules/item/action/action-sheet.js";
+import { AddonData } from "./modules/item/addon/addon-data.js";
+import { AddonSheet } from "./modules/item/addon/addon-sheet.js";
+import { BackpackData } from "./modules/item/backpack/backpack-data.js";
+import { BackpackSheet } from "./modules/item/backpack/backpack-sheet.js";
+import { LitmItem } from "./modules/item/litm-item.js";
+import { StoryThemeData } from "./modules/item/story-theme/story-theme-data.js";
+import { StoryThemeSheet } from "./modules/item/story-theme/story-theme-sheet.js";
+import { ThemeData } from "./modules/item/theme/theme-data.js";
+import { ThemeSheet } from "./modules/item/theme/theme-sheet.js";
+import { ThemebookData } from "./modules/item/themebook/themebook-data.js";
+import { ThemebookSheet } from "./modules/item/themebook/themebook-sheet.js";
+import { TropeData } from "./modules/item/trope/trope-data.js";
+import { TropeSheet } from "./modules/item/trope/trope-sheet.js";
+import { VignetteData } from "./modules/item/vignette/vignette-data.js";
+import { VignetteSheet } from "./modules/item/vignette/vignette-sheet.js";
+import { info, success } from "./modules/logger.js";
 import {
 	ChallengeSheetLandscape,
 	FellowshipSheetLandscape,
 	HeroSheetLandscape,
 	JourneySheetLandscape,
-} from "./scripts/sheets/landscape-sheets.js";
-import { LitmConfig } from "./scripts/system/config.js";
-import { Enrichers } from "./scripts/system/enrichers.js";
-import { Fonts } from "./scripts/system/fonts.js";
+} from "./modules/sheets/landscape-sheets.js";
+import { LitmConfig } from "./modules/system/config.js";
+import { ContentSources } from "./modules/system/content-sources.js";
+import { Enrichers } from "./modules/system/enrichers.js";
+import { Fonts } from "./modules/system/fonts.js";
 import {
 	HandlebarsHelpers,
 	HandlebarsPartials,
-} from "./scripts/system/handlebars.js";
-import { LitmHooks } from "./scripts/system/hooks/index.js";
-import { KeyBindings } from "./scripts/system/keybindings.js";
-import { migrateWorld } from "./scripts/system/migrations.js";
-import { loadStatusCompendium } from "./scripts/system/hooks/token-hooks.js";
-import { LitmSettings } from "./scripts/system/settings.js";
-import { ContentSources } from "./scripts/system/content-sources.js";
-import { Sockets } from "./scripts/system/sockets.js";
+} from "./modules/system/handlebars.js";
+import { LitmHooks } from "./modules/system/hooks/index.js";
+import { loadStatusCompendium } from "./modules/system/hooks/token-hooks.js";
+import { KeyBindings } from "./modules/system/keybindings.js";
+import { migrateWorld } from "./modules/system/migrations.js";
+import { LitmSettings } from "./modules/system/settings.js";
+import { Sockets } from "./modules/system/sockets.js";
 
 // Register Custom Elements
 SuperCheckbox.Register();
