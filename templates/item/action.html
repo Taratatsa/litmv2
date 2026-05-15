@@ -160,6 +160,7 @@
 	<!-- Successes -->
 	<fieldset class="litm--action-successes">
 		{{> systems/litmv2/templates/partials/control-legend.html label="LITM.Actions.successes" action="addSuccess" tooltip="LITM.Actions.add_success"}}
+		<p class="hint">{{localize "LITM.Actions.success_markup_hint"}}</p>
 		{{#if system.successes.length}}
 		<ul class="plain litm--success-list">
 			{{#each system.successes as |success|}}
@@ -169,12 +170,6 @@
 						class="litm--success-verb">
 						{{selectOptions ../verbOptions selected=success.verb}}
 					</select>
-					<select name="system.successes.{{@index}}.quality" aria-label="{{localize 'LITM.Actions.quality'}}"
-						class="litm--success-quality">
-						{{selectOptions ../qualityOptions selected=success.quality}}
-					</select>
-					<input class="flex1" type="text" name="system.successes.{{@index}}.label" value="{{success.label}}"
-						placeholder="{{localize 'LITM.Actions.success_label_placeholder'}}" />
 					<button type="button" class="noflex" data-action="removeSuccess" data-index="{{@index}}"
 						data-tooltip="{{localize 'LITM.Actions.remove_success'}}"
 						aria-label="{{localize 'LITM.Actions.remove_success'}}">
@@ -182,61 +177,39 @@
 					</button>
 				</header>
 
-				<textarea name="system.successes.{{@index}}.description" rows="2"
-					class="litm--success-description"
-					aria-label="{{localize 'LITM.Actions.success_description'}}"
-					placeholder="{{localize 'LITM.Actions.success_description_placeholder'}}">{{success.description}}</textarea>
-
-				<details class="litm--success-payload">
-					<summary>{{localize "LITM.Actions.payload"}}</summary>
-					<div class="litm--success-payload-grid">
-						<div class="form-field">
-							<label>{{localize "LITM.Actions.payload_tag"}}</label>
-							<input type="text" name="system.successes.{{@index}}.payload.tagName"
-								value="{{success.payload.tagName}}"
-								placeholder="{{localize 'LITM.Actions.payload_tag_placeholder'}}" />
-						</div>
-						<div class="form-field">
-							<label>{{localize "LITM.Actions.payload_status"}}</label>
-							<input type="text" name="system.successes.{{@index}}.payload.statusName"
-								value="{{success.payload.statusName}}"
-								placeholder="{{localize 'LITM.Actions.payload_status_placeholder'}}" />
-						</div>
-						<div class="form-field litm--success-payload-tier">
-							<label>{{localize "LITM.Actions.payload_tier"}}</label>
-							<input type="number" min="1" max="6" step="1"
-								name="system.successes.{{@index}}.payload.tier"
-								value="{{success.payload.tier}}" />
-						</div>
-						<div class="form-field">
-							<label>{{localize "LITM.Actions.payload_target"}}</label>
-							<select name="system.successes.{{@index}}.payload.target">
-								<option value="self" {{#if (eq success.payload.target "self")}}selected{{/if}}>{{localize "LITM.Actions.targets.self"}}</option>
-								<option value="ally" {{#if (eq success.payload.target "ally")}}selected{{/if}}>{{localize "LITM.Actions.targets.ally"}}</option>
-								<option value="opponent" {{#if (eq success.payload.target "opponent")}}selected{{/if}}>{{localize "LITM.Actions.targets.opponent"}}</option>
-								<option value="process" {{#if (eq success.payload.target "process")}}selected{{/if}}>{{localize "LITM.Actions.targets.process"}}</option>
-								<option value="prompt" {{#if (eq success.payload.target "prompt")}}selected{{/if}}>{{localize "LITM.Actions.targets.prompt"}}</option>
-							</select>
-						</div>
-					</div>
-					<div class="flexrow gap-md litm--success-payload-toggles">
-						<label class="flexrow gap-sm">
-							<input type="checkbox" name="system.successes.{{@index}}.payload.isSingleUse"
-								{{checked success.payload.isSingleUse}} data-dtype="Boolean" />
-							<span>{{localize "LITM.Actions.payload_single_use"}}</span>
-						</label>
-						<label class="flexrow gap-sm">
-							<input type="checkbox" name="system.successes.{{@index}}.payload.scratchTag"
-								{{checked success.payload.scratchTag}} data-dtype="Boolean" />
-							<span>{{localize "LITM.Actions.payload_scratch"}}</span>
-						</label>
-					</div>
-				</details>
+				<textarea name="system.successes.{{@index}}.text" rows="2"
+					class="litm--success-text"
+					aria-label="{{localize 'LITM.Actions.success_text'}}"
+					placeholder="{{localize 'LITM.Actions.success_text_placeholder'}}">{{success.text}}</textarea>
 			</li>
 			{{/each}}
 		</ul>
 		{{else}}
 		<p class="hint">{{localize "LITM.Actions.no_successes"}}</p>
+		{{/if}}
+	</fieldset>
+
+	<!-- Extra Feats -->
+	<fieldset class="litm--action-extra-feats">
+		{{> systems/litmv2/templates/partials/control-legend.html label="LITM.Actions.extra_feats" action="addExtraFeat" tooltip="LITM.Actions.add_extra_feat"}}
+		<p class="hint">{{localize "LITM.Actions.extra_feats_hint"}}</p>
+		{{#if system.extraFeats.length}}
+		<ul class="plain">
+			{{#each system.extraFeats as |feat|}}
+			<li class="form-group gap-sm litm--extra-feat-row">
+				<textarea name="system.extraFeats.{{@index}}" rows="2"
+					aria-label="{{localize 'LITM.Actions.extra_feat'}}"
+					placeholder="{{localize 'LITM.Actions.extra_feat_placeholder'}}">{{feat}}</textarea>
+				<button type="button" class="noflex" data-action="removeExtraFeat" data-index="{{@index}}"
+					data-tooltip="{{localize 'LITM.Actions.remove_extra_feat'}}"
+					aria-label="{{localize 'LITM.Actions.remove_extra_feat'}}">
+					<i class="fa-solid fa-trash" aria-hidden="true"></i>
+				</button>
+			</li>
+			{{/each}}
+		</ul>
+		{{else}}
+		<p class="hint">{{localize "LITM.Actions.no_extra_feats"}}</p>
 		{{/if}}
 	</fieldset>
 

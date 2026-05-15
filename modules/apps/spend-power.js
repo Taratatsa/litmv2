@@ -1,12 +1,14 @@
 import {
 	computePowerBudget,
-	getAllowedQualities,
+	getAllowedVerbs,
 	getSuccessCost,
+	scanMarkup,
 } from "../item/action/action-rules.js";
 import { getVerbDef } from "../item/action/verb-definitions.js";
 import { error } from "../logger.js";
 import { applySuccess } from "../system/chat-actions.js";
 import { resolveEffect, localize as t } from "../utils.js";
+import { adjustCounter } from "./counter-controls.js";
 
 /** Cost calculators by option type. Each receives (li, cost, entriesSection, hasTier). */
 const COST_CALCULATORS = {
@@ -178,7 +180,9 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 		const appliedSuccessesCost = action
 			? appliedKeys.reduce((sum, key) => {
 					const s = (action.system.successes ?? []).find((o) => o.id === key);
-					return sum + (s ? getSuccessCost(s) : 0);
+					if (!s) return sum;
+					const c = getSuccessCost(s);
+					return sum + c.fixed + c.variableTokens;
 				}, 0)
 			: 0;
 		this.power = this.totalPower - this.alreadySpent - appliedSuccessesCost;
@@ -214,7 +218,7 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 			message.getFlag("litmv2", "appliedSuccesses") ?? [],
 		);
 		const roll = message.rolls?.[0];
-		const allowedQualities = getAllowedQualities(roll);
+		const allowedVerbs = getAllowedVerbs(roll);
 		// Affordability uses the combined remaining (action-aware budget minus
 		// generic power already spent on Create/Inflict/etc.).
 		const { remaining: actionRemaining } = computePowerBudget(roll, sys, [
@@ -227,21 +231,31 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 		// #updatePower. The chat history of action-applied messages is the
 		// canonical record of what's been used.
 		return (sys.successes ?? [])
-			.filter((s) => allowedQualities.has(s.quality))
+			.filter((s) => allowedVerbs.has(s.verb))
 			.filter((s) => !applied.has(s.id))
 			.map((s) => {
 				const def = getVerbDef(s.verb);
 				const cost = getSuccessCost(s);
+				const minCost = cost.fixed + cost.variableTokens;
 				const isUnsupported = def?.kind === "unsupported";
-				const cantAfford = cost > remaining;
+				const cantAfford = minCost > remaining;
+
+				// Variable-tier tokens get inline counters. We surface them in
+				// scan order so the apply path can map counter values back to
+				// `chosenTiers` indices in `applySuccess`.
+				const varTokens = scanMarkup(s.text)
+					.filter((tok) => tok.type === "status" && tok.isVariable)
+					.map((tok, idx) => ({ idx, name: tok.name }));
+
 				return {
 					key: s.id,
 					verbLabel: t(`LITM.Actions.verbs.${s.verb}`),
 					verbKind: def?.displayKind ?? "self",
-					qualityLabel: t(`LITM.Actions.qualities.${s.quality}`),
-					label: s.label,
-					description: s.description,
-					cost,
+					text: s.text,
+					cost: minCost,
+					fixedCost: cost.fixed,
+					varTokens,
+					hasVariableTier: varTokens.length > 0,
 					disabled: isUnsupported || cantAfford,
 					reasonKey: isUnsupported
 						? def.unsupportedMessageKey
@@ -304,19 +318,28 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 
 	/** @this {SpendPowerApp} */
 	static #onCounter(_event, target) {
-		const container = target.closest(
-			".litm-spend-power__counter, .litm-spend-power__status-reduce",
-		);
-		const valueEl = container.querySelector(".litm-spend-power__counter-value");
-		const current = Number(valueEl.textContent);
 		const statusItem = target.closest(".litm-spend-power__status-item");
+		const varTier = target.closest(".litm-spend-power__var-tier");
+		// Variable-tier counters clamp 1..6 (tier range). reduce_status clamps
+		// 0..currentTier. Everything else clamps 1..∞.
 		const min = statusItem ? 0 : 1;
-		const max = statusItem ? Number(statusItem.dataset.maxTier) : Infinity;
-		const next =
-			target.dataset.action === "counter-inc"
-				? Math.min(current + 1, max)
-				: Math.max(min, current - 1);
-		valueEl.textContent = next;
+		const max = statusItem
+			? Number(statusItem.dataset.maxTier)
+			: varTier
+				? 6
+				: Infinity;
+		adjustCounter(target, { min, max });
+
+		// Live cost label update for action-success rows.
+		if (varTier) {
+			const li = varTier.closest(".litm-spend-power__option");
+			const costEl = li?.querySelector("[data-action-success-cost]");
+			if (li && costEl) {
+				const total = this.#calculateOptionCost(li, Number(li.dataset.cost));
+				costEl.textContent = `${total} ${t("LITM.Tags.power")}`;
+			}
+		}
+
 		this.#updatePower(this.element);
 	}
 
@@ -468,6 +491,24 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 	 * @returns {number}
 	 */
 	#calculateOptionCost(li, cost) {
+		// Action-success rows: cost = fixed + sum(var-tier counter values).
+		// Counter values default to 1, so the displayed `data-cost` (min cost)
+		// matches when no counters have been incremented.
+		if (li.dataset.source === "action" && li.dataset.variableTier === "true") {
+			const fixed = Number(li.dataset.fixedCost ?? 0);
+			let varSum = 0;
+			li.querySelectorAll(".litm-spend-power__var-tier").forEach((row) => {
+				const raw = Number(
+					row.querySelector(".litm-spend-power__counter-value")?.textContent ??
+						1,
+				);
+				const val = Number.isFinite(raw) ? raw : 1;
+				varSum += Math.max(1, val);
+			});
+			return fixed + varSum;
+		}
+		if (li.dataset.source === "action") return cost;
+
 		const { type, hasTier } = SpendPowerApp.#getOptionType(li);
 		const entriesSection = li.querySelector(".litm-spend-power__entries");
 		const calculator = COST_CALCULATORS[type] ?? defaultCostCalculator;
@@ -722,9 +763,22 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 		const appliedNow = message.getFlag("litmv2", "appliedSuccesses") ?? [];
 		if (appliedNow.includes(key)) return 0;
 
+		// Pull variable-tier counter values in scan order — keyed by data-var-idx
+		// which maps 1:1 to the `chosenTiers` array consumed by applySuccess.
+		const chosenTiers = [];
+		li.querySelectorAll(".litm-spend-power__var-tier").forEach((row) => {
+			const idx = Number(row.dataset.varIdx);
+			if (!Number.isInteger(idx) || idx < 0) return;
+			const raw = Number(
+				row.querySelector(".litm-spend-power__counter-value")?.textContent ?? 1,
+			);
+			const val = Number.isFinite(raw) ? raw : 1;
+			chosenTiers[idx] = Math.max(1, Math.min(6, val));
+		});
+
 		let result;
 		try {
-			result = await applySuccess({ success, actor });
+			result = await applySuccess({ success, actor, chosenTiers });
 		} catch (err) {
 			error("Failed to apply action success:", err);
 			ui.notifications.error(t("LITM.Actions.apply_failed"));
@@ -747,7 +801,14 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 			),
 		});
 
-		return getSuccessCost(success);
+		// Actual Power spent = fixed cost + sum of chosen tiers for variable
+		// tokens. Falls back to the minimum (tier 1 each) when no counters
+		// were rendered.
+		const c = getSuccessCost(success);
+		const variableSpent = chosenTiers
+			.filter((n) => Number.isFinite(n))
+			.reduce((sum, n) => sum + n, 0);
+		return c.fixed + (variableSpent || c.variableTokens);
 	}
 }
 

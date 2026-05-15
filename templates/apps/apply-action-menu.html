@@ -2,11 +2,28 @@
 	{{#if empty}}
 	<p class="hint">{{localize "LITM.Actions.no_consequences_to_apply"}}</p>
 	{{else}}
+	{{#if targets.length}}
+	<fieldset class="litm--apply-target-row">
+		<legend>{{localize "LITM.Actions.pick_target"}}</legend>
+		<ul class="litm--apply-target-chips flexrow gap-sm">
+			{{#each targets}}
+			<li class="litm--apply-target-chip">
+				<label>
+					<input type="radio" name="target" value="{{id}}" {{#if selected}}checked{{/if}} />
+					{{#if img}}<img src="{{img}}" alt="" />{{/if}}
+					<span>{{name}}</span>
+				</label>
+			</li>
+			{{/each}}
+		</ul>
+	</fieldset>
+	{{/if}}
 	<fieldset>
 		<legend>{{localize "LITM.Terms.consequences"}}</legend>
 		<ul class="litm-spend-power__options">
 			{{#each items as |item|}}
-			<li class="litm-spend-power__option {{#if item.applied}}is-applied{{/if}} {{#if item.disabled}}is-disabled{{/if}}">
+			<li class="litm-spend-power__option {{#if item.applied}}is-applied{{/if}} {{#if item.disabled}}is-disabled{{/if}}"
+				data-key="{{item.key}}">
 				<div class="litm-spend-power__option-row">
 					<label class="litm-spend-power__option-label">
 						<input type="checkbox" name="option" value="{{item.key}}"
@@ -15,6 +32,24 @@
 						<span>{{{item.text}}}</span>
 					</label>
 				</div>
+				{{#if item.hasVariableTier}}
+				<div class="litm-spend-power__var-tiers flexrow gap-sm">
+					{{#each item.varTokens}}
+					<div class="litm-spend-power__var-tier flexrow gap-sm" data-var-idx="{{idx}}" data-var-name="{{name}}">
+						<span class="litm-spend-power__var-name">{{name}}-</span>
+						<button type="button" class="litm-spend-power__counter-btn" data-action="counter-dec"
+							aria-label="{{localize "LITM.Ui.decrease"}}">
+							<i class="fas fa-minus" aria-hidden="true"></i>
+						</button>
+						<span class="litm-spend-power__counter-value" aria-live="polite">1</span>
+						<button type="button" class="litm-spend-power__counter-btn" data-action="counter-inc"
+							aria-label="{{localize "LITM.Ui.increase"}}">
+							<i class="fas fa-plus" aria-hidden="true"></i>
+						</button>
+					</div>
+					{{/each}}
+				</div>
+				{{/if}}
 			</li>
 			{{/each}}
 		</ul>

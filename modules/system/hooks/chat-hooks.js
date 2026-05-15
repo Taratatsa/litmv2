@@ -1,8 +1,12 @@
 import { applyThemeSacrifice } from "../../actor/hero/hero-data.js";
 import { ApplyActionMenuApp } from "../../apps/apply-action-menu.js";
 import { WelcomeOverlay } from "../../apps/welcome-overlay.js";
-import { getAllowedQualities } from "../../item/action/action-rules.js";
-import { enrichHTML, localize as t, viewLinkedRefAction } from "../../utils.js";
+import {
+	getAllowedVerbs,
+	getSuccessCost,
+} from "../../item/action/action-rules.js";
+import { getVerbDef } from "../../item/action/verb-definitions.js";
+import { localize as t, viewLinkedRefAction } from "../../utils.js";
 import { Sockets } from "../sockets.js";
 
 export function registerChatHooks() {
@@ -126,6 +130,27 @@ function _handleOpenApplyConsequences(_target, app) {
 	);
 }
 
+async function _handleReact(target) {
+	const actorId = target.dataset.actorId;
+	if (!actorId) return;
+	const actor = game.actors.get(actorId);
+	if (!actor) {
+		ui.notifications.warn(t("LITM.Actions.apply_no_actor"));
+		return;
+	}
+	if (!actor.isOwner && !game.user.isGM) {
+		ui.notifications.warn(t("LITM.Actions.request_not_owner"));
+		return;
+	}
+
+	const sheet = actor.sheet;
+	const dialog = sheet?.rollDialogInstance;
+	if (!dialog) return;
+	dialog.setType("mitigate");
+	if (typeof sheet.renderRollDialog === "function") sheet.renderRollDialog();
+	else if (!dialog.rendered) dialog.render(true);
+}
+
 async function _handleTakeRollRequest(_target, app) {
 	const req = app.getFlag("litmv2", "rollRequest");
 	if (!req?.actionUuid || !req?.requestedActorId) return;
@@ -158,33 +183,37 @@ const CLICK_HANDLERS = {
 	"action-view-ref": _handleViewActionRef,
 	"action-open-consequences": _handleOpenApplyConsequences,
 	"take-roll-request": _handleTakeRollRequest,
+	react: _handleReact,
 };
 
-async function _renderActionQuickSuccesses(app, element) {
+async function _renderActionSuccesses(app, element) {
 	const actionUuid = app.getFlag("litmv2", "actionUuid");
 	if (!actionUuid) return;
 
 	const roll = app.rolls?.[0];
 	if (!roll) return;
 
-	const allowedQualities = getAllowedQualities(roll);
-	if (!allowedQualities.has("quick")) return;
+	const allowedVerbs = getAllowedVerbs(roll);
+	if (!allowedVerbs.size) return;
 
 	const action = await foundry.utils.fromUuid(actionUuid);
 	if (!action || action.type !== "action") return;
 
-	const quickSuccesses = (action.system.successes ?? []).filter(
-		(s) => s.quality === "quick",
+	const reachable = (action.system.successes ?? []).filter((s) =>
+		allowedVerbs.has(s.verb),
 	);
-	if (!quickSuccesses.length) return;
+	if (!reachable.length) return;
 
-	const successes = await Promise.all(
-		quickSuccesses.map(async (s) => ({
+	const successes = reachable.map((s) => {
+		const cost = getSuccessCost(s);
+		const def = getVerbDef(s.verb);
+		return {
+			verb: s.verb,
 			verbLabel: t(`LITM.Actions.verbs.${s.verb}`),
-			label: s.label,
-			description: s.description ? await enrichHTML(s.description, action) : "",
-		})),
-	);
+			text: s.text,
+			costLabel: _costLabel(cost, def),
+		};
+	});
 
 	const html = await foundry.applications.handlebars.renderTemplate(
 		"systems/litmv2/templates/partials/action-quick-successes.html",
@@ -205,10 +234,34 @@ async function _renderActionQuickSuccesses(app, element) {
 	}
 }
 
+/**
+ * Build the inline cost indicator next to a success on the chat card.
+ * Narrative (Quick) verbs are free → no label. Verbs with variable-tier
+ * tokens show e.g. "2+ Power" because the tier is picked in Spend Power.
+ */
+function _costLabel(cost, def) {
+	if (!def || def.kind === "narrative") return "";
+	const fixed = cost.fixed ?? 0;
+	const variable = cost.variableTokens ?? 0;
+	if (variable > 0)
+		return game.i18n.format("LITM.Actions.cost_variable", { n: fixed });
+	if (fixed <= 0) return "";
+	return game.i18n.format("LITM.Actions.cost", { n: fixed });
+}
+
 async function _renderActionPanel(app, element) {
 	if (!game.user.isGM) return;
 	const actionUuid = app.getFlag("litmv2", "actionUuid");
 	if (!actionUuid) return;
+
+	// Consequences are only dealt on Miss or Success-with-Consequences. A
+	// clean Success (10+) carries no Consequences — the button shouldn't
+	// appear there (Core Book p.151). Reactions are pre-roll mitigation;
+	// they don't surface the action's own Consequences either.
+	const roll = app.rolls?.[0];
+	const outcome = roll?.outcome?.label;
+	if (!outcome || outcome === "success") return;
+	if (roll?.litm?.type === "mitigate") return;
 
 	const action = await foundry.utils.fromUuid(actionUuid);
 	if (!action || action.type !== "action") return;
@@ -263,8 +316,8 @@ function onRenderChatMessage(app, html, _data) {
 	// Attach GM indicator
 	element.setAttribute("data-user", game.user.isGM ? "gm" : "player");
 
-	_renderActionQuickSuccesses(app, element).catch((e) =>
-		console.error("LITM quick successes render failed:", e),
+	_renderActionSuccesses(app, element).catch((e) =>
+		console.error("LITM action successes render failed:", e),
 	);
 	_renderActionPanel(app, element).catch((e) =>
 		console.error("LITM action panel render failed:", e),
@@ -302,6 +355,15 @@ function onRenderChatMessage(app, html, _data) {
 	);
 	if (advanceBtn && !app.isAuthor)
 		advanceBtn.closest(".litm-track-complete__footer")?.remove();
+
+	// Hide react button from users who don't own the target actor
+	const reactBtn = element.querySelector("[data-click='react']");
+	if (reactBtn) {
+		const actor = game.actors.get(reactBtn.dataset.actorId);
+		if (!actor || (!actor.isOwner && !game.user.isGM)) {
+			reactBtn.closest(".litm-spend-chat__react")?.remove();
+		}
+	}
 
 	// Moderation messages: show actions only to GMs, toggle hint text
 	const moderationActions = element.querySelector(".litm--moderation-actions");

@@ -225,6 +225,12 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		if (this.rendered) this.render();
 	}
 
+	setType(type) {
+		if (!type) return;
+		this.type = type;
+		if (this.rendered) this.render();
+	}
+
 	get ownerId() {
 		return this.#ownerId;
 	}

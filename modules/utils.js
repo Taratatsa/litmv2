@@ -197,7 +197,7 @@ export function findApplicableEffect(actor, predicate) {
  * @returns {{ name: string, type: string, system: object }}
  */
 export function parseTagStringMatch(match) {
-	const [, name, separator, value] = match;
+	const [, name, exclamation, separator, value] = match;
 	const isStatus = separator === "-";
 	if (isStatus) {
 		const tier = Number.parseInt(value, 10) || 0;
@@ -207,8 +207,10 @@ export function parseTagStringMatch(match) {
 			system: { tiers: Array.from({ length: 6 }, (_, i) => i + 1 === tier) },
 		};
 	}
-	// `{name:1}` marks a single-use story tag (p.165 last-1-Power rule).
-	const isSingleUse = separator === ":" && value === "1";
+	// Story tags can be marked single-use with `[name!]` (Action Grimoire
+	// convention) or the legacy `{name:1}` syntax (Core Book p.165).
+	const isSingleUse =
+		exclamation === "!" || (separator === ":" && value === "1");
 	return {
 		name,
 		type: "story_tag",

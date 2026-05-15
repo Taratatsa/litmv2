@@ -1,8 +1,14 @@
 import { info } from "../logger.js";
+import { proseChipsHtml } from "./renderers/renderer-utils.js";
 
 export class HandlebarsHelpers {
 	static register() {
 		info("Registering Handlebars Helpers...");
+
+		Handlebars.registerHelper(
+			"prose-chips",
+			(text) => new Handlebars.SafeString(proseChipsHtml(text ?? "")),
+		);
 
 		Handlebars.registerHelper("add", (...args) => {
 			args.pop();

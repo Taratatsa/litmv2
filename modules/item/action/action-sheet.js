@@ -2,11 +2,7 @@ import { sendRollRequest } from "../../apps/roll-request.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import { POWER_REF_TAG_TYPES } from "../../system/config.js";
 import { removeAtIndex, localize as t } from "../../utils.js";
-import {
-	ACTION_CATEGORIES,
-	SUCCESS_QUALITIES,
-	SUCCESS_VERBS,
-} from "./action-data.js";
+import { ACTION_CATEGORIES, SUCCESS_VERBS } from "./action-data.js";
 
 /**
  * Action sheet for Legend in the Mist.
@@ -32,6 +28,8 @@ export class ActionSheet extends LitmItemSheet {
 			removeNegativeTag: ActionSheet.#onRemoveNegativeTag,
 			addSuccess: ActionSheet.#onAddSuccess,
 			removeSuccess: ActionSheet.#onRemoveSuccess,
+			addExtraFeat: ActionSheet.#onAddExtraFeat,
+			removeExtraFeat: ActionSheet.#onRemoveExtraFeat,
 			addConsequence: ActionSheet.#onAddConsequence,
 			removeConsequence: ActionSheet.#onRemoveConsequence,
 			sendRollRequest: ActionSheet.#onSendRollRequest,
@@ -63,10 +61,10 @@ export class ActionSheet extends LitmItemSheet {
 		const enriched = await this._enrichFields("description");
 
 		const verbOptions = Object.fromEntries(
-			SUCCESS_VERBS.map((v) => [v, t(`LITM.Actions.verbs.${v}`)]),
-		);
-		const qualityOptions = Object.fromEntries(
-			SUCCESS_QUALITIES.map((q) => [q, t(`LITM.Actions.qualities.${q}`)]),
+			SUCCESS_VERBS.filter((v) => v !== "extraFeat").map((v) => [
+				v,
+				t(`LITM.Actions.verbs.${v}`),
+			]),
 		);
 		const sortedCategories = ACTION_CATEGORIES.filter((c) => c)
 			.map((c) => [c, t(`LITM.Actions.categories.${c}`)])
@@ -82,7 +80,6 @@ export class ActionSheet extends LitmItemSheet {
 			system: this.system,
 			enriched,
 			verbOptions,
-			qualityOptions,
 			categoryOptions,
 			isRote: this.system.isRote,
 			isGM: game.user.isGM,
@@ -145,18 +142,7 @@ export class ActionSheet extends LitmItemSheet {
 		successes.push({
 			id: foundry.utils.randomID(),
 			verb: "enhance",
-			quality: "quick",
-			label: "",
-			description: "",
-			payload: {
-				tagName: "",
-				statusName: "",
-				tier: null,
-				polarity: "positive",
-				isSingleUse: false,
-				scratchTag: false,
-				target: "self",
-			},
+			text: "",
 		});
 		await this.document.update({ "system.successes": successes });
 	}
@@ -165,6 +151,19 @@ export class ActionSheet extends LitmItemSheet {
 		await removeAtIndex(
 			this.document,
 			"system.successes",
+			Number(target.dataset.index),
+		);
+	}
+
+	static async #onAddExtraFeat() {
+		const list = [...(this.system.extraFeats ?? []), ""];
+		await this.document.update({ "system.extraFeats": list });
+	}
+
+	static async #onRemoveExtraFeat(_event, target) {
+		await removeAtIndex(
+			this.document,
+			"system.extraFeats",
 			Number(target.dataset.index),
 		);
 	}

@@ -507,6 +507,23 @@ body,
 	--tag-color: var(--color-litm-status);
 }
 
+/* Single-use story tag — marked with a trailing ✱ in the label. The chip itself
+   reads as a regular tag; the dimmed weight cues "one-shot" without competing
+   with the existing tag chrome. */
+.litm-power_tag.litm--single-use,
+.litm-story_tag.litm--single-use,
+.litm-tag.litm--single-use {
+	font-weight: 400;
+}
+
+/* Variable-tier status (`[name-]`) — tier is chosen at apply time, so the chip
+   reads as provisional. Reduced opacity matches the existing "not yet
+   committed" idiom used by spend-power tag chips. */
+.litm-status.litm--variable-tier,
+.litm-status_tag.litm--variable-tier {
+	opacity: 0.7;
+}
+
 /* ──────────────────────────────────────────────────────────────────────
    Shared section header — small-caps label with extending decorative
    lines. Aliases the legacy `.litm-render__section-header` so the
@@ -3497,6 +3514,66 @@ section.standard-form.litm-actions-app {
 	color: var(--color-text-secondary);
 	border-top: 1px solid var(--color-border);
 	padding-top: var(--spacer-4);
+}
+
+.litm-spend-chat__react {
+	margin-top: var(--spacer-8);
+	display: flex;
+	justify-content: center;
+}
+
+.litm-spend-chat__react button {
+	width: 100%;
+}
+
+/* Apply-action menu: target chip row. The label wraps a hidden radio + small
+   actor portrait + name, so the whole chip is the hit target. Selected chip
+   warms its background to mirror the option-row `:has(input:checked)` cue. */
+.litm--apply-target-row {
+	margin-bottom: var(--spacer-8);
+}
+
+.litm--apply-target-chips {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	flex-wrap: wrap;
+}
+
+.litm--apply-target-chip > label {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacer-4);
+	padding: var(--spacer-2) var(--spacer-8) var(--spacer-2) var(--spacer-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-pill);
+	cursor: pointer;
+	transition:
+		background var(--transition-fast) ease,
+		border-color var(--transition-fast) ease;
+}
+
+.litm--apply-target-chip > label:hover {
+	border-color: var(--color-warm-2);
+}
+
+.litm--apply-target-chip input[type="radio"] {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.litm--apply-target-chip img {
+	width: 1.5rem;
+	height: 1.5rem;
+	border-radius: var(--radius-circle);
+	object-fit: cover;
+	flex: none;
+}
+
+.litm--apply-target-chip:has(input:checked) > label {
+	background: var(--table-row-color-even);
+	border-color: var(--color-warm-3);
 }
 
 /* ========================================

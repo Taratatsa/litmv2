@@ -1,3 +1,6 @@
+import { parseTagStringMatch } from "../../utils.js";
+import { makeTagStringRe } from "../config.js";
+
 /**
  * Creates a tag span matching the hero play sheet pattern.
  * @param {string} name - Tag name
@@ -74,4 +77,69 @@ export function makeActorCard(actor, typeClass) {
 	container.appendChild(header);
 
 	return { container, headerText };
+}
+
+const HTML_ESCAPE = {
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	'"': "&quot;",
+	"'": "&#39;",
+};
+
+function escapeHtml(s) {
+	return String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]);
+}
+
+/**
+ * Replace `[name]` / `[name-N]` / `[name-]` / `[name!]` bracket markup in free
+ * text with inline colored chips — yellow for story tags, green for statuses,
+ * matching the Action Grimoire's visual convention. Returns escaped-HTML
+ * suitable for direct insertion (via Handlebars SafeString or innerHTML).
+ *
+ *   [map]        → <span class="litm-power_tag">map</span>
+ *   [map!]       → <span class="litm-power_tag litm--single-use">map ✱</span>
+ *   [wounded-2]  → <span class="litm-status">wounded-2</span>
+ *   [wounded-]   → <span class="litm-status litm--variable-tier">wounded</span>
+ *
+ * Non-markup text is HTML-escaped.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function proseChipsHtml(text) {
+	if (!text) return "";
+	const re = makeTagStringRe();
+	let out = "";
+	let lastIndex = 0;
+	for (const match of text.matchAll(re)) {
+		const start = match.index;
+		const end = start + match[0].length;
+		if (start > lastIndex) out += escapeHtml(text.slice(lastIndex, start));
+
+		const data = parseTagStringMatch(match);
+		if (data.type === "status_tag") {
+			const tier = _highestTier(data.system.tiers);
+			const cls = tier > 0 ? "litm-status" : "litm-status litm--variable-tier";
+			const label = tier > 0 ? `${data.name}-${tier}` : data.name;
+			out += `<span class="${cls}" data-text="${escapeHtml(data.name)}" draggable="true">${escapeHtml(label)}</span>`;
+		} else {
+			const cls = data.system.isSingleUse
+				? "litm-power_tag litm--single-use"
+				: "litm-power_tag";
+			const label = data.system.isSingleUse ? `${data.name} ✱` : data.name;
+			out += `<span class="${cls}" data-text="${escapeHtml(data.name)}" draggable="true">${escapeHtml(label)}</span>`;
+		}
+
+		lastIndex = end;
+	}
+	if (lastIndex < text.length) out += escapeHtml(text.slice(lastIndex));
+	return out;
+}
+
+function _highestTier(tiers) {
+	if (!Array.isArray(tiers)) return 0;
+	let tier = 0;
+	for (let i = 0; i < tiers.length; i++) if (tiers[i]) tier = i + 1;
+	return tier;
 }

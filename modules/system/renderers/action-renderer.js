@@ -1,5 +1,5 @@
 import { enrichHTML, localize as t } from "../../utils.js";
-import { sectionHeader, tagSpan } from "./renderer-utils.js";
+import { proseChipsHtml, sectionHeader, tagSpan } from "./renderer-utils.js";
 
 /**
  * Renders an Action item as a read-only embed card. Used by the @render
@@ -95,53 +95,28 @@ export async function renderAction(item) {
 		}
 	}
 
-	// Successes
+	// Successes — flat list in author order; verb chip prefixes the prose.
 	const successes = sys.successes ?? [];
 	if (successes.length) {
 		container.appendChild(sectionHeader(t("LITM.Actions.successes")));
-
-		const grouped = new Map();
-		for (const s of successes) {
-			const list = grouped.get(s.quality) ?? [];
-			list.push(s);
-			grouped.set(s.quality, list);
-		}
-
-		for (const quality of ["quick", "detailed"]) {
-			const items = grouped.get(quality);
-			if (!items) continue;
-			for (const s of items) container.appendChild(_successEntry(s));
-		}
-
-		const feats = grouped.get("extraFeat");
-		if (feats?.length) {
-			const sub = document.createElement("p");
-			sub.classList.add("litm-render--action__subhead");
-			sub.textContent = t("LITM.Actions.qualities.extraFeat");
-			container.appendChild(sub);
-
-			const ul = document.createElement("ul");
-			ul.classList.add("litm-render--action__feats");
-			for (const f of feats) {
-				const li = document.createElement("li");
-				if (f.label) {
-					const strong = document.createElement("strong");
-					strong.textContent = f.label;
-					li.appendChild(strong);
-					if (f.description)
-						li.appendChild(document.createTextNode(`. ${f.description}`));
-				} else if (f.description) {
-					li.textContent = f.description;
-				} else {
-					li.textContent = t(`LITM.Actions.verbs.${f.verb}`);
-				}
-				ul.appendChild(li);
-			}
-			container.appendChild(ul);
-		}
+		for (const s of successes) container.appendChild(_successEntry(s));
 	}
 
-	// Consequences
+	// Extra Feats — narrative-only bullets, prose rendered with chip markup.
+	const extraFeats = sys.extraFeats ?? [];
+	if (extraFeats.length) {
+		container.appendChild(sectionHeader(t("LITM.Actions.extra_feats")));
+		const ul = document.createElement("ul");
+		ul.classList.add("litm-render--action__feats");
+		for (const text of extraFeats) {
+			const li = document.createElement("li");
+			li.innerHTML = proseChipsHtml(text);
+			ul.appendChild(li);
+		}
+		container.appendChild(ul);
+	}
+
+	// Consequences — same chip rendering as successes/feats.
 	const consequences = sys.consequences ?? [];
 	if (consequences.length) {
 		container.appendChild(sectionHeader(t("LITM.Terms.consequences")));
@@ -149,7 +124,7 @@ export async function renderAction(item) {
 		ul.classList.add("litm-render--action__consequences");
 		for (const c of consequences) {
 			const li = document.createElement("li");
-			li.textContent = c;
+			li.innerHTML = proseChipsHtml(c);
 			ul.appendChild(li);
 		}
 		container.appendChild(ul);
@@ -159,22 +134,23 @@ export async function renderAction(item) {
 }
 
 /**
- * Render a single non-extraFeat success entry — small-caps verb followed
- * by inline label/description.
+ * Render a single success entry — small-caps verb followed by prose with
+ * inline tag/status chips.
  */
 function _successEntry(s) {
 	const p = document.createElement("p");
 	p.classList.add("litm-render--action__success");
+
 	const verb = document.createElement("strong");
 	verb.classList.add("litm-render--action__verb");
 	verb.textContent = t(`LITM.Actions.verbs.${s.verb}`);
 	p.appendChild(verb);
-	if (s.label) p.appendChild(document.createTextNode(` ${s.label}`));
-	if (s.description)
-		p.appendChild(
-			document.createTextNode(
-				s.label ? `. ${s.description}` : ` ${s.description}`,
-			),
-		);
+
+	if (s.text) {
+		const prose = document.createElement("span");
+		prose.classList.add("litm-render--action__success-text");
+		prose.innerHTML = ` ${proseChipsHtml(s.text)}`;
+		p.appendChild(prose);
+	}
 	return p;
 }

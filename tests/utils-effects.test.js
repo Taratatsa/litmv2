@@ -71,7 +71,7 @@ describe("findApplicableEffect", () => {
 
 describe("parseTagStringMatch", () => {
 	it("produces a status_tag with the right tier marked", () => {
-		const match = ["[Tired-3]", "Tired", "-", "3"];
+		const match = ["[Tired-3]", "Tired", undefined, "-", "3"];
 		const data = parseTagStringMatch(match);
 		expect(data.type).toBe("status_tag");
 		expect(data.name).toBe("Tired");
@@ -86,7 +86,7 @@ describe("parseTagStringMatch", () => {
 	});
 
 	it("produces a story_tag for non-status separators", () => {
-		const match = ["[Blessed]", "Blessed", "", ""];
+		const match = ["[Blessed]", "Blessed", undefined, "", ""];
 		const data = parseTagStringMatch(match);
 		expect(data.type).toBe("story_tag");
 		expect(data.system).toEqual({ isScratched: false, isSingleUse: false });

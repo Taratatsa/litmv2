@@ -56,14 +56,13 @@ export const VERB_DEFINITIONS = Object.freeze({
 	// Process (Limit) verbs
 	advance: { target: "process", kind: "process", displayKind: "process" },
 	setBack: { target: "process", kind: "process", displayKind: "process" },
-	lessen: {
-		target: "process",
-		kind: "unsupported",
-		displayKind: "process",
-		unsupportedMessageKey: "LITM.Actions.lessen_not_implemented",
-	},
+	// Lessen reaches the Restore applier on `self` — it's a reaction to
+	// something coming at the Hero, mechanically equivalent to Restore but
+	// reached via the Reaction roll type rather than a Detailed action.
+	lessen: { target: "self", kind: "restore", displayKind: "self" },
 
 	// Meta
+	quick: { target: "self", kind: "narrative", displayKind: "meta" },
 	discover: { target: "self", kind: "discover", displayKind: "meta" },
 	extraFeat: { target: "self", kind: "extraFeat", displayKind: "meta" },
 });

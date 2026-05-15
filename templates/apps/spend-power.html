@@ -21,16 +21,35 @@
 				data-source="action"
 				data-success-key="{{item.key}}"
 				data-cost="{{item.cost}}"
-				data-verb-kind="{{item.verbKind}}">
+				data-fixed-cost="{{item.fixedCost}}"
+				data-verb-kind="{{item.verbKind}}"
+				{{#if item.hasVariableTier}}data-variable-tier="true"{{/if}}>
 				<div class="litm-spend-power__option-row">
 					<label class="litm-spend-power__option-label">
 						<input type="checkbox" data-option-check
 							{{#if item.disabled}}disabled{{/if}} />
-						<span><span class="litm--chat-action-verb">{{item.verbLabel}}</span>{{#if item.label}} <span class="litm--chat-action-label">{{item.label}}</span>{{/if}}</span>
+						<span><span class="litm--chat-action-verb">{{item.verbLabel}}</span>{{#if item.text}} <span class="litm--chat-action-text">{{prose-chips item.text}}</span>{{/if}}</span>
 					</label>
-					{{#if item.cost}}<span class="litm-spend-power__cost">{{item.cost}} {{localize "LITM.Tags.power"}}</span>{{/if}}
+					{{#if item.cost}}<span class="litm-spend-power__cost" data-action-success-cost>{{item.cost}} {{localize "LITM.Tags.power"}}</span>{{/if}}
 				</div>
-				{{#if item.description}}<p class="hint">{{item.description}}</p>{{/if}}
+				{{#if item.hasVariableTier}}
+				<div class="litm-spend-power__var-tiers flexrow gap-sm">
+					{{#each item.varTokens}}
+					<div class="litm-spend-power__var-tier flexrow gap-sm" data-var-idx="{{idx}}" data-var-name="{{name}}">
+						<span class="litm-spend-power__var-name">{{name}}-</span>
+						<button type="button" class="litm-spend-power__counter-btn" data-action="counter-dec"
+							aria-label="{{localize "LITM.Ui.decrease"}}">
+							<i class="fas fa-minus" aria-hidden="true"></i>
+						</button>
+						<span class="litm-spend-power__counter-value" aria-live="polite">1</span>
+						<button type="button" class="litm-spend-power__counter-btn" data-action="counter-inc"
+							aria-label="{{localize "LITM.Ui.increase"}}">
+							<i class="fas fa-plus" aria-hidden="true"></i>
+						</button>
+					</div>
+					{{/each}}
+				</div>
+				{{/if}}
 				{{#if item.reasonKey}}<p class="hint">{{localize item.reasonKey}}</p>{{/if}}
 			</li>
 			{{/each}}
