@@ -1,4 +1,3 @@
-import { FLAG_LIMIT_TYPES } from "../system/config.js";
 import { localize as t } from "../utils.js";
 
 const { DialogV2 } = foundry.applications.api;
@@ -64,33 +63,31 @@ export async function pickLimit() {
 	const candidates = [];
 
 	for (const actor of actors) {
-		if (actor.type === "challenge") {
-			const ownIds = new Set((actor.system.limits ?? []).map((l) => l.id));
-			const limits = actor.system.derivedLimits ?? actor.system.limits ?? [];
-			for (const l of limits) {
-				candidates.push({
-					id: `${actor.id}::${l.id}`,
-					label: `${actor.name} — ${l.label || t("LITM.Terms.limit")} (${l.value ?? 0}/${l.max ?? "—"})`,
-					img: actor.img,
-					actor,
-					limit: l,
-					source: ownIds.has(l.id) ? "system" : "addon",
-				});
-			}
-			continue;
-		}
-		if (FLAG_LIMIT_TYPES.has(actor.type)) {
-			const limits = actor.getFlag("litmv2", "limits") ?? [];
-			for (const l of limits) {
-				candidates.push({
-					id: `${actor.id}::${l.id}`,
-					label: `${actor.name} — ${l.label || t("LITM.Terms.limit")} (${l.value ?? 0}/${l.max ?? "—"})`,
-					img: actor.img,
-					actor,
-					limit: l,
-					source: "flag",
-				});
-			}
+		if (typeof actor.system?.limits === "undefined") continue;
+		const limits = actor.system.limits ?? [];
+		if (!limits.length) continue;
+
+		// For challenge actors, derive source from whether the id exists in the
+		// canonical (non-addon) schema field. Other actor types are always "flag".
+		const isChallenge = actor.type === "challenge";
+		const ownIds = isChallenge
+			? new Set((actor.system._source?.limits ?? []).map((l) => l.id))
+			: null;
+
+		for (const l of limits) {
+			const source = isChallenge
+				? ownIds.has(l.id)
+					? "system"
+					: "addon"
+				: "flag";
+			candidates.push({
+				id: `${actor.id}::${l.id}`,
+				label: `${actor.name} — ${l.label || t("LITM.Terms.limit")} (${l.value ?? 0}/${l.max ?? "—"})`,
+				img: actor.img,
+				actor,
+				limit: l,
+				source,
+			});
 		}
 	}
 

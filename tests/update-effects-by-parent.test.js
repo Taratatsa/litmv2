@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { updateEffectsByParent } from "../modules/utils.js";
+import { updateEffectsByParent } from "../modules/active-effects/effect-factories.js";
 import { fakeActor, fakeEffect, fakeItem } from "./__helpers__/factories.js";
 
 describe("updateEffectsByParent", () => {

@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { EffectTagsMixin } from "../modules/actor/effect-tags-mixin.js";
+import { describe, expect, it, vi } from "vitest";
+import { EffectTagsMixin } from "../modules/actor/mixins/effect-tags-mixin.js";
 import { fakeActor, fakeEffect, fakeItem } from "./__helpers__/factories.js";
+
+// addStatus calls statusTagEffect, which reads game.i18n.localize for the
+// default name fallback. We always pass an explicit name in tests, but stub
+// the namespace so any incidental read is harmless.
+globalThis.game = { i18n: { localize: (k) => k } };
 
 // Build a fake TypeDataModel-like base so the mixin can extend it.
 class BaseModel {
@@ -28,6 +33,7 @@ describe("EffectTagsMixin.storyTags / statusEffects", () => {
 			items: [backpack],
 		});
 		const model = buildModel(actor);
+		model.prepareDerivedData();
 
 		expect(model.storyTags.map((e) => e.name).sort()).toEqual([
 			"blessed",
@@ -36,20 +42,19 @@ describe("EffectTagsMixin.storyTags / statusEffects", () => {
 		expect(model.statusEffects.map((e) => e.name)).toEqual(["tired"]);
 	});
 
-	it("caches results until prepareDerivedData runs", () => {
+	it("partitions eagerly in prepareDerivedData; re-runs refresh the cache", () => {
 		const actor = fakeActor({
 			effects: [fakeEffect({ type: "story_tag", name: "a" })],
 		});
 		const model = buildModel(actor);
+		model.prepareDerivedData();
 		const first = model.storyTags;
-		const second = model.storyTags;
-		expect(second).toBe(first);
+		expect(model.storyTags).toBe(first);
 
-		// Add an effect — cache is stale, but accessor still returns cached
+		// Add an effect — cache is stale until prepareDerivedData re-runs
 		actor.effects.push(fakeEffect({ type: "story_tag", name: "b" }));
 		expect(model.storyTags).toBe(first);
 
-		// prepareDerivedData clears cache → next access re-partitions
 		model.prepareDerivedData();
 		expect(model.storyTags).not.toBe(first);
 		expect(model.storyTags.map((e) => e.name)).toEqual(["a", "b"]);
@@ -101,6 +106,89 @@ describe("EffectTagsMixin.addStatus", () => {
 			false,
 			false,
 		]);
+	});
+
+	it("creates a new status_tag at the given tier when no same-named status exists", async () => {
+		const actor = fakeActor({ effects: [] });
+		const model = buildModel(actor);
+
+		await model.addStatus("Shaken", { tier: 2 });
+
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledOnce();
+		const [docType, [data]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(docType).toBe("ActiveEffect");
+		expect(data.type).toBe("status_tag");
+		expect(data.name).toBe("Shaken");
+		expect(data.system.tiers).toEqual([
+			false,
+			true,
+			false,
+			false,
+			false,
+			false,
+		]);
+	});
+
+	it("passes isHidden and limitId through to the created effect", async () => {
+		const actor = fakeActor({ effects: [] });
+		const model = buildModel(actor);
+
+		await model.addStatus("Bound", {
+			tier: 1,
+			isHidden: true,
+			limitId: "limit-1",
+		});
+
+		const [, [data]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(data.system.isHidden).toBe(true);
+		expect(data.system.limitId).toBe("limit-1");
+	});
+
+	it("stacks onto an existing same-named status via calculateMark (case-insensitive)", async () => {
+		const mergedTiers = [false, false, true, false, false, false];
+		const existing = fakeEffect({
+			type: "status_tag",
+			name: "Shaken",
+			system: {
+				tiers: [false, true, false, false, false, false],
+				calculateMark: vi.fn().mockReturnValue(mergedTiers),
+			},
+		});
+		const actor = fakeActor({ effects: [existing] });
+		const model = buildModel(actor);
+
+		await model.addStatus("shaken", { tier: 3 }); // case-insensitive match
+
+		expect(existing.system.calculateMark).toHaveBeenCalledWith(3);
+		expect(actor.updateEmbeddedDocuments).toHaveBeenCalledOnce();
+		const [docType, updates] = actor.updateEmbeddedDocuments.mock.calls[0];
+		expect(docType).toBe("ActiveEffect");
+		expect(updates[0]._id).toBe(existing.id);
+		expect(updates[0]["system.tiers"]).toBe(mergedTiers);
+		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+	});
+
+	it("routes stacking updates through existing.parent, not just the actor", async () => {
+		// A status that lives on an embedded item should be updated via that
+		// item's updateEmbeddedDocuments, even when addStatus is called on the
+		// actor's data model.
+		const mergedTiers = [false, false, true, false, false, false];
+		const existing = fakeEffect({
+			type: "status_tag",
+			name: "Bound",
+			system: {
+				tiers: [false, true, false, false, false, false],
+				calculateMark: vi.fn().mockReturnValue(mergedTiers),
+			},
+		});
+		const item = fakeItem({ effects: [existing] });
+		const actor = fakeActor({ items: [item] });
+		const model = buildModel(actor);
+
+		await model.addStatus("Bound", { tier: 3 });
+
+		expect(item.updateEmbeddedDocuments).toHaveBeenCalledOnce();
+		expect(actor.updateEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 });
 

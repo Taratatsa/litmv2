@@ -1,4 +1,4 @@
-import { sendRollRequest } from "../../apps/roll-request.js";
+import { sendRollRequest } from "../../apps/roll/roll-request.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import { POWER_REF_TAG_TYPES } from "../../system/config.js";
 import { removeAtIndex, localize as t } from "../../utils.js";

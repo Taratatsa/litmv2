@@ -6,16 +6,23 @@ import { ACTOR_TAG_TYPES } from "../system/config.js";
  * string that is the canonical representation in edit mode, while ActiveEffects
  * are the canonical representation in play mode.
  *
+ * **Hook lifetime contract:** The mixin registers three global ActiveEffect
+ * listeners in `_onFirstRender` and removes them in `_onClose`. Both `#hookIds`
+ * and `#syncing` are true private fields (declared via `#`) so subclasses
+ * cannot accidentally shadow them — if a subclass overrides `_onFirstRender`
+ * or `_onClose`, it MUST call `super` so registration and cleanup stay paired.
+ * Failing to call super on either side leaks listeners that close over a
+ * stale `this.document`.
+ *
  * @param {typeof LitmActorSheet} Base
  * @returns {typeof LitmActorSheet}
  */
 export function TagStringSyncMixin(Base) {
 	return class extends Base {
-		/**
-		 * Flag to prevent hook feedback loops during effect sync.
-		 * @type {boolean}
-		 */
-		_syncing = false;
+		/** Flag to prevent hook feedback loops during effect sync. */
+		#syncing = false;
+		/** Hook IDs returned by Hooks.on, indexed by event name. */
+		#hookIds = null;
 
 		/* -------------------------------------------- */
 		/*  Tag String ↔ Effects                        */
@@ -127,14 +134,14 @@ export function TagStringSyncMixin(Base) {
 			}
 
 			// Ensure effects exist from string
-			if (this.system.tags?.length && !this._syncing) {
+			if (this.system.tags?.length && !this.#syncing) {
 				const hasEffects = this.document.effects.some(
 					(e) => ACTOR_TAG_TYPES.has(e.type) && !e.getFlag("litmv2", "addonId"),
 				);
 				if (!hasEffects) {
-					this._syncing = true;
+					this.#syncing = true;
 					await this._syncEffectsFromString(this.system.tags);
-					this._syncing = false;
+					this.#syncing = false;
 				}
 			}
 		}
@@ -157,10 +164,10 @@ export function TagStringSyncMixin(Base) {
 					);
 				});
 			}
-			this._hookIds = {
+			this.#hookIds = {
 				create: Hooks.on("createActiveEffect", (effect) => {
 					if (effect.parent !== this.document) return;
-					if (this._syncing) return;
+					if (this.#syncing) return;
 					if (!this.document.isOwner) return;
 					if (effect.type !== "story_tag" && effect.type !== "status_tag") {
 						return;
@@ -175,7 +182,7 @@ export function TagStringSyncMixin(Base) {
 				}),
 				update: Hooks.on("updateActiveEffect", (effect) => {
 					if (effect.parent !== this.document) return;
-					if (this._syncing) return;
+					if (this.#syncing) return;
 					if (!this.document.isOwner) return;
 					if (effect.type !== "status_tag") return;
 					const name = effect.name;
@@ -193,7 +200,7 @@ export function TagStringSyncMixin(Base) {
 				}),
 				delete: Hooks.on("deleteActiveEffect", (effect) => {
 					if (effect.parent !== this.document) return;
-					if (this._syncing) return;
+					if (this.#syncing) return;
 					if (!this.document.isOwner) return;
 					if (effect.type !== "story_tag" && effect.type !== "status_tag") {
 						return;
@@ -220,10 +227,10 @@ export function TagStringSyncMixin(Base) {
 
 		/** @override */
 		_onClose(options) {
-			if (this._hookIds) {
-				Hooks.off("createActiveEffect", this._hookIds.create);
-				Hooks.off("updateActiveEffect", this._hookIds.update);
-				Hooks.off("deleteActiveEffect", this._hookIds.delete);
+			if (this.#hookIds) {
+				Hooks.off("createActiveEffect", this.#hookIds.create);
+				Hooks.off("updateActiveEffect", this.#hookIds.update);
+				Hooks.off("deleteActiveEffect", this.#hookIds.delete);
 			}
 			return super._onClose(options);
 		}
@@ -238,9 +245,9 @@ export function TagStringSyncMixin(Base) {
 			await this.submit();
 			if (wasEditMode) {
 				// Sync effects from the persisted tag string
-				this._syncing = true;
+				this.#syncing = true;
 				await this._syncEffectsFromString(this.system.tags ?? "");
-				this._syncing = false;
+				this.#syncing = false;
 			}
 			// Toggle mode via render option to avoid race with submit-triggered re-render
 			const newMode = wasEditMode

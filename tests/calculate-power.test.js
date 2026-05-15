@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LitmRoll } from "../modules/apps/roll.js";
+import { LitmRoll } from "../modules/apps/roll/roll.js";
 import { BURN_POWER } from "../modules/system/config.js";
 
 const baseTags = {

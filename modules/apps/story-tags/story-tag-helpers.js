@@ -1,4 +1,4 @@
-import { StatusTagData } from "../data/active-effects/index.js";
+import { StatusTagData } from "../../active-effects/index.js";
 
 /**
  * Validate and normalize a raw story-tags config object.

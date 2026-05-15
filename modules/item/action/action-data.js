@@ -137,23 +137,6 @@ export class ActionData extends foundry.abstract.TypeDataModel {
 	get isRote() {
 		return this.category === "rote";
 	}
-
-	/**
-	 * Display label for the category. When `category === "custom"`, returns
-	 * the user-authored `customCategory`; otherwise the localized choice
-	 * label. Empty string when no category is set.
-	 */
-	get categoryLabel() {
-		if (this.category === "custom") {
-			return (
-				this.customCategory?.trim() ||
-				game.i18n.localize("LITM.Actions.categories.custom")
-			);
-		}
-		return this.category
-			? game.i18n.localize(`LITM.Actions.categories.${this.category}`)
-			: "";
-	}
 }
 
 /**

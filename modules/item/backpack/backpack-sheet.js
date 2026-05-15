@@ -1,5 +1,6 @@
+import { storyTagEffect } from "../../active-effects/effect-factories.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
-import { confirmDelete, storyTagEffect, localize as t } from "../../utils.js";
+import { confirmDelete, localize as t } from "../../utils.js";
 
 /**
  * Backpack sheet for Legend in the Mist

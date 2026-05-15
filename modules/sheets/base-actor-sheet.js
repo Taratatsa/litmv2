@@ -1,12 +1,17 @@
-import { mapEffectForUI, toTiers } from "../apps/story-tag-helpers.js";
 import {
-	buildTrackCompleteContent,
-	detectTrackCompletion,
-} from "../system/chat.js";
+	statusTagEffect,
+	storyTagEffect,
+	updateEffectsByParent,
+} from "../active-effects/effect-factories.js";
+import { resolveEffect } from "../active-effects/effect-queries.js";
+import {
+	mapEffectForUI,
+	toTiers,
+} from "../apps/story-tags/story-tag-helpers.js";
+import { detectTrackCompletion } from "../system/chat.js";
 import { THEME_TAG_TYPES } from "../system/config.js";
 import { Sockets } from "../system/sockets.js";
 import {
-	addStoryTagToActor,
 	availableThemebookImprovements,
 	confirmDelete,
 	enrichHTML,
@@ -14,10 +19,6 @@ import {
 	getStoryTagSidebar,
 	levelIcon,
 	parseEmbeddedFormKeys,
-	resolveEffect,
-	statusTagEffect,
-	storyTagEffect,
-	updateEffectsByParent,
 	viewLinkedRefAction,
 } from "../utils.js";
 import { LitmSheetMixin } from "./litm-sheet-mixin.js";
@@ -492,42 +493,19 @@ export class LitmActorSheet extends LitmSheetMixin(
 		if (data.sourceActorId && data.sourceActorId === this.document.id) return;
 
 		const isStatus = data.type === "status_tag";
-		const droppedName = data.name;
-
-		// For statuses, check if one with the same name already exists and stack
-		if (isStatus && droppedName) {
-			const existing = [...this.document.allApplicableEffects()].find(
-				(e) =>
-					e.type === "status_tag" &&
-					e.name.toLowerCase() === droppedName.toLowerCase(),
-			);
-			if (existing) {
-				const droppedTier = Number.parseInt(data.value, 10) || 1;
-				const newTiers = existing.system.calculateMark(droppedTier);
-				await existing.update({ "system.tiers": newTiers });
-				this._notifyStoryTags();
-				return;
-			}
-		}
-
-		const tiers = toTiers(data.values);
 		const localizedName = isStatus
 			? game.i18n.localize("LITM.Terms.status")
 			: game.i18n.localize("LITM.Terms.tag");
 		const name = data.name ?? localizedName;
 
 		if (isStatus) {
-			await this.document.createEmbeddedDocuments("ActiveEffect", [
-				statusTagEffect({
-					name,
-					tiers,
-					isHidden: game.user.isGM,
-					limitId: data.limitId,
-				}),
-			]);
+			await this.document.system.addStatus(name, {
+				tiers: toTiers(data.values),
+				isHidden: game.user.isGM,
+				limitId: data.limitId,
+			});
 		} else {
-			await addStoryTagToActor(
-				this.document,
+			await this.document.system.addStoryTag(
 				storyTagEffect({
 					name,
 					isScratched: data.isScratched ?? false,
@@ -572,8 +550,7 @@ export class LitmActorSheet extends LitmSheetMixin(
 				statusTagEffect({ name: game.i18n.localize("LITM.Terms.status") }),
 			]);
 		} else {
-			await addStoryTagToActor(
-				this.document,
+			await this.document.system.addStoryTag(
 				storyTagEffect({
 					name: game.i18n.localize("LITM.Terms.tag"),
 				}),
@@ -704,6 +681,24 @@ export class LitmActorSheet extends LitmSheetMixin(
 	}
 
 	/**
+	 * Create a new embedded story_theme item and open its sheet. Shared by
+	 * HeroSheet and FellowshipSheet — both expose a "create story theme"
+	 * action with identical behavior.
+	 * @param {Event} _event
+	 * @param {HTMLElement} _target
+	 * @protected
+	 */
+	static async _onAddStoryTheme(_event, _target) {
+		const [storyTheme] = await this.document.createEmbeddedDocuments("Item", [
+			{
+				name: game.i18n.localize("LITM.Ui.new_story_theme"),
+				type: "story_theme",
+			},
+		]);
+		storyTheme?.sheet.render(true);
+	}
+
+	/**
 	 * Open an embedded vignette item's sheet for editing.
 	 * @param {Event} _event
 	 * @param {HTMLElement} target
@@ -828,11 +823,9 @@ export class LitmActorSheet extends LitmSheetMixin(
 			this.document,
 		);
 		if (trackInfo) {
-			await foundry.documents.ChatMessage.create({
-				content: await buildTrackCompleteContent(trackInfo),
-				speaker: foundry.documents.ChatMessage.getSpeaker({
-					actor: this.document,
-				}),
+			Hooks.callAll("litm.trackCompleted", {
+				actor: this.document,
+				trackInfo,
 			});
 		}
 	}

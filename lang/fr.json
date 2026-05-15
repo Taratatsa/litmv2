@@ -330,6 +330,7 @@
 			"experience": "Amélioration",
 			"failure": "Conséquence",
 			"fellowship": "Compagnie",
+			"fellowship_tags": "Tags de Compagnie",
 			"general_consequences": "Conséquences Générales",
 			"greatness": "Grandeur",
 			"hidden": "Caché",
@@ -347,6 +348,7 @@
 			"narrator": "Narrateur",
 			"origin": "Origine",
 			"outcome": "Résultat",
+			"power_tags": "Tags de Pouvoir",
 			"quest": "Quête",
 			"rating": "Évaluation",
 			"rating_bonus": "Augmentation d'Évaluation",
@@ -380,7 +382,8 @@
 			"unnamed": "Non-Nommé",
 			"variable": "Variable",
 			"vignette": "Vignette",
-			"vignettes": "Vignettes"
+			"vignettes": "Vignettes",
+			"weakness_tags": "Tags de Faiblesse"
 		},
 		"Themes": {
 			"abandon": "Abandon",
@@ -648,6 +651,7 @@
 			"replace_story_theme_title": "Remplacer le thème d'histoire",
 			"roll": "Lancer!",
 			"roll_consequence": "L'action réussit, <br /> mais il y a des conséquences.",
+			"roll_great_success_consequence": "Une Réussite Éclatante — <br /> le Narrateur accorde un bénéfice supplémentaire, mais il y a des conséquences.",
 			"roll_failure": "L'action échoue ou a des conséquences graves.",
 			"roll_mitigate": "Réaction",
 			"roll_moderation": "Demande de modération",
@@ -686,6 +690,8 @@
 			"roll_tracked": "Détaillé",
 			"push_roll": "Jouer avec le Feu",
 			"roll_tracked_success": "Vous pouvez Jouer avec le Feu : acceptez des conséquences en échange de 1 Pouvoir supplémentaire à dépenser sur des effets.",
+			"roll_quick_success": "Vous pouvez Jouer avec le Feu : acceptez des conséquences en échange d'une Réussite Éclatante (à la discrétion du Narrateur).",
+			"roll_great_snc": "Réussite Éclatante &<br /> Conséquences",
 			"select": "Sélectionner",
 			"send_to_narrator": "Envoyer au Narrateur",
 			"special_improvements": "Améliorations Spéciales",

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ScratchableMixin } from "../modules/data/active-effects/scratchable-mixin.js";
+import { ScratchableMixin } from "../modules/active-effects/scratchable-mixin.js";
 
 // Minimal base + a fake parent so we can exercise the mixin without booting
 // an ActiveEffectTypeDataModel.

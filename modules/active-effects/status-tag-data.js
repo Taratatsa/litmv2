@@ -90,4 +90,8 @@ export class StatusTagData extends foundry.data.ActiveEffectTypeDataModel {
 		const tier = this.currentTier ?? 0;
 		return `[${name}-${tier}]`;
 	}
+
+	static toDragMarkup({ name, value }) {
+		return `[${name}-${value ?? ""}]`;
+	}
 }

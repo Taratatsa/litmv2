@@ -1,8 +1,9 @@
-import { advanceFlagLimit } from "../actor-limits.js";
-import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { advanceFlagLimit } from "../mixins/actor-limits.js";
+import { EffectTagsMixin } from "../mixins/effect-tags-mixin.js";
+import { LimitsMixin } from "../mixins/limits-mixin.js";
 
-export class JourneyData extends EffectTagsMixin(
-	foundry.abstract.TypeDataModel,
+export class JourneyData extends LimitsMixin(
+	EffectTagsMixin(foundry.abstract.TypeDataModel),
 ) {
 	static defineSchema() {
 		const fields = foundry.data.fields;

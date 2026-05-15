@@ -6,6 +6,8 @@ import {
 } from "../../system/config.js";
 
 export class StoryThemeData extends foundry.abstract.TypeDataModel {
+	static requiresTitleTag = true;
+
 	static defineSchema() {
 		const fields = foundry.data.fields;
 		return {

@@ -1,4 +1,4 @@
-import { getLinkedRefName } from "../../utils.js";
+import { getLinkedRefName } from "../utils.js";
 import { ScratchableMixin } from "./scratchable-mixin.js";
 
 export class StoryTagData extends ScratchableMixin(

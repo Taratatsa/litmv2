@@ -1,16 +1,15 @@
+import { relationshipTagEffect } from "../../active-effects/effect-factories.js";
+import {
+	effectToPlain,
+	resolveEffect,
+} from "../../active-effects/effect-queries.js";
+import { scratchTag } from "../../active-effects/scratchable-mixin.js";
 import { ActionsApp } from "../../apps/actions-app.js";
-import { resolveRollDialogOwnership } from "../../apps/roll-dialog.js";
-import { scratchTag } from "../../data/active-effects/scratchable-mixin.js";
+import { resolveRollDialogOwnership } from "../../apps/roll/roll-dialog.js";
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
 import { LitmSettings } from "../../system/settings.js";
 import { Sockets } from "../../system/sockets.js";
-import {
-	effectToPlain,
-	enrichHTML,
-	relationshipTagEffect,
-	resolveEffect,
-	transferBackpackTags,
-} from "../../utils.js";
+import { enrichHTML, transferBackpackTags } from "../../utils.js";
 
 /**
  * Extract and remove `newRelationship.<actorId>` keys from submit data,
@@ -42,7 +41,7 @@ export class HeroSheet extends LitmActorSheet {
 			openRollDialog: HeroSheet.#onOpenRollDialog,
 			openActionsApp: HeroSheet.#onOpenActionsApp,
 			addStoryTag: LitmActorSheet._onAddStoryTag,
-			addStoryTheme: HeroSheet.#onAddStoryTheme,
+			addStoryTheme: LitmActorSheet._onAddStoryTheme,
 			addMomentOfFulfillment: HeroSheet.#onAddMomentOfFulfillment,
 			removeMomentOfFulfillment: HeroSheet.#onRemoveMomentOfFulfillment,
 			removeEffect: LitmActorSheet._onRemoveEffect,
@@ -170,10 +169,9 @@ export class HeroSheet extends LitmActorSheet {
 
 		const mofContext = await this.#prepareMoFContext();
 
-		const themes = this.document.items
-			.filter((i) => i.type === "theme" && !i.system.isFellowship)
-			.sort((a, b) => a.sort - b.sort)
-			.map((i) => this._prepareThemeData(i));
+		const themes = this.document.system.themes.map(({ theme }) =>
+			this._prepareThemeData(theme),
+		);
 
 		const { hasFellowship, fellowship, fellowshipActor, storyThemes } =
 			this.#prepareFellowshipContext();
@@ -309,30 +307,35 @@ export class HeroSheet extends LitmActorSheet {
 			}
 		}
 
-		// Merge hero's own story themes + fellowship actor's story themes
-		const ownStoryThemeItems = this.document.items
-			.filter((i) => i.type === "story_theme")
-			.sort((a, b) => a.sort - b.sort);
-		const fellowshipStoryThemeItems =
+		const storyThemes = this.#prepareStoryThemes(
+			hasFellowship,
+			fellowshipActor,
+		);
+
+		return { hasFellowship, fellowship, fellowshipActor, storyThemes };
+	}
+
+	/**
+	 * Build the merged list of story-theme render objects for hero + fellowship.
+	 * Called once per _prepareContext cycle; consolidates the two item filters.
+	 * @param {boolean} hasFellowship
+	 * @param {Actor|null} fellowshipActor
+	 * @returns {object[]}
+	 */
+	#prepareStoryThemes(hasFellowship, fellowshipActor) {
+		const ownItems = this.document.system.storyThemes.map(({ theme }) => theme);
+		const fellowshipItems =
 			hasFellowship && fellowshipActor
 				? fellowshipActor.items
 						.filter((i) => i.type === "story_theme")
 						.sort((a, b) => a.sort - b.sort)
 				: [];
-
-		const fellowshipStoryThemeIds = new Set(
-			fellowshipStoryThemeItems.map((i) => i.id),
-		);
-		const storyThemes = [
-			...ownStoryThemeItems,
-			...fellowshipStoryThemeItems,
-		].map((i) => {
+		const fellowshipIds = new Set(fellowshipItems.map((i) => i.id));
+		return [...ownItems, ...fellowshipItems].map((i) => {
 			const data = this._prepareThemeData(i);
-			data.isFellowship = fellowshipStoryThemeIds.has(data._id);
+			data.isFellowship = fellowshipIds.has(data._id);
 			return data;
 		});
-
-		return { hasFellowship, fellowship, fellowshipActor, storyThemes };
 	}
 
 	/**
@@ -448,16 +451,6 @@ export class HeroSheet extends LitmActorSheet {
 	 * Create a new story theme item on this hero and open its sheet.
 	 * @private
 	 */
-	static async #onAddStoryTheme(_event, _target) {
-		const [storyTheme] = await this.document.createEmbeddedDocuments("Item", [
-			{
-				name: game.i18n.localize("LITM.Ui.new_story_theme"),
-				type: "story_theme",
-			},
-		]);
-		storyTheme?.sheet.render(true);
-	}
-
 	/**
 	 * Add a moment of fulfillment entry
 	 * @private
@@ -633,18 +626,16 @@ export class HeroSheet extends LitmActorSheet {
 	 */
 	/** @override */
 	resolveItem(element) {
-		const itemEl =
-			element.closest("[data-item-id]") ?? element.closest(".item");
-		const itemId = itemEl?.dataset?.itemId ?? itemEl?.dataset?.id;
-		if (!itemId) return null;
-
 		const fellowshipEl = element.closest("[data-fellowship-actor-id]");
 		if (fellowshipEl) {
+			const itemEl =
+				element.closest("[data-item-id]") ?? element.closest(".item");
+			const itemId = itemEl?.dataset?.itemId ?? itemEl?.dataset?.id;
+			if (!itemId) return null;
 			const actor = game.actors.get(fellowshipEl.dataset.fellowshipActorId);
 			return actor?.items.get(itemId) ?? null;
 		}
-
-		return this.document.items.get(itemId) ?? null;
+		return super.resolveItem(element);
 	}
 
 	/* -------------------------------------------- */

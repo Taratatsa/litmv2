@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { StatusTagData } from "../modules/data/active-effects/status-tag-data.js";
+import { StatusTagData } from "../modules/active-effects/status-tag-data.js";
 
 const empty = () => [false, false, false, false, false, false];
 

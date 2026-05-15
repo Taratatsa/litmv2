@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { parseTagStringMatch } from "../modules/item/action/tag-string.js";
 import { makeTagStringRe } from "../modules/system/config.js";
-import { parseTagStringMatch } from "../modules/utils.js";
 
 // parseTagStringMatch consumes the regex-match shape:
 //   [full, name, exclamation, separator, value]

@@ -5,10 +5,9 @@ import {
 	scanMarkup,
 } from "../item/action/action-rules.js";
 import { getVerbDef } from "../item/action/verb-definitions.js";
-import { error } from "../logger.js";
-import { applySuccess } from "../system/chat-actions.js";
-import { resolveEffect, localize as t } from "../utils.js";
+import { localize as t } from "../utils.js";
 import { adjustCounter } from "./counter-controls.js";
+import { applySpendIntent, stripActorPrefix } from "./spend-power-service.js";
 
 /** Cost calculators by option type. Each receives (li, cost, entriesSection, hasTier). */
 const COST_CALCULATORS = {
@@ -63,6 +62,24 @@ function defaultCostCalculator(li, cost, _entriesSection, hasTier) {
 		total += cost * tier;
 	});
 	return total;
+}
+
+/**
+ * Determine the option type from its DOM structure.
+ * Module-level so parseSpendIntent can call it without class-private access.
+ * @param {HTMLElement} li  The option list item
+ * @returns {{ type: string, entriesSection: HTMLElement|null, hasTier: boolean }}
+ */
+function getOptionType(li) {
+	const entriesSection = li.querySelector(".litm-spend-power__entries");
+	const hasTier = li.dataset.hasTier === "true";
+	if (entriesSection && "statusPicker" in entriesSection.dataset)
+		return { type: "statusPicker", entriesSection, hasTier };
+	if (entriesSection && "counter" in entriesSection.dataset)
+		return { type: "counter", entriesSection, hasTier };
+	if (entriesSection && "picker" in entriesSection.dataset)
+		return { type: "picker", entriesSection, hasTier };
+	return { type: "default", entriesSection, hasTier };
 }
 
 export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicationMixin(
@@ -468,23 +485,6 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 	}
 
 	/**
-	 * Determine the option type from its DOM structure.
-	 * @param {HTMLElement} li  The option list item
-	 * @returns {{ type: string, entriesSection: HTMLElement|null, hasTier: boolean }}
-	 */
-	static #getOptionType(li) {
-		const entriesSection = li.querySelector(".litm-spend-power__entries");
-		const hasTier = li.dataset.hasTier === "true";
-		if (entriesSection && "statusPicker" in entriesSection.dataset)
-			return { type: "statusPicker", entriesSection, hasTier };
-		if (entriesSection && "counter" in entriesSection.dataset)
-			return { type: "counter", entriesSection, hasTier };
-		if (entriesSection && "picker" in entriesSection.dataset)
-			return { type: "picker", entriesSection, hasTier };
-		return { type: "default", entriesSection, hasTier };
-	}
-
-	/**
 	 * Calculate the power cost for a single checked option.
 	 * @param {HTMLElement} li   The option list item
 	 * @param {number} cost      Base cost per unit
@@ -509,323 +509,243 @@ export class SpendPowerApp extends foundry.applications.api.HandlebarsApplicatio
 		}
 		if (li.dataset.source === "action") return cost;
 
-		const { type, hasTier } = SpendPowerApp.#getOptionType(li);
+		const { type, hasTier } = getOptionType(li);
 		const entriesSection = li.querySelector(".litm-spend-power__entries");
 		const calculator = COST_CALCULATORS[type] ?? defaultCostCalculator;
 		return calculator(li, cost, entriesSection, hasTier);
 	}
 
-	static #chatCard({ actor, action, body, power }) {
-		return foundry.applications.handlebars.renderTemplate(
-			"systems/litmv2/templates/chat/spend-power.html",
-			{
-				actorImg: actor.img,
-				actorName: actor.name,
-				action,
-				body,
-				costLine: `${power} ${t("LITM.Tags.power")}`,
-			},
-		);
-	}
-
 	static async #onSubmit(_event, form, _formData) {
 		const actor = game.actors.get(this.actorId);
-		const speaker = foundry.documents.ChatMessage.getSpeaker({ actor });
-
-		const checkedOptions = [
-			...form.querySelectorAll(".litm-spend-power__option"),
-		].filter((li) => li.querySelector("[data-option-check]").checked);
-
-		let totalSpent = 0;
-
-		// Apply action-success rows first — they sit above the generic options
-		// in the dialog and represent the action's authored outcomes. Routed
-		// through the standard applySuccess pipeline so target pickers, status
-		// stacking, etc. all work the same as before.
-		for (const li of checkedOptions) {
-			if (li.dataset.source !== "action") continue;
-			const spent = await this._applyActionSuccess(li, actor);
-			totalSpent += spent;
-		}
-
-		for (const li of checkedOptions) {
-			if (li.dataset.source === "action") continue;
-			const optionId = li.dataset.optionId;
-			const option = this.spendingOptions.find((o) => o.id === optionId);
-			if (!option) continue;
-
-			const { type, entriesSection, hasTier } =
-				SpendPowerApp.#getOptionType(li);
-
-			// Status picker (reduce status) — each status has its own tier counter
-			if (type === "statusPicker") {
-				const reductions = [
-					...entriesSection.querySelectorAll(".litm-spend-power__status-item"),
-				]
-					.map((item) => ({
-						effectId: item.dataset.effectId,
-						name: item.dataset.statusName,
-						tiers: Number(
-							item.querySelector(".litm-spend-power__counter-value")
-								?.textContent ?? 0,
-						),
-					}))
-					.filter(({ tiers }) => tiers > 0);
-				if (reductions.length === 0) continue;
-
-				const power = reductions.reduce(
-					(sum, { tiers }) => sum + option.cost * tiers,
-					0,
-				);
-				totalSpent += power;
-
-				// Apply the reductions to the actual effects
-				const bodyLines = [];
-				for (const { effectId, name, tiers } of reductions) {
-					const effect = resolveEffect(effectId, actor);
-					if (!effect) continue;
-					const oldTier = effect.system.currentTier;
-					const newTiers = effect.system.calculateReduction(tiers);
-					const newTier = newTiers.lastIndexOf(true) + 1;
-					if (newTier <= 0) {
-						await effect.delete();
-					} else {
-						await effect.update({ "system.tiers": newTiers });
-					}
-					const after =
-						newTier > 0
-							? `<strong>${name}-${newTier}</strong>`
-							: `<em>${t("LITM.Ui.removed")}</em>`;
-					bodyLines.push(`<span>${name}-${oldTier} &rarr; ${after}</span>`);
-				}
-
-				await foundry.documents.ChatMessage.create({
-					content: await SpendPowerApp.#chatCard({
-						actor,
-						action: t(option.label),
-						body: bodyLines.join(""),
-						power,
-					}),
-					speaker,
-				});
-				continue;
-			}
-
-			// Counter options (e.g. discover detail) — just a count, no named entries
-			if (type === "counter") {
-				const count = Number(
-					entriesSection.querySelector(".litm-spend-power__counter-value")
-						?.textContent ?? 1,
-				);
-				const power = option.cost * count;
-				totalSpent += power;
-
-				await foundry.documents.ChatMessage.create({
-					content: await SpendPowerApp.#chatCard({
-						actor,
-						action: t(option.label),
-						body:
-							count > 1
-								? `<span class="litm-spend-chat__count">&times;${count}</span>`
-								: "",
-						power,
-					}),
-					speaker,
-				});
-				continue;
-			}
-
-			// Scratched tag picker — unscratch the selected tags
-			if (type === "picker") {
-				const selectedChips = [
-					...entriesSection.querySelectorAll(
-						".litm-spend-power__tag-chip.is-selected",
-					),
-				];
-				if (selectedChips.length === 0) continue;
-
-				const power = option.cost * selectedChips.length;
-				totalSpent += power;
-
-				const names = [];
-				for (const chip of selectedChips) {
-					const { tagId, tagName } = chip.dataset;
-					names.push(tagName);
-					const effect = resolveEffect(tagId, actor);
-					if (effect) await effect.update({ "system.isScratched": false });
-				}
-
-				await foundry.documents.ChatMessage.create({
-					content: await SpendPowerApp.#chatCard({
-						actor,
-						action: t(option.label),
-						body: names
-							.map((n) => `<strong>${foundry.utils.escapeHTML(n)}</strong>`)
-							.join(" "),
-						power,
-					}),
-					speaker,
-				});
-				continue;
-			}
-
-			const entries = [...li.querySelectorAll(".litm-spend-power__entry")]
-				.map((row) => ({
-					name: row.querySelector(".litm-spend-power__entry-name").value.trim(),
-					tier: hasTier
-						? Number(
-								row.querySelector(".litm-spend-power__entry-tier")?.value ?? 1,
-							)
-						: null,
-					isSingleUse:
-						!hasTier &&
-						row.querySelector(".litm-spend-power__entry-single-use")
-							?.checked === true,
-				}))
-				.filter(({ name }) => name !== "");
-
-			// Build tag/status using enricher syntax ({tag}, {tag:1} for single-use, {status-tier})
-			let body = "";
-			if (entries.length > 0) {
-				const tags = entries.map(({ name, tier, isSingleUse }) => {
-					const escaped = foundry.utils.escapeHTML(name);
-					if (hasTier) return `{${escaped}-${Math.max(tier, 1)}}`;
-					if (option.draggable) {
-						return isSingleUse ? `{${escaped}:1}` : `{${escaped}}`;
-					}
-					return `<em>${escaped}</em>`;
-				});
-				body = tags.join(" ");
-			}
-
-			// Calculate power cost
-			let power;
-			if (entries.length === 0) {
-				power = option.cost;
-			} else if (hasTier) {
-				power = entries.reduce(
-					(sum, { tier }) => sum + option.cost * Math.max(tier, 1),
-					0,
-				);
-			} else {
-				// Single-use entries cost 1 Power; normal entries cost option.cost (p.165).
-				power = entries.reduce(
-					(sum, { isSingleUse }) => sum + (isSingleUse ? 1 : option.cost),
-					0,
-				);
-			}
-
-			totalSpent += power;
-
-			await foundry.documents.ChatMessage.create({
-				content: await SpendPowerApp.#chatCard({
-					actor,
-					action: t(option.label),
-					body,
-					power,
-				}),
-				speaker,
-			});
-		}
-
-		// Persist spent power on the originating roll message
-		if (this.messageId && totalSpent > 0) {
-			const message = game.messages.get(this.messageId);
-			await message?.setFlag(
-				"litmv2",
-				"spentPower",
-				this.alreadySpent + totalSpent,
-			);
-		}
-	}
-
-	/**
-	 * Apply a single action-success option, routing through the standard
-	 * applySuccess pipeline. Updates the originating message's
-	 * `appliedSuccesses` flag and posts an action-applied chat card.
-	 *
-	 * @param {HTMLElement} li     The checked option list item
-	 * @param {Actor} actor        The acting character
-	 * @returns {Promise<number>}  Power spent on this option
-	 */
-	async _applyActionSuccess(li, actor) {
-		const message = this.messageId ? game.messages.get(this.messageId) : null;
-		const actionUuid = message?.getFlag("litmv2", "actionUuid");
-		if (!actionUuid) return 0;
-		const action = await foundry.utils.fromUuid(actionUuid);
-		if (!action || action.type !== "action") return 0;
-
-		const key = li.dataset.successKey;
-		const success = (action.system.successes ?? []).find((o) => o.id === key);
-		if (!success) return 0;
-
-		// Skip if already applied since the dialog last opened (race-safe)
-		const appliedNow = message.getFlag("litmv2", "appliedSuccesses") ?? [];
-		if (appliedNow.includes(key)) return 0;
-
-		// Pull variable-tier counter values in scan order — keyed by data-var-idx
-		// which maps 1:1 to the `chosenTiers` array consumed by applySuccess.
-		const chosenTiers = [];
-		li.querySelectorAll(".litm-spend-power__var-tier").forEach((row) => {
-			const idx = Number(row.dataset.varIdx);
-			if (!Number.isInteger(idx) || idx < 0) return;
-			const raw = Number(
-				row.querySelector(".litm-spend-power__counter-value")?.textContent ?? 1,
-			);
-			const val = Number.isFinite(raw) ? raw : 1;
-			chosenTiers[idx] = Math.max(1, Math.min(6, val));
-		});
-
-		let result;
-		try {
-			result = await applySuccess({ success, actor, chosenTiers });
-		} catch (err) {
-			error("Failed to apply action success:", err);
-			ui.notifications.error(t("LITM.Actions.apply_failed"));
-			return 0;
-		}
-		if (!result) return 0;
-
-		await message.setFlag("litmv2", "appliedSuccesses", [...appliedNow, key]);
-		await foundry.documents.ChatMessage.create({
-			speaker: foundry.documents.ChatMessage.getSpeaker({ actor }),
-			content: await foundry.applications.handlebars.renderTemplate(
-				"systems/litmv2/templates/chat/action-applied.html",
-				{
-					actorImg: actor.img,
-					actorName: actor.name,
-					label: t(`LITM.Actions.verbs.${success.verb}`),
-					summary: stripActorPrefix(result.appliedSummary, actor.name),
-					footer: action.name,
-				},
-			),
-		});
-
-		// Actual Power spent = fixed cost + sum of chosen tiers for variable
-		// tokens. Falls back to the minimum (tier 1 each) when no counters
-		// were rendered.
-		const c = getSuccessCost(success);
-		const variableSpent = chosenTiers
-			.filter((n) => Number.isFinite(n))
-			.reduce((sum, n) => sum + n, 0);
-		return c.fixed + (variableSpent || c.variableTokens);
+		const intent = parseSpendIntent(form, this);
+		const { results } = await applySpendIntent(actor, intent);
+		await postSpendChat(actor, intent, results);
 	}
 }
 
+function chatCard({ actor, action, body, power }) {
+	return foundry.applications.handlebars.renderTemplate(
+		"systems/litmv2/templates/chat/spend-power.html",
+		{
+			actorImg: actor.img,
+			actorName: actor.name,
+			action,
+			body,
+			costLine: `${power} ${t("LITM.Tags.power")}`,
+		},
+	);
+}
+
 /**
- * Strip a leading "ActorName: " or "ActorName → / ← " prefix from an applied
- * summary. The chat header shows the actor already, so the prefix is just
- * noise when the summary is rendered as a body. Leaves prefixes intact when
- * the actor in the summary differs (eg. opponent-targeted weakens), since
- * those convey a target distinct from the speaker.
+ * Parse the checked options from the spend-power form into a structured intent
+ * that `applySpendIntent` can consume without touching the DOM.
+ *
+ * @param {HTMLFormElement} form   The bound form element
+ * @param {SpendPowerApp}   dialog The app instance (for spendingOptions, messageId, alreadySpent)
+ * @returns {object} SpendIntent
  */
-function stripActorPrefix(summary, actorName) {
-	if (!summary || !actorName) return summary;
-	const prefixes = [`${actorName}: `, `${actorName} → `, `${actorName} ← `];
-	for (const p of prefixes) {
-		if (summary.startsWith(p)) return summary.slice(p.length);
+function parseSpendIntent(form, dialog) {
+	const checkedOptions = [
+		...form.querySelectorAll(".litm-spend-power__option"),
+	].filter((li) => li.querySelector("[data-option-check]").checked);
+
+	const options = [];
+
+	for (const li of checkedOptions) {
+		// Action-success rows
+		if (li.dataset.source === "action") {
+			const chosenTiers = [];
+			li.querySelectorAll(".litm-spend-power__var-tier").forEach((row) => {
+				const idx = Number(row.dataset.varIdx);
+				if (!Number.isInteger(idx) || idx < 0) return;
+				const raw = Number(
+					row.querySelector(".litm-spend-power__counter-value")?.textContent ??
+						1,
+				);
+				const val = Number.isFinite(raw) ? raw : 1;
+				chosenTiers[idx] = Math.max(1, Math.min(6, val));
+			});
+			options.push({
+				source: "action",
+				successKey: li.dataset.successKey,
+				chosenTiers,
+			});
+			continue;
+		}
+
+		const optionId = li.dataset.optionId;
+		const option = dialog.spendingOptions.find((o) => o.id === optionId);
+		if (!option) continue;
+
+		const { type, entriesSection, hasTier } = getOptionType(li);
+
+		if (type === "statusPicker") {
+			const reductions = [
+				...entriesSection.querySelectorAll(".litm-spend-power__status-item"),
+			]
+				.map((item) => ({
+					effectId: item.dataset.effectId,
+					name: item.dataset.statusName,
+					tiers: Number(
+						item.querySelector(".litm-spend-power__counter-value")
+							?.textContent ?? 0,
+					),
+				}))
+				.filter(({ tiers }) => tiers > 0);
+			if (reductions.length === 0) continue;
+			options.push({
+				kind: "statusPicker",
+				optionId,
+				label: option.label,
+				cost: option.cost,
+				reductions,
+			});
+			continue;
+		}
+
+		if (type === "counter") {
+			const count = Number(
+				entriesSection.querySelector(".litm-spend-power__counter-value")
+					?.textContent ?? 1,
+			);
+			options.push({
+				kind: "counter",
+				optionId,
+				label: option.label,
+				cost: option.cost,
+				count,
+			});
+			continue;
+		}
+
+		if (type === "picker") {
+			const chips = [
+				...entriesSection.querySelectorAll(
+					".litm-spend-power__tag-chip.is-selected",
+				),
+			].map((chip) => ({
+				tagId: chip.dataset.tagId,
+				tagName: chip.dataset.tagName,
+			}));
+			if (chips.length === 0) continue;
+			options.push({
+				kind: "picker",
+				optionId,
+				label: option.label,
+				cost: option.cost,
+				chips,
+			});
+			continue;
+		}
+
+		// default
+		const entries = [...li.querySelectorAll(".litm-spend-power__entry")]
+			.map((row) => ({
+				name: row.querySelector(".litm-spend-power__entry-name").value.trim(),
+				tier: hasTier
+					? Number(
+							row.querySelector(".litm-spend-power__entry-tier")?.value ?? 1,
+						)
+					: null,
+				isSingleUse:
+					!hasTier &&
+					row.querySelector(".litm-spend-power__entry-single-use")?.checked ===
+						true,
+			}))
+			.filter(({ name }) => name !== "");
+		options.push({
+			kind: "default",
+			optionId,
+			label: option.label,
+			cost: option.cost,
+			hasTier,
+			draggable: !!option.draggable,
+			entries,
+		});
 	}
-	return summary;
+
+	return {
+		options,
+		messageId: dialog.messageId,
+		alreadySpent: dialog.alreadySpent,
+	};
+}
+
+/**
+ * Post chat messages summarising what was spent. One message per generic
+ * option; action-success cards are posted by applySpendIntent directly.
+ *
+ * @param {Actor}    actor    The acting character
+ * @param {object}   intent   The parsed intent (for option labels)
+ * @param {object[]} results  The results returned by applySpendIntent
+ */
+async function postSpendChat(actor, intent, results) {
+	const speaker = foundry.documents.ChatMessage.getSpeaker({ actor });
+
+	for (const result of results) {
+		// Action successes post their own chat cards inside the service
+		if (result.source === "action") continue;
+
+		switch (result.kind) {
+			case "statusPicker": {
+				const opt = intent.options.find((o) => o.optionId === result.optionId);
+				await foundry.documents.ChatMessage.create({
+					content: await chatCard({
+						actor,
+						action: t(opt.label),
+						body: result.bodyLines.join(""),
+						power: result.power,
+					}),
+					speaker,
+				});
+				break;
+			}
+			case "counter": {
+				const opt = intent.options.find((o) => o.optionId === result.optionId);
+				await foundry.documents.ChatMessage.create({
+					content: await chatCard({
+						actor,
+						action: t(opt.label),
+						body:
+							result.count > 1
+								? `<span class="litm-spend-chat__count">&times;${result.count}</span>`
+								: "",
+						power: result.power,
+					}),
+					speaker,
+				});
+				break;
+			}
+			case "picker": {
+				const opt = intent.options.find((o) => o.optionId === result.optionId);
+				await foundry.documents.ChatMessage.create({
+					content: await chatCard({
+						actor,
+						action: t(opt.label),
+						body: result.names
+							.map((n) => `<strong>${foundry.utils.escapeHTML(n)}</strong>`)
+							.join(" "),
+						power: result.power,
+					}),
+					speaker,
+				});
+				break;
+			}
+			default: {
+				const opt = intent.options.find((o) => o.optionId === result.optionId);
+				await foundry.documents.ChatMessage.create({
+					content: await chatCard({
+						actor,
+						action: t(opt.label),
+						body: result.body,
+						power: result.power,
+					}),
+					speaker,
+				});
+				break;
+			}
+		}
+	}
 }
 
 export { stripActorPrefix };

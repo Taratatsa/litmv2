@@ -4,7 +4,7 @@
 		<div class="dice-outcome-header {{outcome.label}} flexrow">
 			<img src="systems/litmv2/assets/media/icons/{{outcome.label}}.svg" alt="{{outcome.label}}"
 				class="outcome-image" />
-			<span class="outcome-label">{{#if (eq type 'mitigate')}}{{power}} {{localize 'LITM.Tags.power'}}{{else}}{{{
+			<span class="outcome-label">{{#if (eq type 'mitigate')}}{{power}} {{localize 'LITM.Tags.power'}}{{else if outcome.great}}{{{ localize 'LITM.Ui.roll_great_snc' }}}{{else}}{{{
 				localize
 				outcome.label }}}{{/if}}</span>
 			<div class="dice-total-wrapper noflex">{{total}}</div>
@@ -37,16 +37,21 @@
 			{{/if}}
 		</div>
 
-		{{#if (and isOwner (eq type 'tracked') (eq outcome.label 'success'))}}
+		{{#if (and isOwner (eq outcome.label 'success') (eq type 'tracked'))}}
 		<div class="roll-hints flexcol">
 			<p class="litm--dice-roll-subtle">{{localize 'LITM.Ui.roll_tracked_success'}}</p>
+		</div>
+		{{/if}}
+		{{#if (and isOwner (eq outcome.label 'success') (eq type 'quick'))}}
+		<div class="roll-hints flexcol">
+			<p class="litm--dice-roll-subtle">{{localize 'LITM.Ui.roll_quick_success'}}</p>
 		</div>
 		{{/if}}
 	</div>
 
 	{{#if isOwner}}
 	<footer class="dice-footer flexrow">
-		{{#if (and (eq type 'tracked') (eq outcome.label 'success'))}}
+		{{#if (and (eq outcome.label 'success') (or (eq type 'tracked') (eq type 'quick')))}}
 		<button type="button" class="noflex" data-click="push-roll">
 			<i class="fas fa-arrow-up" aria-hidden="true"></i> {{localize 'LITM.Ui.push_roll'}}
 		</button>

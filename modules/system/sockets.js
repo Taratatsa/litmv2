@@ -1,4 +1,6 @@
+import { LitmRollDialog } from "../apps/roll/roll-dialog.js";
 import { error, warn } from "../logger.js";
+import { getStoryTagSidebar } from "../utils.js";
 
 export class Sockets {
 	static dispatch(event, data) {
@@ -56,7 +58,7 @@ export class Sockets {
 	static #registerRollModerationListeners() {
 		Sockets.on("rollDice", ({ data: { userId, data } }) => {
 			if (userId !== game.userId) return;
-			game.litmv2.LitmRollDialog.roll(data);
+			LitmRollDialog.roll(data);
 		});
 
 		Sockets.on("rejectRoll", ({ data: { actorId, name } }) => {
@@ -84,12 +86,12 @@ export class Sockets {
 
 	static #registerStoryTagsListeners() {
 		Sockets.on("storyTagsUpdate", ({ data: { operation, data } }) => {
-			const sidebar = game.litmv2.storyTags;
+			const sidebar = getStoryTagSidebar();
 			if (sidebar?.rendered) sidebar.doUpdate(operation, data);
 		});
 
 		Sockets.on("storyTagsRender", () => {
-			const sidebar = game.litmv2.storyTags;
+			const sidebar = getStoryTagSidebar();
 			if (sidebar?.rendered) {
 				sidebar.invalidateCache();
 				sidebar.render();

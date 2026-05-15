@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { applySuccess } from "../modules/system/chat-actions.js";
+import { applySuccess } from "../modules/item/action/chat-actions.js";
 import { makeTagStringRe } from "../modules/system/config.js";
 import { fakeActor, fakeEffect, fakeItem } from "./__helpers__/factories.js";
 
@@ -21,11 +21,49 @@ beforeEach(() => {
 
 const heroActor = (overrides = {}) => {
 	const backpack = fakeItem({ type: "backpack" });
-	return fakeActor({
+	const actor = fakeActor({
 		type: "hero",
 		system: { backpackItem: backpack },
 		...overrides,
 	});
+	// HeroData.addStoryTag routes through the backpack item. Stub it here so
+	// applySuccess's `actor.system.addStoryTag(effectData)` call exercises the
+	// same routing without requiring the real data model.
+	actor.system.addStoryTag = vi.fn((effectData) =>
+		backpack.createEmbeddedDocuments("ActiveEffect", [
+			{ ...effectData, transfer: true },
+		]),
+	);
+	// Mirrors EffectTagsMixin.addStatus: case-insensitive stack-or-create.
+	actor.system.addStatus = vi.fn(async (name, opts = {}) => {
+		const { tier, tiers, img, isHidden = false, limitId = null } = opts;
+		const markTier =
+			tier ?? (tiers ? Math.max(1, tiers.lastIndexOf(true) + 1) : 1);
+		const lower = name?.toLowerCase();
+		const existing = lower
+			? [...actor.allApplicableEffects()].find(
+					(e) => e.type === "status_tag" && e.name.toLowerCase() === lower,
+				)
+			: null;
+		if (existing) {
+			const newTiers = existing.system.calculateMark(markTier);
+			return existing.parent.updateEmbeddedDocuments("ActiveEffect", [
+				{ _id: existing.id, "system.tiers": newTiers },
+			]);
+		}
+		const data = {
+			name,
+			type: "status_tag",
+			system: {
+				tiers: tiers ?? Array.from({ length: 6 }, (_, i) => i + 1 === tier),
+				isHidden,
+				limitId,
+			},
+		};
+		if (img) data.img = img;
+		return actor.createEmbeddedDocuments("ActiveEffect", [data]);
+	});
+	return actor;
 };
 
 // Mirrors StatusTagData.calculateReduction — shifts each marked tier down by
@@ -157,9 +195,12 @@ describe("applySuccess — createOrTag (self-target, markup-driven)", () => {
 		});
 
 		expect(calculateMark).toHaveBeenCalledWith(2);
-		expect(existing.update).toHaveBeenCalledWith({
-			"system.tiers": [false, false, true, false, false, false],
-		});
+		expect(actor.updateEmbeddedDocuments).toHaveBeenCalledWith("ActiveEffect", [
+			{
+				_id: existing.id,
+				"system.tiers": [false, false, true, false, false, false],
+			},
+		]);
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 		expect(result.appliedSummary).toContain(
 			"LITM.Actions.applied_create_status",

@@ -1,19 +1,38 @@
-import { pickLimit, pickTargetActor } from "../apps/target-picker.js";
-import { scanMarkup } from "../item/action/action-rules.js";
-import { getVerbDef } from "../item/action/verb-definitions.js";
-import {
-	addStoryTagToActor,
-	parseTagStringMatch,
-	statusTagEffect,
-	storyTagEffect,
-	localize as t,
-} from "../utils.js";
+import { storyTagEffect } from "../../active-effects/effect-factories.js";
+import { findApplicableEffect } from "../../active-effects/effect-queries.js";
+import { pickLimit, pickTargetActor } from "../../apps/target-picker.js";
+import { localize as t } from "../../utils.js";
+import { scanMarkup } from "./action-rules.js";
+import { parseTagStringMatch } from "./tag-string.js";
+import { getVerbDef } from "./verb-definitions.js";
 
 /** Resolve a status token's tier, honoring the player's pick for `[name-]`. */
 function resolveTier(token, chosenTiers, variableIndex) {
 	if (!token.isVariable) return token.tier;
 	const raw = chosenTiers?.[variableIndex];
 	return Math.max(1, Math.min(6, Number(raw) || 1));
+}
+
+/**
+ * Substitute the user-picked tiers into a free-text success/consequence so
+ * variable-tier markup like `[shocked-]` renders as `[shocked-3]` in chat.
+ * Used by narrative-style appliers (Quick, Discover) that don't materially
+ * create the status but still want the picked tier to appear in the prose.
+ */
+function substituteVariableTiers(text, chosenTiers) {
+	if (!text) return text;
+	const re = CONFIG.litmv2.tagStringRe;
+	if (!re) return text;
+	let varIdx = 0;
+	return text.replace(re, (match, name, _exclamation, separator, value) => {
+		if (separator !== "-" || value) return match;
+		const tier = Math.max(
+			1,
+			Math.min(6, Number(chosenTiers?.[varIdx]) || 1),
+		);
+		varIdx++;
+		return `[${name}-${tier}]`;
+	});
 }
 
 /**
@@ -108,8 +127,7 @@ async function _applyCreateOrTag({ success, actor, chosenTiers }) {
 
 	for (const tok of tokens) {
 		if (tok.type === "tag") {
-			await addStoryTagToActor(
-				actor,
+			await actor.system.addStoryTag(
 				storyTagEffect({ name: tok.name, isSingleUse: tok.isSingleUse }),
 			);
 			summaries.push(
@@ -124,19 +142,7 @@ async function _applyCreateOrTag({ success, actor, chosenTiers }) {
 		const tier = resolveTier(tok, chosenTiers, varIdx);
 		if (tok.isVariable) varIdx++;
 
-		const lower = tok.name.toLowerCase();
-		const existing = [...actor.allApplicableEffects()].find(
-			(e) => e.type === "status_tag" && e.name.toLowerCase() === lower,
-		);
-		if (existing) {
-			const newTiers = existing.system.calculateMark(tier);
-			await existing.update({ "system.tiers": newTiers });
-		} else {
-			const tiers = Array.from({ length: 6 }, (_, i) => i + 1 === tier);
-			await actor.createEmbeddedDocuments("ActiveEffect", [
-				statusTagEffect({ name: tok.name, tiers, isHidden: false }),
-			]);
-		}
+		await actor.system.addStatus(tok.name, { tier, isHidden: false });
 		summaries.push(
 			game.i18n.format("LITM.Actions.applied_create_status", {
 				actor: actor.name,
@@ -173,44 +179,20 @@ async function _applyWeaken({ success, actor, chosenTiers }) {
 			const tier = resolveTier(tok, chosenTiers, varIdx);
 			if (tok.isVariable) varIdx++;
 
-			const status = [...actor.allApplicableEffects()].find(
-				(e) => e.type === "status_tag" && e.name.toLowerCase() === lower,
-			);
-			if (!status) {
-				ui.notifications.info(
-					game.i18n.format("LITM.Actions.apply_weaken_no_match", {
-						name: tok.name,
-						actor: actor.name,
-					}),
-				);
-				continue;
-			}
-			const current = status.system.tiers ?? [];
-			const highestIdx = _highestTierIndex(current);
-			// Reduce by tier; if we'd take the last/only level, delete the status.
-			if (highestIdx < 0 || tier >= highestIdx + 1) {
-				await status.delete();
-				summaries.push(
-					game.i18n.format("LITM.Actions.applied_weaken_status", {
-						actor: actor.name,
-						name: tok.name,
-					}),
-				);
-			} else {
-				const newTiers = status.system.calculateReduction(tier);
-				await status.update({ "system.tiers": newTiers });
-				summaries.push(
-					game.i18n.format("LITM.Actions.applied_reduced", {
-						name: tok.name,
-						tier: highestIdx + 1 - tier,
-					}),
-				);
-			}
+			const summary = await _reduceStatusOnActor(actor, tok.name, tier, {
+				notFoundKey: "LITM.Actions.apply_weaken_no_match",
+				notFoundArgs: { actor: actor.name },
+				removedKey: "LITM.Actions.applied_weaken_status",
+				removedArgs: { actor: actor.name },
+			});
+			if (!summary) continue;
+			summaries.push(summary);
 			appliedAny = true;
 			continue;
 		}
 
-		const tag = [...actor.allApplicableEffects()].find(
+		const tag = findApplicableEffect(
+			actor,
 			(e) =>
 				SCRATCH_TARGET_TYPES.has(e.type) &&
 				e.name.toLowerCase() === lower &&
@@ -254,6 +236,70 @@ function _highestTierIndex(tiers) {
 	let idx = -1;
 	for (let i = 0; i < tiers.length; i++) if (tiers[i]) idx = i;
 	return idx;
+}
+
+/**
+ * Reduce (or delete) a named status_tag on an actor by the given tier.
+ * Used by both _applyWeaken and _applyRestore.
+ *
+ * @param {Actor} actor
+ * @param {string} name              Status name (case-insensitive)
+ * @param {number} tier              Amount to reduce by
+ * @param {object} opts
+ * @param {string} opts.notFoundKey  i18n key for "no match" notification
+ * @param {object} [opts.notFoundArgs]  Extra format args merged with {name, actor}
+ * @param {string} opts.removedKey   i18n key for "fully removed" summary
+ * @param {object} [opts.removedArgs]   Extra format args merged with {name}
+ * @param {boolean} [opts.restoreThreshold=false]  When true, use restore
+ *   semantics (delete when `tier > highestIdx`, not `tier >= highestIdx + 1`).
+ * @returns {Promise<string|null>}  The summary string, or null if not found.
+ */
+async function _reduceStatusOnActor(
+	actor,
+	name,
+	tier,
+	{
+		notFoundKey,
+		notFoundArgs = {},
+		removedKey,
+		removedArgs = {},
+		restoreThreshold = false,
+	} = {},
+) {
+	const lower = name.toLowerCase();
+	const status = findApplicableEffect(
+		actor,
+		(e) => e.type === "status_tag" && e.name.toLowerCase() === lower,
+	);
+	if (!status) {
+		ui.notifications.info(
+			game.i18n.format(notFoundKey, {
+				name,
+				actor: actor.name,
+				...notFoundArgs,
+			}),
+		);
+		return null;
+	}
+	const current = status.system.tiers ?? [];
+	const highestIdx = _highestTierIndex(current);
+	const shouldDelete = restoreThreshold
+		? highestIdx <= 0 || tier > highestIdx
+		: highestIdx < 0 || tier >= highestIdx + 1;
+	if (shouldDelete) {
+		await status.delete();
+		return game.i18n.format(removedKey, {
+			name,
+			actor: actor.name,
+			...removedArgs,
+		});
+	}
+	const newTiers = status.system.calculateReduction(tier);
+	await status.update({ "system.tiers": newTiers });
+	return game.i18n.format("LITM.Actions.applied_reduced", {
+		name,
+		tier: highestIdx + 1 - tier,
+	});
 }
 
 /**
@@ -328,39 +374,19 @@ async function _applyRestore({ success, actor, chosenTiers }) {
 			const tier = resolveTier(tok, chosenTiers, varIdx);
 			if (tok.isVariable) varIdx++;
 
-			const status = [...actor.allApplicableEffects()].find(
-				(e) => e.type === "status_tag" && e.name.toLowerCase() === lower,
-			);
-			if (!status) {
-				ui.notifications.info(
-					game.i18n.format("LITM.Actions.apply_restore_no_match", {
-						name: tok.name,
-					}),
-				);
-				continue;
-			}
-			const current = status.system.tiers ?? [];
-			const highestIdx = _highestTierIndex(current);
-			if (highestIdx <= 0 || tier > highestIdx) {
-				await status.delete();
-				summaries.push(
-					game.i18n.format("LITM.Actions.applied_removed", { name: tok.name }),
-				);
-			} else {
-				const newTiers = status.system.calculateReduction(tier);
-				await status.update({ "system.tiers": newTiers });
-				summaries.push(
-					game.i18n.format("LITM.Actions.applied_reduced", {
-						name: tok.name,
-						tier: highestIdx + 1 - tier,
-					}),
-				);
-			}
+			const summary = await _reduceStatusOnActor(actor, tok.name, tier, {
+				notFoundKey: "LITM.Actions.apply_restore_no_match",
+				removedKey: "LITM.Actions.applied_removed",
+				restoreThreshold: true,
+			});
+			if (!summary) continue;
+			summaries.push(summary);
 			appliedAny = true;
 			continue;
 		}
 
-		const tag = [...actor.allApplicableEffects()].find(
+		const tag = findApplicableEffect(
+			actor,
 			(e) =>
 				SCRATCH_TARGET_TYPES.has(e.type) &&
 				e.system?.isScratched &&
@@ -390,9 +416,9 @@ async function _applyRestore({ success, actor, chosenTiers }) {
 }
 
 /** Discover: post a chat note, no mechanical effect. */
-function _applyDiscover({ success }) {
-	const detail = success.text?.trim() || t("LITM.Actions.discover_default");
-	return { appliedSummary: detail };
+function _applyDiscover({ success, chosenTiers }) {
+	const text = substituteVariableTiers(success.text?.trim(), chosenTiers);
+	return { appliedSummary: text || t("LITM.Actions.discover_default") };
 }
 
 /** Extra feat (legacy verb-success): apply text markup as Create-style. */
@@ -407,8 +433,8 @@ async function _applyExtraFeat({ success, actor, chosenTiers }) {
 }
 
 /** Narrative-only verbs (Quick): no mechanical change, just emit the prose. */
-function _applyNarrative({ success }) {
-	return { appliedSummary: success.text || "" };
+function _applyNarrative({ success, chosenTiers }) {
+	return { appliedSummary: substituteVariableTiers(success.text || "", chosenTiers) };
 }
 
 /** Dispatch table keyed by verb-definition `kind`. */
@@ -446,22 +472,10 @@ export async function applyConsequence({ text, actor, chosenTiers = [] }) {
 				? Math.max(1, Math.min(6, Number(chosenTiers?.[varIdx]) || 1))
 				: parsedTier;
 			if (isVariable) varIdx++;
-			const lower = data.name.toLowerCase();
-			const existing = [...actor.allApplicableEffects()].find(
-				(e) => e.type === "status_tag" && e.name.toLowerCase() === lower,
-			);
-			if (existing) {
-				const newTiers = existing.system.calculateMark(tier);
-				await existing.update({ "system.tiers": newTiers });
-			} else {
-				const tiers = Array.from({ length: 6 }, (_, i) => i + 1 === tier);
-				await actor.createEmbeddedDocuments("ActiveEffect", [
-					statusTagEffect({ name: data.name, tiers }),
-				]);
-			}
+			await actor.system.addStatus(data.name, { tier });
 			created.push(`[${data.name}-${tier}]`);
 		} else {
-			await addStoryTagToActor(actor, storyTagEffect({ name: data.name }));
+			await actor.system.addStoryTag(storyTagEffect({ name: data.name }));
 			created.push(`[${data.name}]`);
 		}
 	}

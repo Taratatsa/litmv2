@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { effectToPlain } from "../modules/active-effects/effect-queries.js";
 import {
 	availableThemebookImprovements,
-	effectToPlain,
 	getDefaultItemIcon,
 	titleCase,
 	toQuestionOptions,

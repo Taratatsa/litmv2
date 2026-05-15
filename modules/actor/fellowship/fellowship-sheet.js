@@ -1,17 +1,71 @@
-import { scratchTag } from "../../data/active-effects/scratchable-mixin.js";
+import {
+	effectToPlain,
+	findApplicableEffect,
+	resolveEffect,
+} from "../../active-effects/effect-queries.js";
+import { scratchTag } from "../../active-effects/scratchable-mixin.js";
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
 import {
 	ACTOR_TYPES,
 	getDefaultThemeLevel,
 	getThemeLevels,
+	ITEM_TYPES,
 } from "../../system/config.js";
-import {
-	effectToPlain,
-	findApplicableEffect,
-	levelIcon,
-	queryItemsFromPacks,
-	resolveEffect,
-} from "../../utils.js";
+import { levelIcon, queryItemsFromPacks } from "../../utils.js";
+
+/**
+ * Summary data for each linked hero in the fellowship.
+ * @param {Actor} fellowshipActor
+ * @returns {object[]}
+ */
+function buildPartyOverview(fellowshipActor) {
+	const fellowshipId = fellowshipActor.id;
+	const heroes = game.actors.filter(
+		(a) =>
+			a.type === ACTOR_TYPES.hero && a.system.fellowshipId === fellowshipId,
+	);
+	return heroes.map((hero) => {
+		const themes = hero.items.filter(
+			(i) =>
+				i.type === ITEM_TYPES.theme &&
+				!i.system.isFellowship &&
+				!i.system.isScratched,
+		);
+		const quests = themes
+			.filter((theme) => theme.system.quest?.description)
+			.map((theme) => ({
+				themeName: theme.name,
+				description: theme.system.quest.description,
+				milestone: theme.system.quest.tracks.milestone.value,
+				abandon: theme.system.quest.tracks.abandon.value,
+			}));
+		const weaknesses = themes
+			.flatMap((theme) => theme.system.weaknessTags)
+			.filter((tag) => tag.active && !tag.system.isScratched)
+			.map((tag) => tag.name);
+		const relationshipTags = hero.system.relationships.filter(
+			(e) => e.name && !e.system?.isScratched,
+		);
+		const storyTags = hero.system.backpack.filter(
+			(e) => e.active && !e.system?.isHidden,
+		);
+		const statuses = hero.system.statusEffects.filter(
+			(e) => e.active && (e.system?.currentTier ?? 0) > 0,
+		);
+		return {
+			id: hero.id,
+			name: hero.name,
+			img: hero.img,
+			description: hero.system.description ?? "",
+			quests,
+			weaknesses,
+			relationshipTags,
+			storyTags,
+			statuses,
+			hasTagsOrStatuses: storyTags.length > 0 || statuses.length > 0,
+		};
+	});
+}
 
 /**
  * Fellowship sheet for Legend in the Mist
@@ -25,7 +79,7 @@ export class FellowshipSheet extends LitmActorSheet {
 		actions: {
 			editItem: LitmActorSheet._onEditItem,
 			removeItem: LitmActorSheet._onRemoveItem,
-			addStoryTheme: FellowshipSheet.#onAddStoryTheme,
+			addStoryTheme: LitmActorSheet._onAddStoryTheme,
 			addStoryTag: LitmActorSheet._onAddStoryTag,
 			removeEffect: LitmActorSheet._onRemoveEffect,
 			toggleEffectVisibility: FellowshipSheet.#onToggleEffectVisibility,
@@ -111,7 +165,6 @@ export class FellowshipSheet extends LitmActorSheet {
 
 	/**
 	 * Strip HTML from hero descriptions (presentation concern) and filter to active players.
-	 * Aggregation logic lives in FellowshipData#partyOverview.
 	 * @returns {object[]}
 	 */
 	#buildPartyOverview() {
@@ -120,7 +173,7 @@ export class FellowshipSheet extends LitmActorSheet {
 				.filter((u) => u.active && u.character?.type === ACTOR_TYPES.hero)
 				.map((u) => u.character.id),
 		);
-		return this.system.partyOverview
+		return buildPartyOverview(this.document)
 			.filter((hero) => activePlayerCharacterIds.has(hero.id))
 			.map((hero) => ({
 				...hero,
@@ -161,16 +214,6 @@ export class FellowshipSheet extends LitmActorSheet {
 	 * @param {HTMLElement} target The target element
 	 * @private
 	 */
-	static async #onAddStoryTheme(_event, _target) {
-		const [storyTheme] = await this.document.createEmbeddedDocuments("Item", [
-			{
-				name: game.i18n.localize("LITM.Ui.new_story_theme"),
-				type: "story_theme",
-			},
-		]);
-		storyTheme.sheet.render(true);
-	}
-
 	/**
 	 * Toggle the active state of a tag in edit mode.
 	 * Handles fellowship_tag items locally (scratch on item itself),

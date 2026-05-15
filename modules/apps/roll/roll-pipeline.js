@@ -1,9 +1,9 @@
-import { gainImprovement } from "../actor/hero/hero-data.js";
-import { scratchTag as applyScratch } from "../data/active-effects/scratchable-mixin.js";
-import { buildTrackCompleteContent } from "../system/chat.js";
-import { ContentSources } from "../system/content-sources.js";
-import { Sockets } from "../system/sockets.js";
-import { resolveEffect } from "../utils.js";
+import { resolveEffect } from "../../active-effects/effect-queries.js";
+import { scratchTag as applyScratch } from "../../active-effects/scratchable-mixin.js";
+import { gainImprovement } from "../../actor/hero/hero-data.js";
+import { buildTrackCompleteContent } from "../../system/chat.js";
+import { ContentSources } from "../../system/content-sources.js";
+import { Sockets } from "../../system/sockets.js";
 import { LitmRoll } from "./roll.js";
 
 /**
@@ -11,6 +11,40 @@ import { LitmRoll } from "./roll.js";
  * roll pipeline is reusable (e.g. GM-approved rolls dispatched via socket)
  * and the dialog itself stays focused on UI state.
  */
+
+/**
+ * Build a preview shape from a raw tags payload — filtered tag buckets,
+ * total power, and the tooltip data used by both the chat-card render and
+ * the GM moderation card. Single source of truth: any new surface that
+ * needs to display "what the roll would be" should call this rather than
+ * re-invoking `filterTags` + `calculatePower` itself.
+ *
+ * @param {object} args
+ * @param {object} args.tags         Selection payload from the roll dialog
+ * @param {number} [args.modifier=0]
+ * @param {number} [args.might=0]
+ * @returns {{ tags: object, totalPower: number, tooltipData: object, hasTooltipData: boolean }}
+ */
+export function buildRollPreview({ tags, modifier = 0, might = 0 }) {
+	const filtered = LitmRoll.filterTags(tags);
+	const { totalPower } = LitmRoll.calculatePower({
+		...filtered,
+		modifier,
+		might,
+	});
+	return {
+		tags: filtered,
+		totalPower,
+		tooltipData: { ...filtered, modifier, might },
+		hasTooltipData:
+			filtered.scratchedTags.length > 0 ||
+			filtered.powerTags.length > 0 ||
+			filtered.weaknessTags.length > 0 ||
+			filtered.positiveStatuses.length > 0 ||
+			filtered.negativeStatuses.length > 0 ||
+			!!modifier,
+	};
+}
 
 /**
  * Resolve the formula for a given roll request, honouring any

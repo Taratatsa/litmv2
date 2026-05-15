@@ -1,26 +1,30 @@
-import { StatusTagData } from "../data/active-effects/index.js";
-import { error, info } from "../logger.js";
-import { buildTrackCompleteContent } from "../system/chat.js";
-import { ACTOR_TAG_TYPES, FLAG_LIMIT_TYPES } from "../system/config.js";
+import {
+	statusTagEffect,
+	storyTagEffect,
+	updateEffectsByParent,
+} from "../../active-effects/effect-factories.js";
+import { resolveEffect } from "../../active-effects/effect-queries.js";
+import { parseTagStringMatch } from "../../item/action/tag-string.js";
+import { error, info } from "../../logger.js";
+import { ACTOR_TAG_TYPES, FLAG_LIMIT_TYPES } from "../../system/config.js";
 import {
 	ContentSources,
 	WORLD_STORY_TAG_PACK_ID,
-} from "../system/content-sources.js";
-import { LitmSettings } from "../system/settings.js";
-import { Sockets } from "../system/sockets.js";
+} from "../../system/content-sources.js";
+import { LitmSettings } from "../../system/settings.js";
+import { Sockets } from "../../system/sockets.js";
 import {
-	addStoryTagToActor,
 	confirmDelete,
 	enrichHTML,
 	getStoryTagSidebar,
-	parseTagStringMatch,
-	resolveEffect,
-	statusTagEffect,
-	storyTagEffect,
 	localize as t,
-	updateEffectsByParent,
 	viewLinkedRefAction,
-} from "../utils.js";
+} from "../../utils.js";
+import {
+	applyActorTagUpdates,
+	applyLimitUpdates,
+	buildStoryTagUpdates,
+} from "./story-tag-form-processor.js";
 import {
 	disambiguateNames,
 	mapEffectForUI,
@@ -37,10 +41,6 @@ const STORY_TAG_OPERATIONS = {
 	updateTags: (data) => ContentSources.updateStoryTags(data),
 	deleteTags: (data) => ContentSources.deleteStoryTags(data),
 };
-
-function getActorLimits(actor) {
-	return actor.getFlag("litmv2", "limits") ?? [];
-}
 
 export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicationMixin(
 	AbstractSidebarTab,
@@ -455,7 +455,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		return context;
 	}
 
-	async #prepareActorContext(actor, heroLimit) {
+	async #prepareActorContext(actor, _heroLimit) {
 		const actorDoc = this.#resolveActor(actor.id);
 		const isChallenge = actor.type === "challenge";
 		const isHero = actor.type === "hero";
@@ -470,12 +470,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			(game.user.isGM || (usesFlagLimits && actorDoc.isOwner));
 
 		if (canSeeLimits) {
-			const rawLimits = isChallenge
-				? (actorDoc.system.limits ?? [])
-				: getActorLimits(actorDoc);
-			const overridden = isHero
-				? rawLimits.map((l) => ({ ...l, max: heroLimit }))
-				: rawLimits;
+			const rawLimits = actorDoc.system.limits ?? [];
+			const overridden = rawLimits.map((l) => ({
+				...l,
+				max: actorDoc.system.getEffectiveMax(l),
+			}));
 
 			const partitioned = partitionTagsByLimit(actor.tags, overridden);
 			// Enrich outcomes for challenge limits
@@ -849,137 +848,196 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		}
 
 		if (!["Actor", "story_tag", "status_tag"].includes(data.type)) return;
-		const id =
-			data.type === "Actor" ? data.uuid || `Actor.${data.id}` : data.id;
 
-		// Add tags and statuses to the story / Actor
 		if (data.type === "story_tag" || data.type === "status_tag") {
-			const dropTarget = dragEvent.target.closest("[data-tag-item]");
-			// Resolve the target container: use data-type on the tag item (actor ID
-			// or "story"), or fall back to the nearest [data-id] ancestor (actor header).
-			const dropContainer =
-				dropTarget?.dataset.type ||
-				dragEvent.target.closest("[data-id]")?.dataset.id;
+			return this.#handleEffectDrop(dragEvent, data);
+		}
+		return this.#handleActorDrop(data);
+	}
 
-			// Check if dropping onto a limit header (not onto a tag item within the group)
-			const limitTarget = dragEvent.target.closest("[data-limit-id]");
-			if (limitTarget && !dropTarget) {
-				const limitId = limitTarget.dataset.limitId;
-				const source = limitTarget.dataset.source;
-				const isExternal = !data.sourceId;
+	/**
+	 * Handle drops of story_tag / status_tag payloads onto the sidebar.
+	 * Routes to limit-header, same-container sort, or cross-container move.
+	 * @param {DragEvent} dragEvent
+	 * @param {object} data  Parsed drag payload
+	 */
+	async #handleEffectDrop(dragEvent, data) {
+		const dropTarget = dragEvent.target.closest("[data-tag-item]");
+		// Resolve the target container: use data-type on the tag item (actor ID
+		// or "story"), or fall back to the nearest [data-id] ancestor (actor header).
+		const dropContainer =
+			dropTarget?.dataset.type ||
+			dragEvent.target.closest("[data-id]")?.dataset.id;
 
-				if (source === "story") {
-					// Same container — update limitId on existing pack AE
-					if (data.sourceId) {
-						const update = [{ _id: data.sourceId, "system.limitId": limitId }];
-						if (game.user.isGM) await ContentSources.updateStoryTags(update);
-						else this.#broadcastUpdate("updateTags", update);
-						this.#broadcastRender();
-						return;
-					}
-					// External — create new pack AE with limitId
-					const effectData = ContentSources.legacyTagToEffectData({
-						...data,
-						limitId,
-					});
-					if (game.user.isGM) {
-						await ContentSources.createStoryTags([effectData]);
-					} else this.#broadcastUpdate("createTags", [effectData]);
-					if (data.sourceContainer) await this.#removeFromSource(data);
-					this.#broadcastRender();
-					return;
-				}
+		// Check if dropping onto a limit header (not onto a tag item within the group)
+		const limitTarget = dragEvent.target.closest("[data-limit-id]");
+		if (limitTarget && !dropTarget) {
+			return this.#handleLimitHeaderDrop(
+				dragEvent,
+				data,
+				limitTarget,
+				dropTarget,
+			);
+		}
 
-				const actor = this.#resolveActor(source);
-				if (!actor?.isOwner) return;
+		// Same-container drop → sort instead of duplicate
+		if (data.sourceContainer && data.sourceId) {
+			const isSameContainer =
+				data.sourceContainer === dropContainer ||
+				(!dropContainer && data.sourceContainer === "story");
 
-				if (isExternal) {
-					// Create new effect on the actor with limitId
-					// #addTagToActor handles recalculate + broadcast internally
-					return this.#addTagToActor({ id: source, tag: { ...data, limitId } });
-				}
-
-				// Same actor — just update limitId
-				const existing = resolveEffect(data.sourceId, actor);
-				if (existing) {
-					await existing.parent.updateEmbeddedDocuments("ActiveEffect", [
-						{ _id: data.sourceId, "system.limitId": limitId },
-					]);
-					await this.#recalculateActorLimits(source);
-					return this.#broadcastRender();
-				}
-
-				// Cross-container — move tag to this actor's limit
-				await this.#addTagToActor({ id: source, tag: { ...data, limitId } });
-				return this.#removeFromSource(data);
+			if (isSameContainer) {
+				return this.#handleSameContainerDrop(data, dropTarget);
 			}
+		}
 
-			// Same-container drop → sort instead of duplicate
-			if (data.sourceContainer && data.sourceId) {
-				const isSameContainer =
-					data.sourceContainer === dropContainer ||
-					(!dropContainer && data.sourceContainer === "story");
+		// Cross-container move
+		return this.#handleCrossContainerDrop(data, dropContainer);
+	}
 
-				if (isSameContainer) {
-					// If dragging out of a limit group, clear limitId
-					if (data.sourceContainer && data.sourceContainer !== "story") {
-						const actor = this.#resolveActor(data.sourceContainer);
-						const effect = [...(actor?.allApplicableEffects() ?? [])].find(
-							(e) => e.id === data.sourceId,
-						);
-						if (
-							effect?.system?.limitId &&
-							!dropTarget?.closest(".litm--limit-group")
-						) {
-							await effect.parent.updateEmbeddedDocuments("ActiveEffect", [
-								{ _id: data.sourceId, "system.limitId": null },
-							]);
-							await this.#recalculateActorLimits(data.sourceContainer);
-							return this.#broadcastRender();
-						}
-					}
-					if (data.sourceContainer === "story") {
-						const effect = this.#packStoryTags.find(
-							(e) => e._id === data.sourceId,
-						);
-						if (
-							effect?.system?.limitId &&
-							!dropTarget?.closest(".litm--limit-group")
-						) {
-							const update = [{ _id: data.sourceId, "system.limitId": null }];
-							if (game.user.isGM) await ContentSources.updateStoryTags(update);
-							else this.#broadcastUpdate("updateTags", update);
-							this.#broadcastRender();
-							return;
-						}
-					}
-					return this.#sortTag(data, dropTarget);
-				}
+	/**
+	 * Handle a tag drop onto a limit-group header (assigns or moves tag into a limit).
+	 * @param {DragEvent} dragEvent
+	 * @param {object} data  Parsed drag payload
+	 * @param {HTMLElement} limitTarget  The [data-limit-id] element that was dropped onto
+	 * @param {HTMLElement|null} dropTarget  The [data-tag-item] element (null for header drops)
+	 */
+	async #handleLimitHeaderDrop(_dragEvent, data, limitTarget, _dropTarget) {
+		const limitId = limitTarget.dataset.limitId;
+		const source = limitTarget.dataset.source;
+		const isExternal = !data.sourceId;
+
+		if (source === "story") {
+			// Same container — update limitId on existing pack AE
+			if (data.sourceId) {
+				const update = [{ _id: data.sourceId, "system.limitId": limitId }];
+				if (game.user.isGM) await ContentSources.updateStoryTags(update);
+				else this.#broadcastUpdate("updateTags", update);
+				this.#broadcastRender();
+				return;
 			}
+			// External — create new pack AE with limitId
+			const effectData = ContentSources.legacyTagToEffectData({
+				...data,
+				limitId,
+			});
+			if (game.user.isGM) {
+				await ContentSources.createStoryTags([effectData]);
+			} else this.#broadcastUpdate("createTags", [effectData]);
+			if (data.sourceContainer) await this.#removeFromSource(data);
+			this.#broadcastRender();
+			return;
+		}
 
-			// Resolve actor ID for cross-container drops
-			const actorTarget =
-				dropContainer && dropContainer !== "story" ? dropContainer : null;
-			if (actorTarget) {
-				await this.#addTagToActor({
-					id: actorTarget,
-					tag: data,
-				});
-				return this.#removeFromSource(data);
-			}
+		const actor = this.#resolveActor(source);
+		if (!actor?.isOwner) return;
 
-			const effectData = ContentSources.legacyTagToEffectData(data);
-			if (game.user.isGM) await ContentSources.createStoryTags([effectData]);
-			else this.#broadcastUpdate("createTags", [effectData]);
-			await this.#removeFromSource(data);
+		if (isExternal) {
+			// Create new effect on the actor with limitId
+			// #addTagToActor handles recalculate + broadcast internally
+			return this.#addTagToActor({ id: source, tag: { ...data, limitId } });
+		}
+
+		// Same actor — just update limitId
+		const existing = resolveEffect(data.sourceId, actor);
+		if (existing) {
+			await existing.parent.updateEmbeddedDocuments("ActiveEffect", [
+				{ _id: data.sourceId, "system.limitId": limitId },
+			]);
+			await this.#triggerLimitRecalc(source);
 			return this.#broadcastRender();
 		}
 
+		// Cross-container — move tag to this actor's limit
+		await this.#addTagToActor({ id: source, tag: { ...data, limitId } });
+		return this.#removeFromSource(data);
+	}
+
+	/**
+	 * Handle a same-container drop (sort reorder, or limit-group exit clearing limitId).
+	 * @param {object} data  Parsed drag payload
+	 * @param {HTMLElement|null} dropTarget  The [data-tag-item] element dropped onto
+	 */
+	async #handleSameContainerDrop(data, dropTarget) {
+		// If dragging out of a limit group, clear limitId on actor effects
+		if (data.sourceContainer && data.sourceContainer !== "story") {
+			const actor = this.#resolveActor(data.sourceContainer);
+			const effect = [...(actor?.allApplicableEffects() ?? [])].find(
+				(e) => e.id === data.sourceId,
+			);
+			if (
+				effect?.system?.limitId &&
+				!dropTarget?.closest(".litm--limit-group")
+			) {
+				await effect.parent.updateEmbeddedDocuments("ActiveEffect", [
+					{ _id: data.sourceId, "system.limitId": null },
+				]);
+				await this.#triggerLimitRecalc(data.sourceContainer);
+				return this.#broadcastRender();
+			}
+		}
+		if (data.sourceContainer === "story") {
+			const effect = this.#packStoryTags.find((e) => e._id === data.sourceId);
+			if (
+				effect?.system?.limitId &&
+				!dropTarget?.closest(".litm--limit-group")
+			) {
+				const update = [{ _id: data.sourceId, "system.limitId": null }];
+				if (game.user.isGM) await ContentSources.updateStoryTags(update);
+				else this.#broadcastUpdate("updateTags", update);
+				this.#broadcastRender();
+				return;
+			}
+		}
+		return this.#sortTag(data, dropTarget);
+	}
+
+	/**
+	 * Handle a cross-container drop (move tag to a different actor or story section).
+	 * @param {object} data  Parsed drag payload
+	 * @param {string|null|undefined} dropContainer  Target container id or "story" or null
+	 */
+	async #handleCrossContainerDrop(data, dropContainer) {
+		const actorTarget =
+			dropContainer && dropContainer !== "story" ? dropContainer : null;
+		if (actorTarget) {
+			await this.#addTagToActor({
+				id: actorTarget,
+				tag: data,
+			});
+			return this.#removeFromSource(data);
+		}
+
+		const effectData = ContentSources.legacyTagToEffectData(data);
+		if (game.user.isGM) await ContentSources.createStoryTags([effectData]);
+		else this.#broadcastUpdate("createTags", [effectData]);
+		await this.#removeFromSource(data);
+		return this.#broadcastRender();
+	}
+
+	/**
+	 * Handle an Actor document drop onto the sidebar (adds the actor to the sidebar).
+	 *
+	 * For challenge/journey actors that have not yet been opened or migrated via
+	 * TagStringSyncMixin, the `system.tags` string may still be the canonical source
+	 * of truth (the field was removed from the schema only after the actor is saved).
+	 * We keep this migration here rather than in migrateData() because migrateData()
+	 * only sees the model's own declared fields — by the time it runs the `tags` string
+	 * has already been stripped, so there is nothing left to migrate. This is a one-shot
+	 * operation: once the effects exist the condition (`effects.size === 0 && tags.length`)
+	 * will be false on any subsequent drop.
+	 * @param {object} data  Parsed drag payload (type === "Actor")
+	 */
+	async #handleActorDrop(data) {
+		const id = data.uuid || `Actor.${data.id}`;
+
 		if (this.actors.map((a) => a.id).includes(id)) return;
 
-		// Add current tags and statuses from a challenge
 		const actor = this.#resolveActor(id);
 		if (!actor) return;
+
+		// Legacy system.tags migration: challenge/journey actors that were never
+		// opened may still encode their tags as a string. Migrate them to effects now.
 		if (
 			(actor.type === "challenge" || actor.type === "journey") &&
 			actor.effects.size === 0 &&
@@ -1013,10 +1071,17 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		if (foundry.utils.isEmpty(data)) return;
 
 		const { story, limits: _limits, ...actors } = data;
+		const resolveActor = (id) => this.#resolveActor(id);
 
-		await this.#applyActorTagUpdates(actors);
-		const storyTagUpdates = this.#buildStoryTagUpdates(story);
-		const updatedLimits = await this.#applyLimitUpdates(data.limits);
+		await applyActorTagUpdates(actors, resolveActor);
+		for (const id of Object.keys(actors)) await this.#triggerLimitRecalc(id);
+
+		const storyTagUpdates = buildStoryTagUpdates(story);
+		const updatedLimits = await applyLimitUpdates(
+			data.limits,
+			this.config.limits,
+			resolveActor,
+		);
 
 		if (game.user.isGM) {
 			if (storyTagUpdates.length) {
@@ -1027,119 +1092,9 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 				limits: updatedLimits,
 			});
 			this.#broadcastRender();
-		} else {
-			if (storyTagUpdates.length) {
-				this.#broadcastUpdate("updateTags", storyTagUpdates);
-			}
+		} else if (storyTagUpdates.length) {
+			this.#broadcastUpdate("updateTags", storyTagUpdates);
 		}
-	}
-
-	/**
-	 * Process actor effect updates from form data.
-	 * @param {object} actors  Keyed by actor UUID, values are effect update maps
-	 */
-	async #applyActorTagUpdates(actors) {
-		for (const [actorId, tags] of Object.entries(actors)) {
-			const actor = this.#resolveActor(actorId);
-			if (!actor?.isOwner) continue;
-
-			const updates = Object.entries(tags).map(([effectId, data]) => {
-				const isStatus = data.tagType === "status_tag";
-				return {
-					_id: effectId,
-					name: data.name,
-					system: isStatus
-						? { tiers: toTiers(data.values) }
-						: {
-								isScratched: !!data.isScratched,
-								isSingleUse: !!data.isSingleUse,
-								limitId: data.limitId || null,
-							},
-				};
-			});
-
-			await updateEffectsByParent(actor, updates);
-		}
-
-		for (const id of Object.keys(actors)) {
-			await this.#recalculateActorLimits(id);
-		}
-	}
-
-	/**
-	 * Build story tag update objects from form data.
-	 * @param {object} [story]  Keyed by tag ID, values are form field maps
-	 * @returns {object[]} Array of update objects for ContentSources
-	 */
-	#buildStoryTagUpdates(story) {
-		const updates = [];
-		for (const [tagId, data] of Object.entries(story || {})) {
-			const isStatus = data.tagType === "status_tag";
-			const update = { _id: tagId, name: data.name };
-			if (isStatus) {
-				const rawValues = Array.isArray(data.values)
-					? data.values
-					: data.values != null
-						? [data.values]
-						: [];
-				update["system.tiers"] = toTiers(rawValues);
-			} else {
-				update["system.isScratched"] = !!data.isScratched;
-				update["system.isSingleUse"] = !!data.isSingleUse;
-			}
-			if (data.limitId !== undefined) {
-				update["system.limitId"] = data.limitId || null;
-			}
-			updates.push(update);
-		}
-		return updates;
-	}
-
-	/**
-	 * Process limit form data for both story limits and actor flag limits.
-	 * @param {object} [limitsData]  Keyed by source (actor UUID or "story"), values are limit maps
-	 * @returns {Promise<object[]>} Updated story limits array
-	 */
-	async #applyLimitUpdates(limitsData) {
-		let updatedLimits = this.config.limits ?? [];
-		if (!limitsData || !game.user.isGM) return updatedLimits;
-
-		// Story limits
-		const storyLimitsData = limitsData.story;
-		if (storyLimitsData) {
-			updatedLimits = updatedLimits.map((limit) => {
-				const formLimit = storyLimitsData[limit.id];
-				if (!formLimit) return limit;
-				return {
-					...limit,
-					label: formLimit.label ?? limit.label,
-					max: formLimit.max ?? limit.max,
-				};
-			});
-		}
-
-		// Actor flag limits (hero/fellowship/journey)
-		const flagUpdates = [];
-		for (const [source, sourceLimits] of Object.entries(limitsData)) {
-			if (source === "story") continue;
-			const actor = this.#resolveActor(source);
-			if (!actor?.isOwner) continue;
-			if (!FLAG_LIMIT_TYPES.has(actor.type)) continue;
-			const existing = getActorLimits(actor);
-			const updated = existing.map((limit) => {
-				const formLimit = sourceLimits[limit.id];
-				if (!formLimit) return limit;
-				return {
-					...limit,
-					label: formLimit.label ?? limit.label,
-					max: actor.type === "hero" ? limit.max : (formLimit.max ?? limit.max),
-				};
-			});
-			flagUpdates.push(actor.setFlag("litmv2", "limits", updated));
-		}
-		await Promise.all(flagUpdates);
-
-		return updatedLimits;
 	}
 
 	/* -------------------------------------------- */
@@ -1192,13 +1147,14 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			}
 
 			if (actor?.isOwner && FLAG_LIMIT_TYPES.has(actor.type)) {
-				const existing = getActorLimits(actor);
-				await actor.setFlag("litmv2", "limits", [
+				const existing = actor.system.limits;
+				const newMax = isHeroActor ? heroLimit : max;
+				await actor.system.setLimits([
 					...existing,
 					{
 						id: foundry.utils.randomID(),
 						label: parsed.name,
-						max: isHeroActor ? heroLimit : max,
+						max: newMax,
 						value: 0,
 					},
 				]);
@@ -1210,18 +1166,16 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			}
 
 			if (actor?.isOwner && actor.type === "challenge") {
-				await actor.update({
-					"system.limits": [
-						...actor.system.limits,
-						{
-							id: foundry.utils.randomID(),
-							label: parsed.name,
-							outcome: "",
-							max,
-							value: 0,
-						},
-					],
-				});
+				await actor.system.setLimits([
+					...actor.system.limits,
+					{
+						id: foundry.utils.randomID(),
+						label: parsed.name,
+						outcome: "",
+						max,
+						value: 0,
+					},
+				]);
 				input.value = "";
 				this.invalidateCache();
 				this.#broadcastRender();
@@ -1316,9 +1270,9 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			const actor = this.#resolveActor(source);
 			if (!actor?.isOwner) return;
 			if (!FLAG_LIMIT_TYPES.has(actor.type)) return;
-			const existing = getActorLimits(actor);
+			const existing = actor.system.limits;
 			const heroLimit = LitmSettings.heroLimit;
-			await actor.setFlag("litmv2", "limits", [
+			await actor.system.setLimits([
 				...existing,
 				{
 					id: foundry.utils.randomID(),
@@ -1352,12 +1306,8 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		if (source && source !== "story") {
 			const actor = this.#resolveActor(source);
 			if (!actor?.isOwner) return;
-			const existing = getActorLimits(actor);
-			await actor.setFlag(
-				"litmv2",
-				"limits",
-				existing.filter((l) => l.id !== limitId),
-			);
+			const existing = actor.system.limits;
+			await actor.system.setLimits(existing.filter((l) => l.id !== limitId));
 			// Clear limitId on any effects referencing this limit
 			// (includes transferred backpack story_tags — route via parent)
 			const updates = [...actor.allApplicableEffects()]
@@ -1580,75 +1530,25 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			await effect.parent.updateEmbeddedDocuments("ActiveEffect", [
 				{ _id: tagId, "system.tiers": newTiers },
 			]);
-			await this.#recalculateActorLimits(source);
+			await this.#triggerLimitRecalc(source);
 			this.#broadcastRender();
 		}
 	}
 
-	async #recalculateActorLimits(actorId) {
+	/**
+	 * Thin wrapper: resolves the actor from an id, delegates limit recalculation
+	 * to the data model, and emits `litm.limitReached` for each newly-crossed limit.
+	 * @param {string} actorId
+	 * @returns {Promise<void>}
+	 */
+	async #triggerLimitRecalc(actorId) {
 		const actor = this.#resolveActor(actorId);
 		if (!actor?.isOwner) return;
-
-		const isChallenge = actor.type === "challenge";
-		const isHero = actor.type === "hero";
-		const usesFlagLimits = FLAG_LIMIT_TYPES.has(actor.type);
-		if (!isChallenge && !usesFlagLimits) return;
-
-		const oldLimits = isChallenge
-			? (actor.system.limits ?? [])
-			: getActorLimits(actor);
-		if (!oldLimits.length) return;
-
-		const effects = [...actor.effects]
-			.filter((e) => e.type === "status_tag" && e.system?.limitId)
-			.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
-
-		const heroLimit = LitmSettings.heroLimit;
-
-		const limits = oldLimits.map((limit) => {
-			const grouped = effects.filter((e) => e.system.limitId === limit.id);
-			const tierArrays = grouped.map((e) => e.system.tiers);
-			const computedValue = StatusTagData.stackedTier(tierArrays);
-			return { ...limit, value: computedValue };
-		});
-
-		// Detect limit-reached transitions (hero max is derived from setting, not stored)
-		for (let i = 0; i < limits.length; i++) {
-			const oldLimit = oldLimits[i];
-			const newLimit = limits[i];
-			const effectiveMax = isHero ? heroLimit : newLimit.max;
-			if (!oldLimit || effectiveMax === 0) continue;
-			if (oldLimit.value < effectiveMax && newLimit.value >= effectiveMax) {
-				this.#sendLimitReachedMessage(
-					{ ...newLimit, max: effectiveMax },
-					actor,
-				);
-			}
+		if (typeof actor.system?.recalculateLimitValues !== "function") return;
+		const result = await actor.system.recalculateLimitValues();
+		for (const limit of result.reached) {
+			Hooks.callAll("litm.limitReached", { actor, limit });
 		}
-
-		if (isChallenge) {
-			await actor.update({ "system.limits": limits });
-		} else {
-			await actor.setFlag("litmv2", "limits", limits);
-		}
-	}
-
-	async #sendLimitReachedMessage(limit, actor) {
-		const text = limit.outcome
-			? game.i18n.format("LITM.Ui.limit_reached_with_outcome", {
-					label: limit.label,
-					actor: actor.name,
-					outcome: limit.outcome,
-				})
-			: game.i18n.format("LITM.Ui.limit_reached", {
-					label: limit.label,
-				});
-
-		await foundry.documents.ChatMessage.create({
-			content: await buildTrackCompleteContent({ text, type: "limit" }),
-			whisper: foundry.documents.ChatMessage.getWhisperRecipients("GM"),
-			speaker: foundry.documents.ChatMessage.getSpeaker({ actor }),
-		});
 	}
 
 	async #removeFromSource(data) {
@@ -1798,11 +1698,11 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 					limitId: tag.limitId,
 				});
 
-		// For heroes, addStoryTagToActor routes story tags through the backpack
+		// For heroes, addStoryTag routes story tags through the backpack
 		if (!isStatus) {
-			const created = await addStoryTagToActor(actor, effectData);
+			const created = await actor.system.addStoryTag(effectData);
 			if (created?.[0]) this._editOnRender = created[0].id;
-			await this.#recalculateActorLimits(id);
+			await this.#triggerLimitRecalc(id);
 			return this.#broadcastRender();
 		}
 
@@ -1812,7 +1712,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 			{ ...effectData, sort: maxSort + 1000 },
 		]);
 		if (created) this._editOnRender = created.id;
-		await this.#recalculateActorLimits(id);
+		await this.#triggerLimitRecalc(id);
 		return this.#broadcastRender();
 	}
 
@@ -1829,7 +1729,7 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		const effect = resolveEffect(id, actor);
 		if (!effect) return;
 		await effect.parent.deleteEmbeddedDocuments("ActiveEffect", [id]);
-		await this.#recalculateActorLimits(actorId);
+		await this.#triggerLimitRecalc(actorId);
 		return this.#broadcastRender();
 	}
 
@@ -1875,15 +1775,9 @@ export class StoryTagSidebar extends foundry.applications.api.HandlebarsApplicat
 		} else {
 			this.render();
 		}
-		this.refreshRollDialogs();
-	}
-
-	refreshRollDialogs() {
-		game.actors.forEach((actor) => {
-			if (!actor.sheet?.hasRollDialog) return;
-			const dialog = actor.sheet.rollDialogInstance;
-			if (dialog?.rendered) dialog.render();
-		});
+		// Notify dependent UI (roll dialogs, etc.) that scene-tag state changed.
+		// Listeners live in modules/system/hooks/ui-hooks.js.
+		Hooks.callAll("litm.sceneTagsChanged");
 	}
 
 	async doUpdate(operation, data) {

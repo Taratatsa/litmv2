@@ -3,8 +3,6 @@ import { ACTOR_TYPES } from "../config.js";
 import { LitmSettings } from "../settings.js";
 
 export function registerFellowshipHooks() {
-	_hideFromCreateDialog();
-
 	if (!LitmSettings.useFellowship) return;
 
 	_ensureFellowshipSingleton();
@@ -133,22 +131,6 @@ function _blockFellowshipAsCharacter() {
 			ui.notifications.warn(t("LITM.Ui.warn_fellowship_not_character"));
 			return false;
 		}
-	});
-}
-
-/**
- * Filter fellowship out of the Actor creation dialog type dropdown.
- */
-function _hideFromCreateDialog() {
-	Hooks.once("ready", () => {
-		const ActorCls = foundry.documents.Actor;
-		const original = ActorCls.createDialog;
-		ActorCls.createDialog = function (data, options, dialogOptions = {}) {
-			dialogOptions.types ??= ActorCls.TYPES.filter(
-				(type) => type !== ACTOR_TYPES.fellowship,
-			);
-			return original.call(this, data, options, dialogOptions);
-		};
 	});
 }
 

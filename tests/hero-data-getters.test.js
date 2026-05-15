@@ -141,7 +141,7 @@ describe("HeroData.relationships", () => {
 		});
 		const { model } = makeHero({ effects: [rel, status] });
 
-		// Before prepare: empty (the mixin's cache is null, _relationships is [])
+		// Before prepare: empty (the mixin's _effectBuckets is {})
 		expect(model.relationships).toEqual([]);
 
 		model.prepareDerivedData();

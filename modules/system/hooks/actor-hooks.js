@@ -1,13 +1,17 @@
+import { createLegacyRelationshipEffects } from "../../actor/hero/hero-data.js";
+import { LitmItem } from "../../item/litm-item.js";
 import { error } from "../../logger.js";
 import { getStoryTagSidebar, localize as t } from "../../utils.js";
 import { ACTOR_TAG_TYPES, THEME_TAG_TYPES } from "../config.js";
 
 export function registerActorHooks() {
 	_prepareCharacterOnCreate();
+	_migrateLegacyActorOnCreate();
 	_validateFellowshipThemes();
 	_enforceHeroItemLimits();
 	_validateEffectType();
 	_syncUiOnEffectChange();
+	_syncRollDialogHudOnUpdate();
 	_syncStoryThemeActorToItem();
 	_enforceStoryThemeActorLimits();
 }
@@ -204,29 +208,31 @@ function _syncUiOnEffectChange() {
 	Hooks.on("deleteActiveEffect", sync);
 }
 
+const HERO_ITEM_LIMITS = {
+	theme: {
+		max: 4,
+		warnKey: "LITM.Ui.warn_theme_limit",
+		filter: (i) => i.type === "theme" && !i.system.isFellowship,
+	},
+	backpack: {
+		max: 1,
+		warnKey: "LITM.Ui.warn_backpack_limit",
+		filter: (i) => i.type === "backpack",
+	},
+};
+
 function _enforceHeroItemLimits() {
 	Hooks.on("preCreateItem", (item, _data, _options, _userId) => {
 		const actor = item.parent;
 		if (!actor || actor.type !== "hero") return;
 
-		if (item.type === "theme" && !item.system?.isFellowship) {
-			const regularThemes = actor.items.filter(
-				(i) => i.type === "theme" && !i.system.isFellowship,
-			);
-			if (regularThemes.length >= 4) {
-				ui.notifications.warn(game.i18n.localize("LITM.Ui.warn_theme_limit"));
-				return false;
-			}
-		}
+		const limit = HERO_ITEM_LIMITS[item.type];
+		if (!limit) return;
+		if (item.type === "theme" && item.system?.isFellowship) return;
 
-		if (item.type === "backpack") {
-			const backpacks = actor.items.filter((i) => i.type === "backpack");
-			if (backpacks.length >= 1) {
-				ui.notifications.warn(
-					game.i18n.localize("LITM.Ui.warn_backpack_limit"),
-				);
-				return false;
-			}
+		if (actor.items.filter(limit.filter).length >= limit.max) {
+			ui.notifications.warn(game.i18n.localize(limit.warnKey));
+			return false;
 		}
 	});
 }
@@ -265,5 +271,35 @@ function _syncStoryThemeActorToItem() {
 		if ("name" in data && theme.name !== data.name) updates.name = data.name;
 		if ("img" in data && theme.img !== data.img) updates.img = data.img;
 		if (Object.keys(updates).length) theme.update(updates);
+	});
+}
+
+/**
+ * When an actor is imported (embedded items don't fire createItem),
+ * create proper AEs from any stashed legacy flag data.
+ */
+function _migrateLegacyActorOnCreate() {
+	Hooks.on("createActor", async (actor) => {
+		for (const item of actor.items) {
+			if (
+				item.flags?.litmv2?.legacyTags ||
+				item.flags?.litmv2?.legacyContents
+			) {
+				await LitmItem.createLegacyEffects(item);
+			}
+			await LitmItem.ensureTitleTag(item);
+		}
+		await createLegacyRelationshipEffects(actor);
+	});
+}
+
+/**
+ * Re-render the roll dialog HUD when a hero actor is updated
+ * (e.g. flag changes indicating dialog open/close).
+ */
+function _syncRollDialogHudOnUpdate() {
+	Hooks.on("updateActor", (actor) => {
+		if (actor.type !== "hero") return;
+		game.litmv2.rollDialogHud?.render?.();
 	});
 }

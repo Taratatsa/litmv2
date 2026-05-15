@@ -1,4 +1,4 @@
-import { sendRollRequest } from "../apps/roll-request.js";
+import { sendRollRequest } from "../apps/roll/roll-request.js";
 import { renderAction } from "./renderers/action-renderer.js";
 import { renderChallenge } from "./renderers/challenge-renderer.js";
 import { renderHero } from "./renderers/hero-renderer.js";

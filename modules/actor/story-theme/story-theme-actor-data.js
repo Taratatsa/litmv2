@@ -1,4 +1,4 @@
-import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { EffectTagsMixin } from "../mixins/effect-tags-mixin.js";
 
 export class StoryThemeActorData extends EffectTagsMixin(
 	foundry.abstract.TypeDataModel,

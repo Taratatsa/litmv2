@@ -1,9 +1,9 @@
-import { EFFECT_TYPES } from "../../system/config.js";
-import { advanceSystemLimit } from "../actor-limits.js";
-import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { advanceSystemLimit } from "../mixins/actor-limits.js";
+import { EffectTagsMixin } from "../mixins/effect-tags-mixin.js";
+import { LimitsMixin } from "../mixins/limits-mixin.js";
 
-export class ChallengeData extends EffectTagsMixin(
-	foundry.abstract.TypeDataModel,
+export class ChallengeData extends LimitsMixin(
+	EffectTagsMixin(foundry.abstract.TypeDataModel),
 ) {
 	static defineSchema() {
 		const fields = foundry.data.fields;
@@ -90,7 +90,10 @@ export class ChallengeData extends EffectTagsMixin(
 			a.localeCompare(b),
 		);
 
-		// Derived limits: merge by lowercase label, keep higher max
+		// Derived limits: merge by lowercase label, keep higher max.
+		// `this.limits` stays canonical (the schema-prepared own property); the
+		// merged form is exposed via `this.derivedLimits` and consumers that
+		// want the display form select between them explicitly.
 		this.derivedLimits = ChallengeData.#mergeLimits(
 			this.limits,
 			addons.flatMap((a) => a.system.limits),
@@ -119,18 +122,6 @@ export class ChallengeData extends EffectTagsMixin(
 			name: a.name,
 			ratingBonus: a.system.ratingBonus,
 		}));
-
-		// Derive limit display properties
-		const allLimits = this.derivedLimits ?? this.limits ?? [];
-		for (const limit of allLimits) {
-			limit.isImpossible = limit.max === 0;
-			const hasGroupedStatuses = this.parent.effects.some(
-				(e) =>
-					e.type === EFFECT_TYPES.status_tag && e.system?.limitId === limit.id,
-			);
-			const isFromAddon = !(this.limits ?? []).some((l) => l.id === limit.id);
-			limit.isAutoManaged = hasGroupedStatuses || isFromAddon;
-		}
 	}
 
 	/**
@@ -184,6 +175,20 @@ export class ChallengeData extends EffectTagsMixin(
 	 */
 	get challenges() {
 		return CONFIG.litmv2.challenge_types;
+	}
+
+	/**
+	 * Persist the canonical `system.limits` array. Callers pass the desired
+	 * state; addon-derived limits (which live on the addon items) should not
+	 * appear here. With `this.limits` left canonical in {@link prepareDerivedData},
+	 * the spread-then-write idiom (`[...actor.system.limits, newLimit]`) works
+	 * without further filtering.
+	 * @override
+	 * @param {object[]} limits
+	 * @returns {Promise<void>}
+	 */
+	async setLimits(limits) {
+		return this.parent.update({ "system.limits": limits });
 	}
 
 	/**

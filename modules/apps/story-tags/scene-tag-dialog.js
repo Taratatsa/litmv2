@@ -1,4 +1,4 @@
-import { localize as t } from "../utils.js";
+import { localize as t } from "../../utils.js";
 import { toTiers } from "./story-tag-helpers.js";
 
 export class SceneTagDialog extends foundry.applications.api.HandlebarsApplicationMixin(
