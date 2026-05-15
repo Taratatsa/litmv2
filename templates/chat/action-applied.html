@@ -12,4 +12,12 @@
 	{{#if footer}}
 	<footer class="litm-spend-chat__cost">{{footer}}</footer>
 	{{/if}}
+	{{#if reactActorId}}
+	<div class="litm-spend-chat__react">
+		<button type="button" class="bright" data-click="react" data-actor-id="{{reactActorId}}">
+			<i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+			{{localize "LITM.Ui.roll_mitigate"}}
+		</button>
+	</div>
+	{{/if}}
 </div>

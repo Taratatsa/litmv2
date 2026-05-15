@@ -2,25 +2,6 @@ export { SUCCESS_VERBS } from "./verb-definitions.js";
 
 import { SUCCESS_VERBS } from "./verb-definitions.js";
 
-// Action successes are unlocked by the roll's result: Quick on a Success-with-
-// Consequences, Detailed on a full Success. ExtraFeat is a bonus success
-// purchased with extra Power.
-export const SUCCESS_QUALITIES = Object.freeze([
-	"quick",
-	"detailed",
-	"extraFeat",
-]);
-
-const TARGETS = Object.freeze([
-	"self",
-	"ally",
-	"opponent",
-	"process",
-	"prompt",
-]);
-
-const POLARITIES = Object.freeze(["positive", "negative"]);
-
 export const ACTION_CATEGORIES = Object.freeze([
 	"",
 	"battle",
@@ -79,42 +60,12 @@ export class ActionData extends foundry.abstract.TypeDataModel {
 						initial: "enhance",
 						choices: [...SUCCESS_VERBS],
 					}),
-					quality: new fields.StringField({
-						initial: "quick",
-						choices: [...SUCCESS_QUALITIES],
-					}),
-					label: new fields.StringField({ trim: true, initial: "" }),
-					description: new fields.StringField({ trim: true, initial: "" }),
-					payload: new fields.SchemaField({
-						tagName: new fields.StringField({
-							trim: true,
-							initial: "",
-							blank: true,
-						}),
-						statusName: new fields.StringField({
-							trim: true,
-							initial: "",
-							blank: true,
-						}),
-						tier: new fields.NumberField({
-							initial: null,
-							nullable: true,
-							integer: true,
-							min: 1,
-							max: 6,
-						}),
-						polarity: new fields.StringField({
-							initial: "positive",
-							choices: [...POLARITIES],
-						}),
-						isSingleUse: new fields.BooleanField({ initial: false }),
-						scratchTag: new fields.BooleanField({ initial: false }),
-						target: new fields.StringField({
-							initial: "self",
-							choices: [...TARGETS],
-						}),
-					}),
+					text: new fields.StringField({ trim: true, initial: "" }),
 				}),
+				{ initial: () => [] },
+			),
+			extraFeats: new fields.ArrayField(
+				new fields.StringField({ trim: true }),
 				{ initial: () => [] },
 			),
 			consequences: new fields.ArrayField(
@@ -127,6 +78,59 @@ export class ActionData extends foundry.abstract.TypeDataModel {
 				blank: true,
 			}),
 		};
+	}
+
+	/**
+	 * Convert legacy success entries (quality + structured payload) into the
+	 * markup-driven shape (verb + free-text). Extra-feat successes get hoisted
+	 * to the top-level `extraFeats` array; quick-quality successes have their
+	 * verb forced to `quick` regardless of the original verb because quick
+	 * successes are narrative-only by definition.
+	 */
+	static migrateData(source) {
+		if (Array.isArray(source?.successes)) {
+			const carriedFeats = Array.isArray(source.extraFeats)
+				? [...source.extraFeats]
+				: [];
+			const newSuccesses = [];
+
+			for (const s of source.successes) {
+				// Already-migrated entries (no quality/payload/label/description) are
+				// passed through untouched so re-runs are idempotent.
+				if (
+					s.text !== undefined &&
+					s.quality === undefined &&
+					s.payload === undefined &&
+					s.label === undefined &&
+					s.description === undefined
+				) {
+					newSuccesses.push(s);
+					continue;
+				}
+
+				const isExtraFeat = s.quality === "extraFeat" || s.verb === "extraFeat";
+
+				const text = _buildMigratedText(s);
+
+				if (isExtraFeat) {
+					if (text) carriedFeats.push(text);
+					continue;
+				}
+
+				const verb = s.quality === "quick" ? "quick" : s.verb || "enhance";
+
+				newSuccesses.push({
+					id: s.id || foundry.utils.randomID(),
+					verb,
+					text,
+				});
+			}
+
+			source.successes = newSuccesses;
+			source.extraFeats = carriedFeats;
+		}
+
+		return super.migrateData(source);
 	}
 
 	/** Whether this action represents a magical rote (categorized as such). */
@@ -150,11 +154,40 @@ export class ActionData extends foundry.abstract.TypeDataModel {
 			? game.i18n.localize(`LITM.Actions.categories.${this.category}`)
 			: "";
 	}
+}
 
-	/** Successes filtered for a given roll quality, plus any extraFeat successes. */
-	successesFor(quality) {
-		return this.successes.filter(
-			(o) => o.quality === quality || o.quality === "extraFeat",
-		);
+/**
+ * Stitch a legacy success's label + description + synthesized payload markup
+ * into a single text string. Order: prose first, markup tokens trailing —
+ * keeps the author's narrative intent intact while still making the mechanical
+ * effect parseable by the same regex that handles consequences.
+ */
+function _buildMigratedText(s) {
+	const label = (s.label || "").trim();
+	const description = (s.description || "").trim();
+	const markup = _payloadToMarkup(s.payload);
+
+	const prose = [label, description].filter(Boolean).join(" — ");
+	if (prose && markup) return `${prose} ${markup}`;
+	return prose || markup;
+}
+
+function _payloadToMarkup(payload) {
+	if (!payload || typeof payload !== "object") return "";
+	const tokens = [];
+	const tagName = (payload.tagName || "").trim();
+	const statusName = (payload.statusName || "").trim();
+	const tier = Number(payload.tier);
+
+	if (tagName) {
+		tokens.push(payload.isSingleUse ? `[${tagName}!]` : `[${tagName}]`);
 	}
+	if (statusName) {
+		if (Number.isInteger(tier) && tier >= 1 && tier <= 6) {
+			tokens.push(`[${statusName}-${tier}]`);
+		} else {
+			tokens.push(`[${statusName}-]`);
+		}
+	}
+	return tokens.join(" ");
 }

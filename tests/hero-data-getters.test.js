@@ -51,7 +51,11 @@ describe("HeroData.themes", () => {
 			type: "theme",
 			name: "A-theme",
 			effects: [
-				fakeEffect({ type: "power_tag", name: "title", system: { isTitleTag: true } }),
+				fakeEffect({
+					type: "power_tag",
+					name: "title",
+					system: { isTitleTag: true },
+				}),
 				fakeEffect({ type: "weakness_tag", name: "proud", system: {} }),
 			],
 		});
@@ -185,7 +189,12 @@ describe("HeroData.scratchedTags", () => {
 		});
 
 		const { model } = makeHero({
-			effects: [scratchedPower, scratchedWeakness, unscratched, scratchedStatus],
+			effects: [
+				scratchedPower,
+				scratchedWeakness,
+				unscratched,
+				scratchedStatus,
+			],
 		});
 
 		expect(model.scratchedTags).toEqual([scratchedPower]);
@@ -227,7 +236,9 @@ describe("HeroData.fellowshipActor", () => {
 
 	it("looks up by fellowshipId when set and the actor exists", () => {
 		const fellowship = fakeActor({ type: "fellowship", id: "f-1" });
-		game.actors.get.mockImplementation((id) => (id === "f-1" ? fellowship : null));
+		game.actors.get.mockImplementation((id) =>
+			id === "f-1" ? fellowship : null,
+		);
 
 		const { model } = makeHero({ fellowshipId: "f-1" });
 		expect(model.fellowshipActor).toBe(fellowship);

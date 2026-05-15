@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { applySuccess } from "../modules/system/chat-actions.js";
+import { makeTagStringRe } from "../modules/system/config.js";
 import { fakeActor, fakeEffect, fakeItem } from "./__helpers__/factories.js";
 
 // The pickers open real DialogV2s. Replace them with vi.fn so tests can drive
@@ -10,11 +11,14 @@ vi.mock("../modules/apps/target-picker.js", () => ({
 	pickLimit: vi.fn(),
 }));
 
+// chat-actions imports the regex from CONFIG.litmv2.tagStringRe in addition
+// to makeTagStringRe directly. Either is fine for the new appliers; we just
+// need the parseTagStringMatch path to work.
 beforeEach(() => {
 	vi.clearAllMocks();
+	CONFIG.litmv2.tagStringRe = makeTagStringRe();
 });
 
-// Helper: hero with a backpack so addStoryTagToActor can route through it.
 const heroActor = (overrides = {}) => {
 	const backpack = fakeItem({ type: "backpack" });
 	return fakeActor({
@@ -24,24 +28,26 @@ const heroActor = (overrides = {}) => {
 	});
 };
 
-describe("applySuccess — unsupported verb", () => {
-	it("notifies and returns null", async () => {
-		const result = await applySuccess({
-			success: { verb: "lessen", payload: {} },
-			actor: heroActor(),
-		});
-		expect(result).toBeNull();
-		expect(ui.notifications.info).toHaveBeenCalledWith(
-			"LITM.Actions.lessen_not_implemented",
-		);
-	});
-});
+// Mirrors StatusTagData.calculateReduction — shifts each marked tier down by
+// `amount` and drops anything that falls below tier 1. Lets tests exercise
+// the real reduction shape (including the single-mark case) without depending
+// on the actual DataModel class.
+function calculateReduction(amount) {
+	const newTiers = Array(6).fill(false);
+	for (let i = 0; i < 6; i++) {
+		if (this.tiers[i]) {
+			const newIndex = i - amount;
+			if (newIndex >= 0) newTiers[newIndex] = true;
+		}
+	}
+	return newTiers;
+}
 
 describe("applySuccess — permission check", () => {
 	it("warns and returns null when target is not owned and user is not GM", async () => {
 		const actor = heroActor({ isOwner: false });
 		const result = await applySuccess({
-			success: { verb: "bestow", payload: { tagName: "Resolve" } },
+			success: { verb: "bestow", text: "[Resolve]" },
 			actor,
 		});
 		expect(result).toBeNull();
@@ -49,44 +55,68 @@ describe("applySuccess — permission check", () => {
 	});
 });
 
-describe("applySuccess — createOrTag (self-target)", () => {
-	it("creates a story tag on the hero's backpack from payload.tagName", async () => {
+describe("applySuccess — Lessen dispatches to Restore on self", () => {
+	it("reduces a same-named status on the rolling hero", async () => {
+		const wounded = fakeEffect({
+			type: "status_tag",
+			name: "wounded",
+			system: {
+				tiers: [true, true, false, false, false, false],
+				calculateMark() {
+					return this.tiers;
+				},
+				calculateReduction,
+			},
+		});
+		const actor = heroActor({ effects: [wounded] });
+
+		const result = await applySuccess({
+			success: { verb: "lessen", text: "[wounded-1]" },
+			actor,
+		});
+
+		expect(result).not.toBeNull();
+		expect(result.appliedSummary).toContain("LITM.Actions.applied_reduced");
+	});
+});
+
+describe("applySuccess — createOrTag (self-target, markup-driven)", () => {
+	it("creates a story tag on the hero's backpack from [name] markup", async () => {
 		const actor = heroActor();
 		const result = await applySuccess({
-			success: { verb: "bestow", payload: { tagName: "Sharp Eyes" } },
+			success: { verb: "bestow", text: "Grant [Sharp Eyes]" },
 			actor,
 		});
 
-		expect(result.appliedSummary).toBe("LITM.Actions.applied_create_tag");
-		expect(actor.system.backpackItem.createEmbeddedDocuments).toHaveBeenCalledWith(
-			"ActiveEffect",
-			[
-				expect.objectContaining({
-					type: "story_tag",
-					name: "Sharp Eyes",
-					system: expect.objectContaining({ isSingleUse: false }),
-				}),
-			],
-		);
+		expect(result.appliedSummary).toContain("LITM.Actions.applied_create_tag");
+		expect(
+			actor.system.backpackItem.createEmbeddedDocuments,
+		).toHaveBeenCalledWith("ActiveEffect", [
+			expect.objectContaining({
+				type: "story_tag",
+				name: "Sharp Eyes",
+				system: expect.objectContaining({ isSingleUse: false }),
+			}),
+		]);
 	});
 
-	it("forwards isSingleUse from payload to the story tag", async () => {
+	it("creates a single-use story tag from [name!] markup", async () => {
 		const actor = heroActor();
 		await applySuccess({
-			success: { verb: "bestow", payload: { tagName: "Spark", isSingleUse: true } },
+			success: { verb: "bestow", text: "[Spark!]" },
 			actor,
 		});
 
-		const [, [data]] = actor.system.backpackItem.createEmbeddedDocuments.mock.calls[0];
+		const [, [data]] =
+			actor.system.backpackItem.createEmbeddedDocuments.mock.calls[0];
 		expect(data.system.isSingleUse).toBe(true);
+		expect(data.name).toBe("Spark");
 	});
 
-	it("creates a fresh status when payload has tier and no existing status matches", async () => {
+	it("creates a fresh status from [name-N] markup when no existing matches", async () => {
 		const actor = heroActor();
-		// `create` verb has no defaultStatus, so we need to send a status payload
-		// without a tagName to force the status branch.
 		await applySuccess({
-			success: { verb: "create", payload: { statusName: "Bruised", tier: 2 } },
+			success: { verb: "enhance", text: "Inflict [Bruised-2]" },
 			actor,
 		});
 
@@ -102,17 +132,27 @@ describe("applySuccess — createOrTag (self-target)", () => {
 	});
 
 	it("stacks onto an existing same-named status via calculateMark", async () => {
-		const calculateMark = vi.fn(() => [false, false, true, false, false, false]);
+		const calculateMark = vi.fn(() => [
+			false,
+			false,
+			true,
+			false,
+			false,
+			false,
+		]);
 		const existing = fakeEffect({
 			id: "s1",
 			type: "status_tag",
 			name: "Bruised",
-			system: { tiers: [false, true, false, false, false, false], calculateMark },
+			system: {
+				tiers: [false, true, false, false, false, false],
+				calculateMark,
+			},
 		});
 		const actor = heroActor({ effects: [existing] });
 
 		const result = await applySuccess({
-			success: { verb: "create", payload: { statusName: "Bruised", tier: 2 } },
+			success: { verb: "enhance", text: "[Bruised-2]" },
 			actor,
 		});
 
@@ -121,59 +161,95 @@ describe("applySuccess — createOrTag (self-target)", () => {
 			"system.tiers": [false, false, true, false, false, false],
 		});
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
-		expect(result.appliedSummary).toBe("LITM.Actions.applied_create_status");
+		expect(result.appliedSummary).toContain(
+			"LITM.Actions.applied_create_status",
+		);
 	});
 
-	it("scratches an existing same-named tag when payload.scratchTag is set", async () => {
-		const toggleScratch = vi.fn().mockResolvedValue(undefined);
-		const existing = fakeEffect({
-			id: "t1",
-			type: "story_tag",
-			name: "Lantern",
-			system: { isScratched: false, toggleScratch },
-		});
-		const actor = heroActor({ effects: [existing] });
-
-		const result = await applySuccess({
-			success: {
-				verb: "bestow",
-				payload: { tagName: "Lantern", scratchTag: true },
-			},
-			actor,
-		});
-
-		expect(toggleScratch).toHaveBeenCalled();
-		expect(result.appliedSummary).toBe("LITM.Actions.applied_scratch");
-		expect(actor.system.backpackItem.createEmbeddedDocuments).not.toHaveBeenCalled();
-	});
-
-	it("falls through to creation when scratchTag is set but nothing matches", async () => {
+	it("uses chosenTiers for [name-] variable tokens", async () => {
 		const actor = heroActor();
-
 		await applySuccess({
-			success: {
-				verb: "bestow",
-				payload: { tagName: "Ghost", scratchTag: true },
-			},
+			success: { verb: "enhance", text: "Inflict [bleeding-]" },
+			actor,
+			chosenTiers: [3],
+		});
+
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("ActiveEffect", [
+			expect.objectContaining({
+				type: "status_tag",
+				system: expect.objectContaining({
+					tiers: [false, false, true, false, false, false],
+				}),
+			}),
+		]);
+	});
+
+	it("defaults variable tier to 1 when chosenTiers entry is missing", async () => {
+		const actor = heroActor();
+		await applySuccess({
+			success: { verb: "enhance", text: "[bleeding-]" },
+			actor,
+			// no chosenTiers
+		});
+
+		const [, [data]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(data.system.tiers).toEqual([
+			true,
+			false,
+			false,
+			false,
+			false,
+			false,
+		]);
+	});
+
+	it("applies multiple tokens in one success and joins the summary", async () => {
+		const actor = heroActor();
+		const result = await applySuccess({
+			success: { verb: "bestow", text: "Grant [aim] and [focused-1]" },
 			actor,
 		});
 
-		expect(actor.system.backpackItem.createEmbeddedDocuments).toHaveBeenCalled();
+		expect(
+			actor.system.backpackItem.createEmbeddedDocuments,
+		).toHaveBeenCalledWith("ActiveEffect", [
+			expect.objectContaining({ name: "aim", type: "story_tag" }),
+		]);
+		expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith("ActiveEffect", [
+			expect.objectContaining({ name: "focused", type: "status_tag" }),
+		]);
+		expect(result.appliedSummary).toContain(" · ");
+	});
+
+	it("falls back to the prose text when the success has no markup", async () => {
+		const actor = heroActor();
+		const result = await applySuccess({
+			success: { verb: "create", text: "Set the scene mood" },
+			actor,
+		});
+		expect(result.appliedSummary).toBe("Set the scene mood");
+		expect(
+			actor.system.backpackItem.createEmbeddedDocuments,
+		).not.toHaveBeenCalled();
+		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 });
 
 describe("applySuccess — restore", () => {
-	it("reduces a multi-tier status by removing its highest tier", async () => {
+	it("reduces a multi-tier status by the parsed tier", async () => {
 		const status = fakeEffect({
 			id: "s1",
 			type: "status_tag",
 			name: "Bruised",
-			system: { tiers: [true, true, true, false, false, false] },
+			system: {
+				tiers: [true, true, true, false, false, false],
+				calculateReduction,
+			},
 		});
 		const actor = heroActor({ effects: [status] });
 
 		const result = await applySuccess({
-			success: { verb: "restore", payload: { statusName: "Bruised" } },
+			success: { verb: "restore", text: "[Bruised-1]" },
 			actor,
 		});
 
@@ -181,10 +257,36 @@ describe("applySuccess — restore", () => {
 			"system.tiers": [true, true, false, false, false, false],
 		});
 		expect(status.delete).not.toHaveBeenCalled();
-		expect(result.appliedSummary).toBe("LITM.Actions.applied_reduced");
+		expect(result.appliedSummary).toContain("LITM.Actions.applied_reduced");
 	});
 
-	it("deletes a status when only its lowest tier remains", async () => {
+	it("reduces a single-mark tier-3 status to tier 1 via [name-2] (regression)", async () => {
+		// Freshly-created statuses use a single-mark array: only the current
+		// tier is `true`. The reduce path used to zero them out instead of
+		// shifting the mark down — this pins that calculateReduction is used.
+		const status = fakeEffect({
+			id: "s3",
+			type: "status_tag",
+			name: "Bruised",
+			system: {
+				tiers: [false, false, true, false, false, false],
+				calculateReduction,
+			},
+		});
+		const actor = heroActor({ effects: [status] });
+
+		await applySuccess({
+			success: { verb: "restore", text: "[Bruised-2]" },
+			actor,
+		});
+
+		expect(status.update).toHaveBeenCalledWith({
+			"system.tiers": [true, false, false, false, false, false],
+		});
+		expect(status.delete).not.toHaveBeenCalled();
+	});
+
+	it("deletes a status when reduction takes it past tier 1", async () => {
 		const status = fakeEffect({
 			id: "s2",
 			type: "status_tag",
@@ -194,7 +296,7 @@ describe("applySuccess — restore", () => {
 		const actor = heroActor({ effects: [status] });
 
 		await applySuccess({
-			success: { verb: "restore", payload: { statusName: "Tired" } },
+			success: { verb: "restore", text: "[Tired-1]" },
 			actor,
 		});
 
@@ -212,19 +314,18 @@ describe("applySuccess — restore", () => {
 		const actor = heroActor({ effects: [tag] });
 
 		const result = await applySuccess({
-			success: { verb: "restore", payload: { tagName: "Lantern" } },
+			success: { verb: "restore", text: "[Lantern]" },
 			actor,
 		});
 
 		expect(tag.update).toHaveBeenCalledWith({ "system.isScratched": false });
-		expect(result.appliedSummary).toBe("LITM.Actions.applied_unscratched");
+		expect(result.appliedSummary).toContain("LITM.Actions.applied_unscratched");
 	});
 
 	it("notifies and returns null when nothing matches", async () => {
 		const actor = heroActor();
-
 		const result = await applySuccess({
-			success: { verb: "restore", payload: { tagName: "Nothing" } },
+			success: { verb: "restore", text: "[Nothing]" },
 			actor,
 		});
 
@@ -234,13 +335,12 @@ describe("applySuccess — restore", () => {
 });
 
 describe("applySuccess — discover", () => {
-	it("returns the success description without touching the actor", async () => {
+	it("returns the success text without touching the actor", async () => {
 		const actor = heroActor();
 		const result = await applySuccess({
 			success: {
 				verb: "discover",
-				payload: {},
-				description: "A hidden passage glints behind the tapestry.",
+				text: "A hidden passage glints behind the tapestry.",
 			},
 			actor,
 		});
@@ -251,17 +351,10 @@ describe("applySuccess — discover", () => {
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 	});
 
-	it("falls back to label, then to default localization key", async () => {
+	it("falls back to the default localization key when text is empty", async () => {
 		const actor = heroActor();
-
-		const withLabel = await applySuccess({
-			success: { verb: "discover", payload: {}, label: "A clue" },
-			actor,
-		});
-		expect(withLabel.appliedSummary).toBe("A clue");
-
 		const fallback = await applySuccess({
-			success: { verb: "discover", payload: {} },
+			success: { verb: "discover", text: "" },
 			actor,
 		});
 		expect(fallback.appliedSummary).toBe("LITM.Actions.discover_default");
@@ -269,8 +362,10 @@ describe("applySuccess — discover", () => {
 });
 
 describe("applySuccess — weaken (opponent target, mocked picker)", () => {
-	it("deletes a named status on the picked opponent", async () => {
-		const { pickTargetActor } = await import("../modules/apps/target-picker.js");
+	it("removes a named status from the picked opponent (full delete when tier >= current)", async () => {
+		const { pickTargetActor } = await import(
+			"../modules/apps/target-picker.js"
+		);
 		const status = fakeEffect({
 			id: "s1",
 			type: "status_tag",
@@ -281,32 +376,40 @@ describe("applySuccess — weaken (opponent target, mocked picker)", () => {
 		pickTargetActor.mockResolvedValue(opponent);
 
 		const result = await applySuccess({
-			success: { verb: "weaken", payload: { statusName: "Blessed" } },
+			// No tier specified → falls through to delete via the variable-tier path
+			// resolves to tier 1, which is < current tier 3, so reduce by 1.
+			success: { verb: "weaken", text: "Strip [Blessed-3]" },
 			actor: heroActor(),
 		});
 
 		expect(status.delete).toHaveBeenCalled();
-		expect(result.appliedSummary).toBe("LITM.Actions.applied_weaken_status");
+		expect(result.appliedSummary).toContain(
+			"LITM.Actions.applied_weaken_status",
+		);
 	});
 
 	it("returns null when the picker is cancelled", async () => {
-		const { pickTargetActor } = await import("../modules/apps/target-picker.js");
+		const { pickTargetActor } = await import(
+			"../modules/apps/target-picker.js"
+		);
 		pickTargetActor.mockResolvedValue(null);
 
 		const result = await applySuccess({
-			success: { verb: "weaken", payload: { tagName: "Anything" } },
+			success: { verb: "weaken", text: "[Anything]" },
 			actor: heroActor(),
 		});
 
 		expect(result).toBeNull();
 	});
 
-	it("warns and returns null when payload has no name", async () => {
-		const { pickTargetActor } = await import("../modules/apps/target-picker.js");
+	it("warns and returns null when success text has no markup", async () => {
+		const { pickTargetActor } = await import(
+			"../modules/apps/target-picker.js"
+		);
 		pickTargetActor.mockResolvedValue(fakeActor({ name: "Beast" }));
 
 		const result = await applySuccess({
-			success: { verb: "weaken", payload: {} },
+			success: { verb: "weaken", text: "Just narrative, no markup" },
 			actor: heroActor(),
 		});
 

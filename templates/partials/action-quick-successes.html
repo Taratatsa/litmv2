@@ -1,11 +1,12 @@
-{{!-- Quick successes for an action — narrative-only outcomes with no Power
-cost. Injected onto the dice-roll chat card by chat-hooks when the roll
-unlocks Quick. Shown to everyone so the table sees what auto-resolves. --}}
+{{!-- All successes unlocked by the roll's outcome — Quick verbs resolve
+narratively, Detailed verbs come with a Power cost shown next to each. Both
+sit on the chat card for the whole table to see; players spend on Detailed
+via the Spend Power dialog. --}}
 <div class="litm--action-quick-successes">
 	{{#each successes}}
-	<p class="litm-render--action__success">
-		<strong class="litm-render--action__verb">{{verbLabel}}</strong>{{#if label}}
-		{{label}}{{/if}}{{#if description}}{{#if label}}.{{/if}} {{{description}}}{{/if}}
+	<p class="litm-render--action__success" data-verb="{{verb}}">
+		<strong class="litm-render--action__verb">{{verbLabel}}</strong>{{#if text}} {{prose-chips text}}{{/if}}{{#if costLabel}}
+		<span class="litm--action-success-cost">{{costLabel}}</span>{{/if}}
 	</p>
 	{{/each}}
 </div>

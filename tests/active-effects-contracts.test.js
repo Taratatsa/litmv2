@@ -87,9 +87,15 @@ describe("RelationshipTagData contracts", () => {
 
 describe("StoryTagData contracts", () => {
 	it("canBurn requires not-single-use AND not-scratched", () => {
-		expect(make(StoryTagData, { isSingleUse: false, isScratched: false }).canBurn).toBe(true);
-		expect(make(StoryTagData, { isSingleUse: true, isScratched: false }).canBurn).toBe(false);
-		expect(make(StoryTagData, { isSingleUse: false, isScratched: true }).canBurn).toBe(false);
+		expect(
+			make(StoryTagData, { isSingleUse: false, isScratched: false }).canBurn,
+		).toBe(true);
+		expect(
+			make(StoryTagData, { isSingleUse: true, isScratched: false }).canBurn,
+		).toBe(false);
+		expect(
+			make(StoryTagData, { isSingleUse: false, isScratched: true }).canBurn,
+		).toBe(false);
 	});
 
 	it("allowedStates varies with isSingleUse", () => {

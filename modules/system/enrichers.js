@@ -242,7 +242,7 @@ export class Enrichers {
 	static #enrichTags() {
 		const tooltip = game.i18n.localize("LITM.Ui.drag_apply");
 		const esc = Enrichers.#esc;
-		const enrichTags = ([_text, name, separator, value]) => {
+		const enrichTags = ([_text, name, _exclamation, separator, value]) => {
 			// Limits: new [name:N] syntax or old [-name] syntax
 			if (separator === ":" || name.startsWith("-")) {
 				const clean = name.replace(/^-/, "");

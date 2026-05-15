@@ -1,6 +1,9 @@
+import { scanMarkup } from "../item/action/action-rules.js";
 import { error } from "../logger.js";
 import { applyConsequence } from "../system/chat-actions.js";
-import { enrichHTML, localize as t } from "../utils.js";
+import { proseChipsHtml } from "../system/renderers/renderer-utils.js";
+import { localize as t } from "../utils.js";
+import { adjustCounter } from "./counter-controls.js";
 import { stripActorPrefix } from "./spend-power.js";
 
 /**
@@ -26,6 +29,10 @@ export class ApplyActionMenuApp extends foundry.applications.api.HandlebarsAppli
 		form: {
 			handler: ApplyActionMenuApp.#onSubmit,
 			closeOnSubmit: true,
+		},
+		actions: {
+			"counter-inc": ApplyActionMenuApp.#onCounter,
+			"counter-dec": ApplyActionMenuApp.#onCounter,
 		},
 	};
 
@@ -63,20 +70,52 @@ export class ApplyActionMenuApp extends foundry.applications.api.HandlebarsAppli
 		const applied = new Set(
 			message.getFlag("litmv2", "appliedConsequences") ?? [],
 		);
-		const items = await Promise.all(
-			(sys.consequences ?? []).map(async (text, index) => ({
+		const items = (sys.consequences ?? []).map((text, index) => {
+			const varTokens = [];
+			let v = 0;
+			for (const tok of scanMarkup(text)) {
+				if (tok.type === "status" && tok.isVariable) {
+					varTokens.push({ idx: v, name: tok.name });
+					v++;
+				}
+			}
+			return {
 				key: String(index),
-				text: await enrichHTML(text, action),
+				text: proseChipsHtml(text),
+				varTokens,
+				hasVariableTier: varTokens.length > 0,
 				applied: applied.has(index),
 				disabled: applied.has(index),
-			})),
-		);
+			};
+		});
+
+		// Scene actors as one-click target chips. Rolling actor is the default
+		// pick so the common "consequences for the player who rolled" case
+		// works without an extra click.
+		const rollingActorId =
+			message.rolls?.[0]?.litm?.actorId ?? message.speaker?.actor ?? null;
+		const placedActors = (canvas.tokens?.placeables ?? [])
+			.map((t) => t.actor)
+			.filter((a, i, arr) => a && arr.indexOf(a) === i);
+		const targets = placedActors.map((a) => ({
+			id: a.id,
+			name: a.name,
+			img: a.img,
+			selected: a.id === rollingActorId,
+		}));
 
 		return {
 			actionName: action.name,
 			items,
+			targets,
+			rollingActorId,
 			empty: items.length === 0,
 		};
+	}
+
+	/** @this {ApplyActionMenuApp} */
+	static #onCounter(_event, target) {
+		adjustCounter(target, { min: 1, max: 6 });
 	}
 
 	static async #onSubmit(_event, form, _formData) {
@@ -94,8 +133,15 @@ export class ApplyActionMenuApp extends foundry.applications.api.HandlebarsAppli
 		).map((el) => el.value);
 		if (!checkedKeys.length) return;
 
-		const actorId =
+		// Target chip picks the actor; falls back to the rolling actor if no
+		// chip is selected. Pre-selection in the template already defaults
+		// to the rolling actor.
+		const selectedTarget = form.querySelector(
+			"input[name='target']:checked",
+		)?.value;
+		const fallbackId =
 			message.rolls?.[0]?.litm?.actorId ?? message.speaker?.actor ?? null;
+		const actorId = selectedTarget || fallbackId;
 		const actor = actorId ? game.actors.get(actorId) : null;
 
 		for (const key of checkedKeys) {
@@ -107,9 +153,26 @@ export class ApplyActionMenuApp extends foundry.applications.api.HandlebarsAppli
 			const appliedNow = message.getFlag("litmv2", "appliedConsequences") ?? [];
 			if (appliedNow.includes(index)) continue;
 
+			const optionLi = form.querySelector(
+				`.litm-spend-power__option[data-key="${index}"]`,
+			);
+			const chosenTiers = [];
+			optionLi
+				?.querySelectorAll(".litm-spend-power__var-tier")
+				.forEach((row) => {
+					const i = Number(row.dataset.varIdx);
+					if (!Number.isInteger(i) || i < 0) return;
+					const raw = Number(
+						row.querySelector(".litm-spend-power__counter-value")
+							?.textContent ?? 1,
+					);
+					const val = Number.isFinite(raw) ? raw : 1;
+					chosenTiers[i] = Math.max(1, Math.min(6, val));
+				});
+
 			let result;
 			try {
-				result = await applyConsequence({ text, actor });
+				result = await applyConsequence({ text, actor, chosenTiers });
 			} catch (err) {
 				error("Failed to apply consequence:", err);
 				ui.notifications.error(t("LITM.Actions.apply_failed"));
@@ -131,6 +194,7 @@ export class ApplyActionMenuApp extends foundry.applications.api.HandlebarsAppli
 						label: t("LITM.Terms.consequences"),
 						summary: stripActorPrefix(result.appliedSummary, actor?.name),
 						footer: action.name,
+						reactActorId: actor?.id ?? null,
 					},
 				),
 			});

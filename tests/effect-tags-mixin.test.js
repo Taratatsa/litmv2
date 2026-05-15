@@ -93,7 +93,14 @@ describe("EffectTagsMixin.addStatus", () => {
 		// img absent -> Foundry uses field initial; we don't synthesise undefined
 		expect("img" in data).toBe(false);
 		// Default tiers come from statusTagEffect factory: 6-element all-false
-		expect(data.system.tiers).toEqual([false, false, false, false, false, false]);
+		expect(data.system.tiers).toEqual([
+			false,
+			false,
+			false,
+			false,
+			false,
+			false,
+		]);
 	});
 });
 

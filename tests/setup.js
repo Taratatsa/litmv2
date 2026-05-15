@@ -40,6 +40,9 @@ class StubDataModel {
 	static defineSchema() {
 		return {};
 	}
+	static migrateData(source) {
+		return source;
+	}
 	constructor(source = {}) {
 		Object.assign(this, source);
 	}
@@ -76,8 +79,11 @@ const HandlebarsApplicationMixin = (Base) =>
 		static PARTS = {};
 	};
 
+let randomIdCounter = 0;
+const randomID = () => `test-id-${++randomIdCounter}`;
+
 globalThis.foundry = {
-	utils: { setProperty, getProperty, fromUuid, fromUuidSync },
+	utils: { setProperty, getProperty, fromUuid, fromUuidSync, randomID },
 	abstract: { TypeDataModel: StubDataModel },
 	data: {
 		ActiveEffectTypeDataModel: StubDataModel,
