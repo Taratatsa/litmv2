@@ -203,6 +203,9 @@ export function makeTagStringRe() {
  * Contains mutable, world-customizable values.
  */
 export const LitmConfig = {
+	/** Default hero Limit value. Mirrored from the world setting at ready. */
+	heroLimit: 5,
+
 	challenge_types: [
 		"attacker",
 		"barrier-hazard",
@@ -219,8 +222,8 @@ export const LitmConfig = {
 
 	/**
 	 * You can use this to completely override the default roll formula/resolver.
-	 * @link modules/apps/roll-dialog.js
-	 * @link modules/apps/roll.js
+	 * @link modules/apps/roll/roll-dialog.js
+	 * @link modules/apps/roll/roll.js
 	 */
 	roll: { formula: null, resolver: null },
 

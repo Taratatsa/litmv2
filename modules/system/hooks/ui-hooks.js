@@ -1,4 +1,5 @@
-import { SceneTagDialog } from "../../apps/scene-tag-dialog.js";
+import { LitmRollDialog } from "../../apps/roll/roll-dialog.js";
+import { SceneTagDialog } from "../../apps/story-tags/scene-tag-dialog.js";
 import { getStoryTagSidebar, localize as t } from "../../utils.js";
 
 export function registerUiHooks() {
@@ -8,6 +9,9 @@ export function registerUiHooks() {
 	_addSceneTagsTool();
 	_handleTagDropInEditor();
 	_refreshOnPlayerChange();
+	_renderRollDialogHudOnPlayers();
+	_listenToTagDragTransfer();
+	_refreshRollDialogsOnSceneTagChange();
 }
 
 function _iconOnlyHeaderButtons() {
@@ -155,13 +159,16 @@ function _handleTagDropInEditor() {
 					if (!pos) return;
 
 					let markup;
-					if (data.type === "status_tag")
-						markup = `[${data.name}-${data.value ?? ""}]`;
-					else if (data.type === "limit")
+					if (data.type === "limit")
 						markup = data.value
 							? `[${data.name}:${data.value}]`
 							: `[${data.name}:]`;
-					else markup = `[${data.name}]`;
+					else {
+						const Model = CONFIG.ActiveEffect.dataModels?.[data.type];
+						markup = Model?.toDragMarkup
+							? Model.toDragMarkup(data)
+							: `[${data.name}]`;
+					}
 
 					const tr = view.state.tr.insertText(markup, pos.pos);
 					view.dispatch(tr);
@@ -188,5 +195,68 @@ function _handleTagDropInEditor() {
 		});
 
 		plugins.contentLinks = contentLinks;
+	});
+}
+
+/**
+ * Re-render the roll dialog HUD whenever the players list panel is re-rendered
+ * (e.g. player connect/disconnect, character assignment changes).
+ */
+function _renderRollDialogHudOnPlayers() {
+	Hooks.on("renderPlayers", () => {
+		game.litmv2.rollDialogHud?.render?.();
+	});
+}
+
+/**
+ * Re-render any open LitmRollDialog when scene-tag state changes. Emitted by
+ * StoryTagSidebar#broadcastRender after any CRUD on scene tags / statuses /
+ * limits, so the dialog's contributed-tag groups stay in sync.
+ */
+function _refreshRollDialogsOnSceneTagChange() {
+	Hooks.on("litm.sceneTagsChanged", () => {
+		for (const app of foundry.applications.instances.values()) {
+			if (app instanceof LitmRollDialog && app.rendered) app.render();
+		}
+	});
+}
+
+function _listenToTagDragTransfer() {
+	Hooks.on("ready", () => {
+		document.addEventListener("dragstart", (event) => {
+			const target = event.target.closest(
+				".litm--tag, .litm--status, .litm-tag, .litm-status, .litm-limit",
+			);
+			if (!target) return;
+
+			const text = target.dataset.text || target.textContent;
+			const matches = `{${text}}`.matchAll(CONFIG.litmv2.tagStringRe);
+			const match = [...matches][0];
+			if (!match) return;
+
+			const [, name, , separator, value] = match;
+			const isStatus =
+				separator === "-" && !target.classList.contains("litm-limit");
+			const isLimit =
+				separator === ":" ||
+				name.startsWith("-") ||
+				target.classList.contains("litm-limit");
+			const cleanName = name.replace(/^-/, "");
+			const appEl = target.closest(".sheet");
+			const app = appEl ? foundry.applications.instances.get(appEl.id) : null;
+			const sourceActorId = app?.document?.id ?? null;
+			const data = {
+				id: foundry.utils.randomID(),
+				name: isLimit ? cleanName : name,
+				type: isStatus ? "status_tag" : isLimit ? "limit" : "story_tag",
+				values: Array(6)
+					.fill(null)
+					.map((_, i) => (Number.parseInt(value, 10) === i + 1 ? value : null)),
+				isScratched: false,
+				value: value,
+				sourceActorId,
+			};
+			event.dataTransfer.setData("text/plain", JSON.stringify(data));
+		});
 	});
 }

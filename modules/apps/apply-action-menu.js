@@ -1,6 +1,6 @@
 import { scanMarkup } from "../item/action/action-rules.js";
+import { applyConsequence } from "../item/action/chat-actions.js";
 import { error } from "../logger.js";
-import { applyConsequence } from "../system/chat-actions.js";
 import { proseChipsHtml } from "../system/renderers/renderer-utils.js";
 import { localize as t } from "../utils.js";
 import { adjustCounter } from "./counter-controls.js";

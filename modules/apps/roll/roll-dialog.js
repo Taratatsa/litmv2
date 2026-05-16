@@ -1,31 +1,27 @@
+import { effectToPlain } from "../../active-effects/effect-queries.js";
+import { ALL_TAG_TYPES, EFFECT_TAG_ORDER } from "../../system/config.js";
+import { renderAction } from "../../system/renderers/action-renderer.js";
+import { Sockets } from "../../system/sockets.js";
 import {
-	ACTOR_TAG_TYPES,
-	ALL_TAG_TYPES,
-	EFFECT_GROUP_LABELS,
-	EFFECT_TAG_ORDER,
-} from "../system/config.js";
-import { renderAction } from "../system/renderers/action-renderer.js";
-import { Sockets } from "../system/sockets.js";
-import {
-	effectToPlain,
 	getStoryTagSidebar,
 	localize as t,
 	viewLinkedRefAction,
-} from "../utils.js";
-import { LitmEmbedPopout } from "./embed-popout.js";
+} from "../../utils.js";
+import { LitmEmbedPopout } from "../embed-popout.js";
 import { LitmRoll } from "./roll.js";
-import { buildActionContext } from "./roll-dialog-context.js";
-import { executeRoll, resolveRollDialogOwnership } from "./roll-pipeline.js";
+import {
+	buildActionContext,
+	buildGmViewerContext,
+	buildOwnerContext,
+	sortByTypeThenName,
+} from "./roll-dialog-context.js";
+import {
+	buildRollPreview,
+	executeRoll,
+	resolveRollDialogOwnership,
+} from "./roll-pipeline.js";
 
 export { resolveRollDialogOwnership };
-
-const sortByTypeThenName = (tags, typeOrder) =>
-	[...tags].sort((a, b) => {
-		const typeA = typeOrder[a.type] ?? 99;
-		const typeB = typeOrder[b.type] ?? 99;
-		if (typeA !== typeB) return typeA - typeB;
-		return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-	});
 
 export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicationMixin(
 	foundry.applications.api.ApplicationV2,
@@ -90,9 +86,10 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	/** Open the linked action's read-only embed card in a popout — the action
 	 *  sheet is an editor, not a reference view. */
 	static async #onViewActionCard() {
-		if (!this.#actionDoc) return;
+		const doc = this.actionDoc;
+		if (!doc) return;
 		new LitmEmbedPopout({
-			document: this.#actionDoc,
+			document: doc,
 			render: renderAction,
 		}).render(true);
 	}
@@ -219,6 +216,10 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		return this.#actionUuid;
 	}
 
+	get actionDoc() {
+		return this.#actionDoc;
+	}
+
 	setAction(uuid) {
 		this.#actionUuid = uuid || null;
 		this.#actionDoc = null;
@@ -298,6 +299,10 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 
 	get #storyTagSidebar() {
 		return getStoryTagSidebar() ?? {};
+	}
+
+	get storyTagSidebar() {
+		return this.#storyTagSidebar;
 	}
 
 	get statuses() {
@@ -602,243 +607,12 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 	 * @param {object} shared - Shared context utilities from _prepareContext
 	 * @returns {object[]} gmViewerTabs array
 	 */
-	#buildGmViewerContext({
-		decorateTag,
-		tagTypeOrder,
-		allStoryItems,
-		sceneStoryItems,
-		isOwner,
-	}) {
-		const STORY_ACTOR_TYPES = new Set(["challenge", "journey", "story_theme"]);
-		const gmViewerTabs = [];
-		const storyGroups = [];
-		const sidebarActors = this.#storyTagSidebar.actors ?? [];
-		const sidebarActorIds = sidebarActors.map((a) => a.id);
-		// Always include the rolling actor so the GM can see their tags
-		const rollingUuid = this.actor.uuid;
-		const storyTagActorIds = sidebarActorIds.includes(rollingUuid)
-			? sidebarActorIds
-			: [rollingUuid, ...sidebarActorIds];
-		for (const actorId of storyTagActorIds) {
-			const actor = foundry.utils.fromUuidSync(actorId);
-			if (!actor) continue;
-			const actorImg = actor.prototypeToken?.texture?.src || actor.img;
-			const themeMap = new Map();
-			// Use appliedEffects (active only) for GM viewer.
-			// For actor-level effects (status_tag, story_tag, relationship_tag),
-			// group by type rather than parent name to avoid a catch-all actor group.
-			for (const e of actor.appliedEffects) {
-				const sel = this.getSelection(e.uuid);
-				const rawTag = effectToPlain(e);
-				const tag = decorateTag({
-					...rawTag,
-					state: sel.state,
-					contributorId: sel.contributorId,
-				});
-				// story_tag and status_tag effects always group by type so that
-				// backpack-item tags and actor-level tags share one section.
-				// Theme tags (power_tag, etc.) group by parent item.
-				const groupByType = e.parent === actor || ACTOR_TAG_TYPES.has(e.type);
-				let groupKey, groupLabel, groupImg;
-				if (groupByType) {
-					groupKey = `__${e.type}`;
-					const labelKey = EFFECT_GROUP_LABELS[e.type];
-					groupLabel = labelKey
-						? t(labelKey)
-						: e.type === "story_tag"
-							? (actor.system.backpackItem?.name ?? t("LITM.Terms.backpack"))
-							: e.type;
-					groupImg =
-						e.type === "story_tag"
-							? (actor.system.backpackItem?.img ?? null)
-							: null;
-				} else {
-					groupKey = rawTag.themeId ?? `__${rawTag.type}`;
-					groupLabel = rawTag.themeName ?? rawTag.type;
-					groupImg = e.parent?.img ?? null;
-				}
-				if (!themeMap.has(groupKey)) {
-					themeMap.set(groupKey, {
-						themeName: groupLabel,
-						themeImg: groupImg,
-						tags: [],
-					});
-				}
-				themeMap.get(groupKey).tags.push(tag);
-			}
-			// Add actor story items to this tab
-			const actorStory = allStoryItems
-				.filter((tag) => tag.actorName === actor.name)
-				.filter((tag) => isOwner || game.user.isGM || !!tag.state);
-			if (actorStory.length) {
-				themeMap.set("__actor_story", {
-					themeName: t("LITM.Tags.story"),
-					tags: sortByTypeThenName(actorStory, tagTypeOrder),
-				});
-			}
-			const groups = [...themeMap.values()].map((g) => ({
-				...g,
-				tags: sortByTypeThenName(g.tags, tagTypeOrder),
-			}));
-			if (!groups.length) continue;
-			if (STORY_ACTOR_TYPES.has(actor.type) && actor.id !== this.actorId) {
-				for (const group of groups) {
-					storyGroups.push({
-						...group,
-						themeName: group.themeName
-							? `${actor.name} — ${group.themeName}`
-							: actor.name,
-						themeImg: group.themeImg ?? actorImg,
-					});
-				}
-			} else {
-				gmViewerTabs.push({
-					id: actor.id,
-					label: actor.name,
-					actorImg,
-					groups,
-				});
-			}
-		}
-		// Merged Story tab: scene-level story tags + challenge/journey/story_theme actors
-		const mergedStoryTab =
-			sceneStoryItems.length || storyGroups.length
-				? {
-						id: "__story",
-						label: t("LITM.Tags.story"),
-						icon: "fa-solid fa-tags",
-						groups: [
-							...(sceneStoryItems.length
-								? [{ themeName: null, tags: sceneStoryItems }]
-								: []),
-							...storyGroups,
-						],
-					}
-				: null;
-		// Sort: rolling actor first, then Story, then Fellowship, then other heroes
-		const fellowshipId = game.litmv2?.fellowship?.id;
-		const rollingActorTab = gmViewerTabs.find((t) => t.id === this.actorId);
-		const fellowshipTab = fellowshipId
-			? gmViewerTabs.find((t) => t.id === fellowshipId)
-			: null;
-		const otherTabs = gmViewerTabs.filter(
-			(t) => t.id !== this.actorId && t.id !== fellowshipId,
-		);
-		gmViewerTabs.length = 0;
-		if (rollingActorTab) gmViewerTabs.push(rollingActorTab);
-		if (mergedStoryTab) gmViewerTabs.push(mergedStoryTab);
-		if (fellowshipTab) gmViewerTabs.push(fellowshipTab);
-		gmViewerTabs.push(...otherTabs);
-		// Initialize native tab group tracking
-		const initialTab = gmViewerTabs[0]?.id;
-		this.tabGroups["gm-viewer"] ??= initialTab;
-		for (const tab of gmViewerTabs) {
-			tab.cssClass = this.tabGroups["gm-viewer"] === tab.id ? "active" : "";
-		}
-		return gmViewerTabs;
+	#buildGmViewerContext(shared) {
+		return buildGmViewerContext(this, shared);
 	}
 
-	/**
-	 * Build character and fellowship tag groups for the dialog owner.
-	 * @param {object} shared - Shared context utilities from _prepareContext
-	 * @returns {{ characterTagGroups: object[], fellowshipTagGroups: object[] }}
-	 */
-	#buildOwnerContext({ decorateTag }) {
-		const characterTagGroups = [];
-		const fellowshipTagGroups = [];
-		const sys = this.actor?.system;
-		if (!sys) return { characterTagGroups, fellowshipTagGroups };
-
-		const withSelection = (effect) => {
-			const sel = this.getSelection(effect.uuid);
-			return decorateTag({
-				_id: effect._id,
-				id: effect.id ?? effect._id,
-				uuid: effect.uuid,
-				name: effect.name,
-				type: effect.type,
-				system: effect.system,
-				parent: effect.parent,
-				state: sel.state,
-				contributorId: sel.contributorId,
-			});
-		};
-
-		// Hero themes
-		for (const { theme, tags } of sys.themes) {
-			const activeTags = tags.filter((e) => e.active).map(withSelection);
-			if (activeTags.length) {
-				characterTagGroups.push({
-					themeName: theme.name,
-					themeImg: theme.img,
-					tags: activeTags,
-				});
-			}
-		}
-
-		// Backpack / story tags — use storyTags (allApplicableEffects) to catch
-		// story_tag effects regardless of whether they live on the backpack item
-		// or directly on the actor.
-		const isVisibleTag = (e) =>
-			e.active && (game.user.isGM || !e.system?.isHidden);
-		const backpackTags = (sys.storyTags ?? sys.backpack ?? [])
-			.filter(isVisibleTag)
-			.map(withSelection);
-		if (backpackTags.length) {
-			const backpackItem = this.actor.system.backpackItem;
-			characterTagGroups.push({
-				themeName: backpackItem?.name ?? t("LITM.Terms.backpack"),
-				themeImg: backpackItem?.img ?? null,
-				tags: backpackTags,
-			});
-		}
-
-		// Hero statuses
-		const heroStatuses = sys.statusEffects
-			.filter(isVisibleTag)
-			.map(withSelection);
-		if (heroStatuses.length) {
-			characterTagGroups.push({
-				themeName: t("LITM.Terms.statuses"),
-				icon: "fa-solid fa-droplet",
-				tags: heroStatuses,
-			});
-		}
-
-		// Fellowship
-		const fellowship = sys.fellowship;
-		for (const { theme, tags } of fellowship.themes) {
-			const activeTags = tags.filter((e) => e.active).map(withSelection);
-			if (activeTags.length) {
-				fellowshipTagGroups.push({
-					themeName: theme.name,
-					themeImg: theme.img,
-					tags: activeTags,
-				});
-			}
-		}
-		const fellowshipTags = fellowship.tags
-			.filter((e) => e.active)
-			.map(withSelection);
-		if (fellowshipTags.length) {
-			fellowshipTagGroups.push({
-				themeName: t("LITM.Tags.tags_and_statuses"),
-				icon: "fa-solid fa-tags",
-				tags: fellowshipTags,
-			});
-		}
-
-		// Relationship tags
-		const relTags = sys.relationships.filter((e) => e.name).map(withSelection);
-		if (relTags.length) {
-			fellowshipTagGroups.push({
-				themeName: t("LITM.Terms.relationship"),
-				icon: "fa-solid fa-handshake",
-				tags: relTags,
-			});
-		}
-
-		return { characterTagGroups, fellowshipTagGroups };
+	#buildOwnerContext(shared) {
+		return buildOwnerContext(this, shared);
 	}
 
 	/**
@@ -954,6 +728,7 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		super._onRender(context, options);
 		this.#totalPowerEl = null;
 		this.#hedgeRadioEl = null;
+		this.#cautionRadioEl = null;
 		Hooks.callAll("litm.rollDialogRendered", this.actor, this);
 
 		// Might scale tooltip (depends on elements recreated each render)
@@ -1107,6 +882,10 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		this.#tradePower = 0;
 		this.#sacrificeLevel = "painful";
 		this.#sacrificeThemeId = null;
+		this.#actionUuid = null;
+		this.#actionDoc = null;
+		this.rollName = "";
+		this.type = "quick";
 		if (this.rendered) this.close();
 		if (this.actor?.sheet?.rendered) this.actor.sheet.render(true);
 	}
@@ -1226,14 +1005,9 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 		if (!this.element) return;
 		const fieldset = this.element.querySelector(".litm--trade-power-fieldset");
 		if (fieldset) fieldset.classList.toggle("hidden", !isTracked);
-		// Reset trade power when switching away from tracked
 		if (!isTracked && this.#tradePower !== 0) {
-			this.#cachedTotalPower = null;
-			this.#tradePower = 0;
-			const checked = this.element.querySelector(
-				"input[name='tradePower'][value='0']",
-			);
-			if (checked) checked.checked = true;
+			this.#resetTradePower();
+			this.#updateTotalPower();
 		}
 	}
 
@@ -1285,6 +1059,24 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 			"input[name='tradePower'][value='-1']",
 		);
 
+		if (this.#cautionRadioEl) {
+			const canCaution = totalPower <= 2;
+			this.#cautionRadioEl.disabled = !canCaution;
+			this.#cautionRadioEl
+				.closest(".litm--roll-type-option")
+				?.classList.toggle("is-disabled", !canCaution);
+			if (!canCaution && this.#tradePower === -1) this.#resetTradePower();
+		}
+
+		if (this.#hedgeRadioEl) {
+			const canHedge = totalPower >= 2;
+			this.#hedgeRadioEl.disabled = !canHedge;
+			this.#hedgeRadioEl
+				.closest(".litm--roll-type-option")
+				?.classList.toggle("is-disabled", !canHedge);
+			if (!canHedge && this.#tradePower === 1) this.#resetTradePower();
+		}
+
 		if (this.#totalPowerEl) {
 			const trade = this.#tradePower;
 			if (trade) {
@@ -1295,58 +1087,28 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 				this.#totalPowerEl.textContent = totalPower;
 			}
 		}
+	}
 
-		if (this.#cautionRadioEl) {
-			const canCaution = totalPower <= 2;
-			this.#cautionRadioEl.disabled = !canCaution;
-			this.#cautionRadioEl
-				.closest(".litm--roll-type-option")
-				?.classList.toggle("is-disabled", !canCaution);
-			if (!canCaution && this.#tradePower === -1) {
-				this.#cachedTotalPower = null;
-				this.#tradePower = 0;
-				const noneRadio = this.element.querySelector(
-					"input[name='tradePower'][value='0']",
-				);
-				if (noneRadio) noneRadio.checked = true;
-				this.element
-					.querySelectorAll(".litm--trade-power-bar .litm--roll-type-option")
-					.forEach((label) => {
-						const radio = label.querySelector("input[type='radio']");
-						label.classList.toggle("is-active", radio?.value === "0");
-					});
-			}
-		}
-
-		if (this.#hedgeRadioEl) {
-			const canHedge = totalPower >= 2;
-			this.#hedgeRadioEl.disabled = !canHedge;
-			this.#hedgeRadioEl
-				.closest(".litm--roll-type-option")
-				?.classList.toggle("is-disabled", !canHedge);
-			if (!canHedge && this.#tradePower === 1) {
-				this.#cachedTotalPower = null;
-				this.#tradePower = 0;
-				const noneRadio = this.element.querySelector(
-					"input[name='tradePower'][value='0']",
-				);
-				if (noneRadio) noneRadio.checked = true;
-				this.element
-					.querySelectorAll(".litm--trade-power-bar .litm--roll-type-option")
-					.forEach((label) => {
-						const radio = label.querySelector("input[type='radio']");
-						label.classList.toggle("is-active", radio?.value === "0");
-					});
-			}
-		}
+	#resetTradePower() {
+		this.#cachedTotalPower = null;
+		this.#tradePower = 0;
+		const noneRadio = this.element.querySelector(
+			"input[name='tradePower'][value='0']",
+		);
+		if (noneRadio) noneRadio.checked = true;
+		this.element
+			.querySelectorAll(".litm--trade-power-bar .litm--roll-type-option")
+			.forEach((label) => {
+				const radio = label.querySelector("input[type='radio']");
+				label.classList.toggle("is-active", radio?.value === "0");
+			});
 	}
 
 	async _createModerationRequest(data) {
 		const id = foundry.utils.randomID();
 		const userId = game.user.id;
-		const tags = LitmRoll.filterTags(data.tags);
-		const { totalPower } = LitmRoll.calculatePower({
-			...tags,
+		const preview = buildRollPreview({
+			tags: data.tags,
 			modifier: data.modifier,
 			might: data.might,
 		});
@@ -1361,19 +1123,9 @@ export class LitmRollDialog extends foundry.applications.api.HandlebarsApplicati
 					sacrificeLevel: data.sacrificeLevel,
 					sacrificeThemeId: data.sacrificeThemeId,
 					name: this.actor.name,
-					hasTooltipData:
-						tags.scratchedTags.length > 0 ||
-						tags.powerTags.length > 0 ||
-						tags.weaknessTags.length > 0 ||
-						tags.positiveStatuses.length > 0 ||
-						tags.negativeStatuses.length > 0 ||
-						!!data.modifier,
-					tooltipData: {
-						...tags,
-						modifier: data.modifier,
-						might: data.might,
-					},
-					totalPower,
+					hasTooltipData: preview.hasTooltipData,
+					tooltipData: preview.tooltipData,
+					totalPower: preview.totalPower,
 				},
 			),
 			flags: { litmv2: { id, userId, data } },

@@ -114,6 +114,30 @@ export class ContentSources {
 	}
 
 	/**
+	 * Load statuses from configured compendium packs and populate
+	 * `CONFIG.statusEffects` so Foundry's built-in status UIs pick them up.
+	 * Called once at ready time after seedStatuses.
+	 */
+	static async loadStatusCompendium() {
+		const packs = ContentSources.getPacks("statuses");
+		if (!packs.length) return;
+		const allDocs = [];
+		for (const pack of packs) {
+			const docs = await pack.getDocuments();
+			allDocs.push(...docs);
+		}
+		CONFIG.statusEffects = allDocs.map((doc) => ({
+			id: doc.name.slugify({ strict: true }),
+			_id: doc.id,
+			name: doc.name,
+			img: doc.img,
+		}));
+		info(
+			`Loaded ${allDocs.length} statuses from ${packs.length} compendium pack(s)`,
+		);
+	}
+
+	/**
 	 * Reset the world statuses pack to curated defaults.
 	 * Deletes all existing documents and re-populates.
 	 */

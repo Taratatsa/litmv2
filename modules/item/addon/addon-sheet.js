@@ -1,7 +1,7 @@
 import { ChallengeData } from "../../actor/challenge/challenge-data.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import { MIGHT_OPTIONS } from "../../system/config.js";
-import { enrichHTML, removeAtIndex } from "../../utils.js";
+import { enrichHTML, removeAtIndex, localize as t } from "../../utils.js";
 
 export class AddonSheet extends LitmItemSheet {
 	/** @override */
@@ -88,7 +88,9 @@ export class AddonSheet extends LitmItemSheet {
 	}
 
 	static async #onAddLimit(_event, _target) {
-		const limits = [...this.system.limits, ChallengeData.newLimit()];
+		const newLimit = ChallengeData.newLimit();
+		newLimit.label = t(newLimit.label);
+		const limits = [...this.system.limits, newLimit];
 		await this.document.update({ "system.limits": limits });
 	}
 

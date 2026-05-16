@@ -1,4 +1,4 @@
-import { localize as t } from "../utils.js";
+import { localize as t } from "../../utils.js";
 
 const { DialogV2 } = foundry.applications.api;
 

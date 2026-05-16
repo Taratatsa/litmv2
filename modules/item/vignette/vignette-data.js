@@ -1,5 +1,8 @@
+import {
+	statusTagEffect,
+	storyTagEffect,
+} from "../../active-effects/effect-factories.js";
 import { EFFECT_TYPES } from "../../system/config.js";
-import { statusTagEffect, storyTagEffect } from "../../utils.js";
 
 export class VignetteData extends foundry.abstract.TypeDataModel {
 	static defineSchema() {

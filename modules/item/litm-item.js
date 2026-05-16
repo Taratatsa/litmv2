@@ -68,6 +68,11 @@ export function buildBackpackTagEffects(contents) {
  * and create proper ActiveEffect documents.
  */
 export class LitmItem extends foundry.documents.Item {
+	static async createDialog(data = {}, createOptions = {}, dialogOptions = {}) {
+		dialogOptions.types ??= this.TYPES.filter((t) => t !== "story_theme");
+		return super.createDialog(data, createOptions, dialogOptions);
+	}
+
 	static #LEGACY_STASHERS = {
 		theme: LitmItem.#stashLegacyThemeTags,
 		story_theme: LitmItem.#stashLegacyThemeTags,
@@ -132,7 +137,7 @@ export class LitmItem extends foundry.documents.Item {
 	 * Creates one from the item name if missing, removes duplicates if present.
 	 */
 	static async ensureTitleTag(item) {
-		if (item.type !== "theme" && item.type !== "story_theme") return;
+		if (item.system?.constructor?.requiresTitleTag !== true) return;
 		const existing = LitmItem.#titleTagInFlight.get(item);
 		if (existing) return existing;
 		const promise = LitmItem.#doEnsureTitleTag(item);

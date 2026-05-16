@@ -1,10 +1,6 @@
-import { createLegacyRelationshipEffects } from "../../actor/hero/hero-data.js";
+import { parseTagStringMatch } from "../../item/action/tag-string.js";
 import { LitmItem } from "../../item/litm-item.js";
-import {
-	getDefaultItemIcon,
-	levelIcon,
-	parseTagStringMatch,
-} from "../../utils.js";
+import { getDefaultItemIcon, levelIcon } from "../../utils.js";
 
 export function registerItemHooks() {
 	_prepareThemeOnCreate();
@@ -13,7 +9,6 @@ export function registerItemHooks() {
 	_syncThemeImageOnLevelChange();
 	_syncAddonEffectsOnUpdate();
 	_cleanupAddonEffectsOnDelete();
-	_hideStoryThemeFromCreateDialog();
 	_syncStoryThemeItemToActor();
 }
 
@@ -25,19 +20,6 @@ function _migrateLegacyItemOnCreate() {
 	Hooks.on("createItem", async (item) => {
 		await LitmItem.createLegacyEffects(item);
 		await LitmItem.ensureTitleTag(item);
-	});
-	// Actor import — embedded items don't fire createItem
-	Hooks.on("createActor", async (actor) => {
-		for (const item of actor.items) {
-			if (
-				item.flags?.litmv2?.legacyTags ||
-				item.flags?.litmv2?.legacyContents
-			) {
-				await LitmItem.createLegacyEffects(item);
-			}
-			await LitmItem.ensureTitleTag(item);
-		}
-		await createLegacyRelationshipEffects(actor);
 	});
 }
 
@@ -91,19 +73,6 @@ function _syncStoryThemeItemToActor() {
 		if ("name" in data && actor.name !== data.name) updates.name = data.name;
 		if ("img" in data && actor.img !== data.img) updates.img = data.img;
 		if (Object.keys(updates).length) actor.update(updates);
-	});
-}
-
-function _hideStoryThemeFromCreateDialog() {
-	Hooks.once("ready", () => {
-		const ItemCls = foundry.documents.Item;
-		const original = ItemCls.createDialog;
-		ItemCls.createDialog = function (data, options, dialogOptions = {}) {
-			dialogOptions.types ??= ItemCls.TYPES.filter(
-				(type) => type !== "story_theme",
-			);
-			return original.call(this, data, options, dialogOptions);
-		};
 	});
 }
 

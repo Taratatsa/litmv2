@@ -4,13 +4,12 @@ import {
 	ACTOR_TYPES,
 	EFFECT_TYPES,
 	ITEM_TYPES,
-	POWER_TAG_TYPES,
 	THEME_TAG_TYPES,
 } from "../../system/config.js";
 import { LitmSettings } from "../../system/settings.js";
-import { partitionEffects } from "../../utils.js";
-import { advanceFlagLimit } from "../actor-limits.js";
-import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { advanceFlagLimit } from "../mixins/actor-limits.js";
+import { EffectTagsMixin } from "../mixins/effect-tags-mixin.js";
+import { LimitsMixin } from "../mixins/limits-mixin.js";
 
 /**
  * Build ActiveEffect creation data from legacy relationship arrays.
@@ -97,44 +96,16 @@ export async function gainImprovement(actor, tag) {
 	);
 }
 
-/**
- * Apply the consequence of a sacrifice roll to a hero's theme.
- * @param {Actor} actor - The hero actor
- * @param {string} themeId - The sacrificed theme's ID
- * @param {string} level - "painful" or "scarring"
- */
-export async function applyThemeSacrifice(actor, themeId, level) {
-	const theme = actor.items.get(themeId);
-	if (!theme) return;
-	const themeName = theme.name;
+export class HeroData extends LimitsMixin(
+	EffectTagsMixin(foundry.abstract.TypeDataModel),
+) {
+	/**
+	 * Extra effect types partitioned by {@link EffectTagsMixin} in a single
+	 * pass. Heroes are the only actor type that owns relationship_tag effects;
+	 * exposing them via `this.relationships` (below) keeps the surface uniform.
+	 */
+	static extraEffectTypes = ["relationship_tag"];
 
-	if (level === "painful") {
-		const powerEffects = theme.effects.filter((e) =>
-			POWER_TAG_TYPES.has(e.type),
-		);
-		if (powerEffects.length) {
-			await theme.updateEmbeddedDocuments(
-				"ActiveEffect",
-				powerEffects.map((e) => ({ _id: e.id, "system.isScratched": true })),
-			);
-		}
-		await actor.updateEmbeddedDocuments("Item", [
-			{ _id: theme.id, "system.isScratched": true },
-		]);
-		ui.notifications.info(
-			game.i18n.format("LITM.Ui.sacrifice_theme_scratched", {
-				theme: themeName,
-			}),
-		);
-	} else if (level === "scarring") {
-		await actor.deleteEmbeddedDocuments("Item", [theme.id]);
-		ui.notifications.info(
-			game.i18n.format("LITM.Ui.sacrifice_theme_removed", { theme: themeName }),
-		);
-	}
-}
-
-export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	static defineSchema() {
 		const fields = foundry.data.fields;
 		return {
@@ -153,6 +124,11 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 				{ initial: [] },
 			),
 			fellowshipId: new fields.StringField({ initial: "" }),
+			// Singular `limit` — the hero's status-threshold readout for play mode
+			// (max from CONFIG.litmv2.heroLimit; value = max minus highest active
+			// status tier; see `prepareDerivedData`). Distinct from the plural
+			// `limits` getter on {@link LimitsMixin}, which exposes the
+			// flag-backed list of named limits used by the story-tag sidebar.
 			limit: new fields.SchemaField({
 				value: new fields.NumberField({ initial: 5, integer: true }),
 				max: new fields.NumberField({ initial: 5, integer: true }),
@@ -178,7 +154,16 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 		};
 	}
 
+	/**
+	 * Returns the linked fellowship actor for this hero, or the world singleton.
+	 *
+	 * NOTE: This getter deliberately reads `game.actors` — a global registry that is
+	 * not available during early Foundry boot. This is the single intentional point
+	 * where HeroData crosses the document→registry boundary. The guard below makes
+	 * the getter safe to call before `game.actors` is populated (returns null).
+	 */
 	get fellowshipActor() {
+		if (!game?.actors) return null;
 		if (!LitmSettings.useFellowship) return null;
 		if (this.fellowshipId) {
 			const actor = game.actors.get(this.fellowshipId);
@@ -188,16 +173,26 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	}
 
 	/**
-	 * Own non-fellowship themes, each with their tag AEs.
+	 * Own non-fellowship theme items, each with their tag AEs.
 	 * @returns {{ theme: Item, tags: ActiveEffect[] }[]}
 	 */
 	get themes() {
+		return this.#themeContainers(
+			(i) => i.type === "theme" && !i.system.isFellowship,
+		);
+	}
+
+	/**
+	 * Own story_theme items, each with their tag AEs.
+	 * @returns {{ theme: Item, tags: ActiveEffect[] }[]}
+	 */
+	get storyThemes() {
+		return this.#themeContainers((i) => i.type === "story_theme");
+	}
+
+	#themeContainers(predicate) {
 		return this.parent.items
-			.filter(
-				(i) =>
-					(i.type === "theme" && !i.system.isFellowship) ||
-					i.type === "story_theme",
-			)
+			.filter(predicate)
 			.sort((a, b) => a.sort - b.sort)
 			.map((theme) => ({
 				theme,
@@ -208,25 +203,6 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 							(b.system.isTitleTag ? 1 : 0) - (a.system.isTitleTag ? 1 : 0),
 					),
 			}));
-	}
-
-	/** @type {ActiveEffect[]} Cached relationship_tag effects */
-	_relationships = [];
-
-	/**
-	 * Single-pass partition of allApplicableEffects into the mixin's story/status
-	 * buckets plus a local relationships bucket. Called once per prepareDerivedData cycle.
-	 */
-	#partitionAllEffects() {
-		const { story_tag, status_tag, relationship_tag } = partitionEffects(
-			this.parent,
-			"story_tag",
-			"status_tag",
-			"relationship_tag",
-		);
-		this._cachedStoryTags = story_tag;
-		this._cachedStatusEffects = status_tag;
-		this._relationships = relationship_tag;
 	}
 
 	get backpackItem() {
@@ -268,11 +244,12 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	}
 
 	/**
-	 * Relationship tag AEs on the hero.
+	 * Relationship tag AEs on the hero, partitioned by {@link EffectTagsMixin}
+	 * in `prepareDerivedData` (via `static extraEffectTypes`).
 	 * @returns {ActiveEffect[]}
 	 */
 	get relationships() {
-		return this._relationships;
+		return this._effectBuckets.relationship_tag ?? [];
 	}
 
 	/**
@@ -283,6 +260,7 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	get allRollTags() {
 		const tags = [
 			...this.themes.flatMap((g) => g.tags),
+			...this.storyThemes.flatMap((g) => g.tags),
 			...this.storyTags,
 			...this.statusEffects,
 		];
@@ -318,7 +296,10 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 	}
 
 	getRollData() {
-		const allThemeTags = this.themes.flatMap((g) => g.tags);
+		const allThemeTags = [
+			...this.themes.flatMap((g) => g.tags),
+			...this.storyThemes.flatMap((g) => g.tags),
+		];
 		return {
 			promise: this.promise,
 			limit: this.limit.value,
@@ -334,13 +315,40 @@ export class HeroData extends EffectTagsMixin(foundry.abstract.TypeDataModel) {
 
 	prepareDerivedData() {
 		super.prepareDerivedData();
-		this.#partitionAllEffects();
-		const baseLimit = LitmSettings?.heroLimit ?? 5;
-		const highestStatus = this._cachedStatusEffects
+		const baseLimit = CONFIG.litmv2?.heroLimit ?? 5;
+		const highestStatus = this.statusEffects
 			.filter((e) => e.active)
 			.reduce((max, e) => Math.max(max, e.system.currentTier), 0);
 		this.limit.value = baseLimit - highestStatus;
 		this.limit.max = baseLimit;
+	}
+
+	/**
+	 * Add a story_tag to this hero, routing through the backpack item.
+	 * @override
+	 * @param {object} effectData  Story tag effect creation data
+	 * @returns {Promise<ActiveEffect[]|void>}
+	 */
+	async addStoryTag(effectData) {
+		const backpack = this.backpackItem;
+		if (!backpack) {
+			ui.notifications.warn(game.i18n.localize("LITM.Ui.warn_no_backpack"));
+			return;
+		}
+		return backpack.createEmbeddedDocuments("ActiveEffect", [
+			{ ...effectData, transfer: true },
+		]);
+	}
+
+	/**
+	 * Hero limits use the global heroLimit setting as their effective max
+	 * rather than the per-limit stored max.
+	 * @override
+	 * @param {object} _limit
+	 * @returns {number}
+	 */
+	getEffectiveMax(_limit) {
+		return CONFIG.litmv2?.heroLimit ?? 5;
 	}
 
 	/**

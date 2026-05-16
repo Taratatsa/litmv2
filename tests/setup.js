@@ -82,8 +82,24 @@ const HandlebarsApplicationMixin = (Base) =>
 let randomIdCounter = 0;
 const randomID = () => `test-id-${++randomIdCounter}`;
 
+const HTML_ESCAPE = {
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	'"': "&quot;",
+	"'": "&#39;",
+};
+const escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]);
+
 globalThis.foundry = {
-	utils: { setProperty, getProperty, fromUuid, fromUuidSync, randomID },
+	utils: {
+		setProperty,
+		getProperty,
+		fromUuid,
+		fromUuidSync,
+		randomID,
+		escapeHTML,
+	},
 	abstract: { TypeDataModel: StubDataModel },
 	data: {
 		ActiveEffectTypeDataModel: StubDataModel,

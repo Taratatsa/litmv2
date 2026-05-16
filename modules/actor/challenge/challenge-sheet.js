@@ -1,6 +1,6 @@
 import { LitmActorSheet } from "../../sheets/base-actor-sheet.js";
 import { TagStringSyncMixin } from "../../sheets/tag-string-sync-mixin.js";
-import { MIGHT_OPTIONS } from "../../system/config.js";
+import { EFFECT_TYPES, MIGHT_OPTIONS } from "../../system/config.js";
 import { syncAddonEffects } from "../../system/hooks/item-hooks.js";
 import { confirmDelete, enrichHTML, removeAtIndex } from "../../utils.js";
 import { ChallengeData } from "./challenge-data.js";
@@ -182,11 +182,21 @@ export class ChallengeSheet extends TagStringSyncMixin(LitmActorSheet) {
 		const limitsSource = isPlay
 			? sys.derivedLimits || sys.limits
 			: sys.limits || [];
+		const canonicalIds = new Set((sys.limits ?? []).map((l) => l.id));
 		const limits = await Promise.all(
-			limitsSource.map(async (limit) => ({
-				...limit,
-				enrichedOutcome: await enrichHTML(limit.outcome, this.document),
-			})),
+			limitsSource.map(async (limit) => {
+				const hasGroupedStatuses = this.document.effects.some(
+					(e) =>
+						e.type === EFFECT_TYPES.status_tag &&
+						e.system?.limitId === limit.id,
+				);
+				return {
+					...limit,
+					enrichedOutcome: await enrichHTML(limit.outcome, this.document),
+					isImpossible: limit.max === 0,
+					isAutoManaged: hasGroupedStatuses || !canonicalIds.has(limit.id),
+				};
+			}),
 		);
 		const might = await Promise.all(
 			(isPlay ? sys.derivedMight || sys.might : sys.might || []).map(

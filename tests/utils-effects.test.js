@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
 	fellowshipTagEffect,
-	findApplicableEffect,
-	parseTagStringMatch,
-	partitionEffects,
 	powerTagEffect,
 	relationshipTagEffect,
 	statusTagEffect,
 	storyTagEffect,
 	weaknessTagEffect,
-} from "../modules/utils.js";
+} from "../modules/active-effects/effect-factories.js";
+import {
+	findApplicableEffect,
+	isEffectVisible,
+	partitionEffects,
+} from "../modules/active-effects/effect-queries.js";
+import { parseTagStringMatch } from "../modules/item/action/tag-string.js";
 import { fakeActor, fakeEffect, fakeItem } from "./__helpers__/factories.js";
 
 describe("partitionEffects", () => {
@@ -153,5 +156,29 @@ describe("effect factories", () => {
 	it("statusTagEffect: passes through a custom tier array", () => {
 		const tiers = [false, false, true, false, false, false];
 		expect(statusTagEffect({ name: "Tired", tiers }).system.tiers).toBe(tiers);
+	});
+});
+
+describe("isEffectVisible", () => {
+	it("returns true for a GM regardless of isHidden", () => {
+		global.game = { user: { isGM: true } };
+		expect(isEffectVisible({ system: { isHidden: true } })).toBe(true);
+		expect(isEffectVisible({ system: { isHidden: false } })).toBe(true);
+	});
+
+	it("returns true for a non-GM when isHidden is false", () => {
+		global.game = { user: { isGM: false } };
+		expect(isEffectVisible({ system: { isHidden: false } })).toBe(true);
+	});
+
+	it("returns false for a non-GM when isHidden is true", () => {
+		global.game = { user: { isGM: false } };
+		expect(isEffectVisible({ system: { isHidden: true } })).toBe(false);
+	});
+
+	it("treats missing system as not hidden (defaults to visible)", () => {
+		global.game = { user: { isGM: false } };
+		expect(isEffectVisible({})).toBe(true);
+		expect(isEffectVisible({ system: {} })).toBe(true);
 	});
 });

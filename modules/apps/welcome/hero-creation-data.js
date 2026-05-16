@@ -1,12 +1,11 @@
-import { POWER_TAG_TYPES, THEME_TAG_TYPES } from "../system/config.js";
-import { ContentSources } from "../system/content-sources.js";
 import {
 	fellowshipTagEffect,
-	levelIcon,
 	powerTagEffect,
-	localize as t,
 	weaknessTagEffect,
-} from "../utils.js";
+} from "../../active-effects/effect-factories.js";
+import { POWER_TAG_TYPES, THEME_TAG_TYPES } from "../../system/config.js";
+import { ContentSources } from "../../system/content-sources.js";
+import { levelIcon, localize as t } from "../../utils.js";
 
 const THEME_SLOTS = 4;
 

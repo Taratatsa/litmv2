@@ -1,5 +1,5 @@
 import { makeTagStringRe } from "../../system/config.js";
-import { parseTagStringMatch } from "../../utils.js";
+import { parseTagStringMatch } from "./tag-string.js";
 import { getVerbDef, VERB_DEFINITIONS } from "./verb-definitions.js";
 
 /**

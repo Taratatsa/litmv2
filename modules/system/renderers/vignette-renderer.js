@@ -1,23 +1,32 @@
 /**
- * Renders a Vignette item as an embed card, matching the challenge sheet style.
+ * Build the vignette-card fieldset shape. Used by both `renderVignette` and
+ * the journey renderer's "general consequences" block, which is structurally
+ * the same fieldset with a localized banner label and consequence-only data.
+ *
  * Tags/statuses in threat and consequence text are left as raw text nodes
  * so the tag enricher (which runs after @render) processes them.
- * @param {Item} item - A vignette item document
+ *
+ * @param {object} options
+ * @param {string} options.label                   Banner label text
+ * @param {string} [options.threat]                Threat description
+ * @param {string[]} [options.consequences=[]]
+ * @param {boolean} [options.isConsequenceOnly=false]
  * @returns {HTMLElement}
  */
-export function renderVignette(item) {
-	const { threat, consequences, isConsequenceOnly } = item.system;
-
+export function vignetteCard({
+	label,
+	threat,
+	consequences = [],
+	isConsequenceOnly = false,
+}) {
 	const container = document.createElement("fieldset");
 	container.classList.add("litm", "vignette-card", "litm-render");
 
-	// Banner title
 	const legend = document.createElement("legend");
 	legend.classList.add("litm-banner", "vignette-card-label");
-	legend.textContent = item.name;
+	legend.textContent = label;
 	container.appendChild(legend);
 
-	// Threat description
 	if (!isConsequenceOnly && threat) {
 		const div = document.createElement("div");
 		div.classList.add("threat-text");
@@ -25,7 +34,6 @@ export function renderVignette(item) {
 		container.appendChild(div);
 	}
 
-	// Consequences
 	if (consequences.length) {
 		const ul = document.createElement("ul");
 		ul.classList.add("consequences-list");
@@ -39,4 +47,19 @@ export function renderVignette(item) {
 	}
 
 	return container;
+}
+
+/**
+ * Renders a Vignette item as an embed card, matching the challenge sheet style.
+ * @param {Item} item - A vignette item document
+ * @returns {HTMLElement}
+ */
+export function renderVignette(item) {
+	const { threat, consequences, isConsequenceOnly } = item.system;
+	return vignetteCard({
+		label: item.name,
+		threat,
+		consequences,
+		isConsequenceOnly,
+	});
 }

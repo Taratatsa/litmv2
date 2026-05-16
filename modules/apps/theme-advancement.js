@@ -1,10 +1,9 @@
 import {
 	fellowshipTagEffect,
-	findThemebookByName,
 	powerTagEffect,
-	toQuestionOptions,
 	weaknessTagEffect,
-} from "../utils.js";
+} from "../active-effects/effect-factories.js";
+import { findThemebookByName, toQuestionOptions } from "../utils.js";
 
 export class ThemeAdvancementApp extends foundry.applications.api.HandlebarsApplicationMixin(
 	foundry.applications.api.ApplicationV2,

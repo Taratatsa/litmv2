@@ -1,9 +1,9 @@
-import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import {
 	powerTagEffect,
-	localize as t,
 	weaknessTagEffect,
-} from "../../utils.js";
+} from "../../active-effects/effect-factories.js";
+import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
+import { localize as t } from "../../utils.js";
 
 export class StoryThemeSheet extends LitmItemSheet {
 	static DEFAULT_OPTIONS = {

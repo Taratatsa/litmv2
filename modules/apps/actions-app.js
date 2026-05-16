@@ -1,7 +1,7 @@
 import { ACTION_CATEGORIES } from "../item/action/action-data.js";
 import { error } from "../logger.js";
 import { localize as t, viewLinkedRefAction } from "../utils.js";
-import { sendRollRequest } from "./roll-request.js";
+import { sendRollRequest } from "./roll/roll-request.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -110,7 +110,13 @@ export class ActionsApp extends HandlebarsApplicationMixin(ApplicationV2) {
 				img: item.img,
 				practitioners: item.system.practitioners,
 				category: item.system.category,
-				categoryLabel: item.system.categoryLabel,
+				categoryLabel:
+					item.system.category === "custom"
+						? item.system.customCategory?.trim() ||
+							t("LITM.Actions.categories.custom")
+						: item.system.category
+							? t(`LITM.Actions.categories.${item.system.category}`)
+							: "",
 				examples: item.system.actionExamples?.filter(Boolean) ?? [],
 				successCount: item.system.successes?.length ?? 0,
 				consequenceCount: item.system.consequences?.length ?? 0,
@@ -230,13 +236,13 @@ export class ActionsApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	static async #onEditAction(_event, target) {
 		const id = target.closest("[data-action-id]")?.dataset.actionId;
-		const item = id ? this.#actor.items.get(id) : null;
+		const item = id ? this.actor.items.get(id) : null;
 		item?.sheet?.render(true);
 	}
 
 	static async #onDeleteAction(_event, target) {
 		const id = target.closest("[data-action-id]")?.dataset.actionId;
-		const item = id ? this.#actor.items.get(id) : null;
+		const item = id ? this.actor.items.get(id) : null;
 		if (!item) return;
 		const confirmed = await foundry.applications.api.DialogV2.confirm({
 			window: { title: t("LITM.Actions.confirm_remove_title") },
@@ -249,16 +255,16 @@ export class ActionsApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
 	static async #onSendActionRequest(_event, target) {
 		const id = target.closest("[data-action-id]")?.dataset.actionId;
-		const item = id ? this.#actor.items.get(id) : null;
+		const item = id ? this.actor.items.get(id) : null;
 		if (!item) return;
 		await sendRollRequest({ action: item });
 	}
 
 	static async #onRollAction(_event, target) {
 		const id = target.closest("[data-action-id]")?.dataset.actionId;
-		const item = id ? this.#actor.items.get(id) : null;
+		const item = id ? this.actor.items.get(id) : null;
 		if (!item) return;
-		const sheet = this.#actor.sheet;
+		const sheet = this.actor.sheet;
 		const dialog = sheet?.rollDialogInstance;
 		if (!dialog) return;
 		dialog.setAction(item.uuid);
@@ -270,9 +276,9 @@ export class ActionsApp extends HandlebarsApplicationMixin(ApplicationV2) {
 	}
 
 	static async #onCreateBlankAction() {
-		if (!this.#actor?.isOwner) return;
+		if (!this.actor?.isOwner) return;
 		try {
-			const [item] = await this.#actor.createEmbeddedDocuments("Item", [
+			const [item] = await this.actor.createEmbeddedDocuments("Item", [
 				{
 					name: t("LITM.Actions.new_action_name"),
 					type: "action",

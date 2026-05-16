@@ -1,13 +1,10 @@
-import {
-	ACTOR_TYPES,
-	ITEM_TYPES,
-	THEME_TAG_TYPES,
-} from "../../system/config.js";
-import { advanceFlagLimit } from "../actor-limits.js";
-import { EffectTagsMixin } from "../effect-tags-mixin.js";
+import { ITEM_TYPES, THEME_TAG_TYPES } from "../../system/config.js";
+import { advanceFlagLimit } from "../mixins/actor-limits.js";
+import { EffectTagsMixin } from "../mixins/effect-tags-mixin.js";
+import { LimitsMixin } from "../mixins/limits-mixin.js";
 
-export class FellowshipData extends EffectTagsMixin(
-	foundry.abstract.TypeDataModel,
+export class FellowshipData extends LimitsMixin(
+	EffectTagsMixin(foundry.abstract.TypeDataModel),
 ) {
 	static defineSchema() {
 		const fields = foundry.data.fields;
@@ -41,59 +38,6 @@ export class FellowshipData extends EffectTagsMixin(
 	 */
 	get allRollTags() {
 		return [...this.allTags, ...this.storyTags, ...this.statusEffects];
-	}
-
-	/**
-	 * Summary data for each linked hero in the fellowship.
-	 * @returns {object[]}
-	 */
-	get partyOverview() {
-		const fellowshipId = this.parent.id;
-		const heroes = game.actors.filter(
-			(a) =>
-				a.type === ACTOR_TYPES.hero && a.system.fellowshipId === fellowshipId,
-		);
-		return heroes.map((hero) => {
-			const themes = hero.items.filter(
-				(i) =>
-					i.type === ITEM_TYPES.theme &&
-					!i.system.isFellowship &&
-					!i.system.isScratched,
-			);
-			const quests = themes
-				.filter((theme) => theme.system.quest?.description)
-				.map((theme) => ({
-					themeName: theme.name,
-					description: theme.system.quest.description,
-					milestone: theme.system.quest.tracks.milestone.value,
-					abandon: theme.system.quest.tracks.abandon.value,
-				}));
-			const weaknesses = themes
-				.flatMap((theme) => theme.system.weaknessTags)
-				.filter((tag) => tag.active && !tag.system.isScratched)
-				.map((tag) => tag.name);
-			const relationshipTags = hero.system.relationships.filter(
-				(e) => e.name && !e.system?.isScratched,
-			);
-			const storyTags = hero.system.backpack.filter(
-				(e) => e.active && !e.system?.isHidden,
-			);
-			const statuses = hero.system.statusEffects.filter(
-				(e) => e.active && (e.system?.currentTier ?? 0) > 0,
-			);
-			return {
-				id: hero.id,
-				name: hero.name,
-				img: hero.img,
-				description: hero.system.description ?? "",
-				quests,
-				weaknesses,
-				relationshipTags,
-				storyTags,
-				statuses,
-				hasTagsOrStatuses: storyTags.length > 0 || statuses.length > 0,
-			};
-		});
 	}
 
 	/**

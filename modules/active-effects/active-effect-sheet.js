@@ -1,5 +1,5 @@
-import { EFFECT_TYPE_COLORS } from "../../system/config.js";
-import { localize as t } from "../../utils.js";
+import { EFFECT_TYPE_COLORS } from "../system/config.js";
+import { localize as t } from "../utils.js";
 
 const { DocumentSheetV2, HandlebarsApplicationMixin } =
 	foundry.applications.api;

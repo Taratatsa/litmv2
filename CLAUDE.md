@@ -6,6 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Legend in the Mist is a Foundry Virtual Tabletop (v14 minimum) system for a rustic fantasy RPG based on the Mist Engine. The system id is `litmv2`. Pure ES modules -- no build step, no bundler.
 
+## Extensibility
+
+The system aims to be **extensible and malleable**. Module authors and world-level macros should be able to change behaviour by replacing classes or overriding hooks rather than forking the system. When refactoring, **preserve the public API surface** — do not strip aliases from `game.litmv2` or remove published hooks/CONFIG slots even when they look unused internally.
+
+The two public extension surfaces are:
+
+- **`game.litmv2`** (see `litmv2.js`) — replaceable classes (`LitmRoll`, `LitmRollDialog`, `WelcomeOverlay`, `StoryTagApp`, `SpendPowerApp`, `ApplyActionMenuApp`, `ThemeAdvancementApp`), data model classes under `data.*`, `methods.calculatePower`, the singleton `fellowship` getter, and `ContentSources`. Reassigning these at module startup is the supported way to alter system behaviour.
+- **`CONFIG.litmv2`** (see `modules/system/config.js`) — `roll.{formula,resolver}` (third-party roll formula/resolution override), `heroLimit`, theme tiers, asset paths, `THEME_TAG_TYPES`/`POWER_TAG_TYPES`, the tag-string regex source.
+
+The custom system hooks (`litm.preRoll`, `litm.roll`, `litm.tagScratched`, etc., listed under "Custom System Hooks" below) are the third extension surface: prefer adding a new `litm.*` hook over hard-wiring a callback.
+
+Concretely: want to change how power is calculated? Reassign `LitmRoll.calculatePower` (or override `CONFIG.litmv2.roll.resolver`). Want a custom welcome flow? Replace `game.litmv2.WelcomeOverlay`. New code that adds a behaviour third-parties might want to swap should expose it as a class on `game.litmv2`, a config slot on `CONFIG.litmv2`, or a `litm.*` hook — not as a private helper.
+
 ## Commands
 
 - `npm test` -- run the Vitest unit-test suite
@@ -26,15 +39,20 @@ Legend in the Mist is a Foundry Virtual Tabletop (v14 minimum) system for a rust
 ```
 modules/
   actor/                    # Actor data models + sheets (hero, challenge, journey, fellowship, story-theme)
+    mixins/                 # Cross-actor protocols: EffectTagsMixin, LimitsMixin, actor-limits helpers
   item/                     # Item data models + sheets (theme, story-theme, backpack, themebook, vignette, trope, addon)
-  apps/                     # Standalone ApplicationV2 apps (roll dialog, roll, sidebar, spend-power, etc.)
-  data/active-effects/      # AE type data models, custom AE document, AE sheet, scratchable mixin
+  apps/                     # Standalone ApplicationV2 apps
+    roll/                   # roll, roll-dialog, roll-pipeline, roll-dialog-context, roll-request
+    welcome/                # welcome-overlay, hero-creation-data
+    story-tags/             # story-tag-sidebar, story-tag-helpers, scene-tag-dialog
+    (flat)                  # spend-power, theme-advancement, actions-app, apply-action-menu, target-picker, dice, etc.
+  active-effects/           # AE type data models, custom AE document, AE sheet, scratchable mixin
   sheets/                   # Base sheet classes + mixins + landscape variants
   system/                   # Infrastructure (config, settings, sockets, migrations, hooks/, renderers/)
     hooks/                  # Domain-specific hook modules (actor, chat, fellowship, item, token, ui, compat, preloads, ready)
   components/               # Custom HTML elements (SuperCheckbox)
   hud/                      # Custom token HUD
-  utils.js                  # Effect factories, localization, pack queries, enrichHTML
+  utils.js                  # Cross-cutting helpers: localization, pack queries, enrichHTML, linked-ref navigation
   logger.js                 # Color-coded console logging
 templates/                  # Handlebars templates (actor/, item/, chat/, apps/, effect/, hud/, partials/)
 lang/                       # Localization files (en, de, es, cn, fr, no)
@@ -48,9 +66,9 @@ packs/                      # Compendium packs (status-effects)
 |----------|-------|---------------------|
 | **Actor** | `hero`, `journey`, `challenge`, `fellowship`, `story_theme` | `modules/actor/{type}/{type}-data.js` |
 | **Item** | `theme`, `themebook`, `trope`, `backpack`, `story_theme`, `vignette`, `addon` | `modules/item/{type}/{type}-data.js` |
-| **ActiveEffect** | `power_tag`, `weakness_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`, `status_tag` | `modules/data/active-effects/{type}-data.js` |
+| **ActiveEffect** | `power_tag`, `weakness_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`, `status_tag` | `modules/active-effects/{type}-data.js` |
 
-Custom document classes: `LitmItem` (`modules/item/litm-item.js`) handles legacy tag-to-effect migration. `LitmActiveEffect` (`modules/data/active-effects/litm-active-effect.js`) is the custom AE document class.
+Custom document classes: `LitmItem` (`modules/item/litm-item.js`) handles legacy tag-to-effect migration. `LitmActiveEffect` (`modules/active-effects/litm-active-effect.js`) is the custom AE document class.
 
 ### Sheet Inheritance
 
@@ -131,12 +149,12 @@ Eight socket events on `system.litmv2`:
 
 | Class | File | Purpose |
 |-------|------|---------|
-| LitmRollDialog | `modules/apps/roll-dialog.js` | Tag selection, power calculation, roll submission |
-| LitmRoll | `modules/apps/roll.js` | Roll formula, outcome resolution, chat display |
-| StoryTagSidebar | `modules/apps/story-tag-sidebar.js` | Scene tags, effects UI (replaces combat tracker) |
+| LitmRollDialog | `modules/apps/roll/roll-dialog.js` | Tag selection, power calculation, roll submission |
+| LitmRoll | `modules/apps/roll/roll.js` | Roll formula, outcome resolution, chat display |
+| StoryTagSidebar | `modules/apps/story-tags/story-tag-sidebar.js` | Scene tags, effects UI (replaces combat tracker) |
 | SpendPowerApp | `modules/apps/spend-power.js` | Post-roll power spending dialog |
 | ThemeAdvancementApp | `modules/apps/theme-advancement.js` | Quest/improvement advancement UI |
-| WelcomeOverlay | `modules/apps/welcome-overlay.js` | First-time setup wizard |
+| WelcomeOverlay | `modules/apps/welcome/welcome-overlay.js` | First-time setup wizard |
 | DoubleSix | `modules/apps/dice.js` | Custom d12-to-2d6 dice term |
 
 ### System Infrastructure
@@ -156,7 +174,7 @@ Eight socket events on `system.litmv2`:
 | ContentSources | `modules/system/content-sources.js` | Compendium pack management and status seeding |
 | Logger | `modules/logger.js` | Styled `error`, `warn`, `info`, `success` wrappers -- use instead of bare `console.*` |
 | LitmItem | `modules/item/litm-item.js` | Custom Item class with legacy tag-to-effect migration |
-| LitmActiveEffect | `modules/data/active-effects/litm-active-effect.js` | Custom ActiveEffect document class |
+| LitmActiveEffect | `modules/active-effects/litm-active-effect.js` | Custom ActiveEffect document class |
 | SuperCheckbox | `modules/components/super-checkbox.js` | `<litm-super-checkbox>` -- cycles: "" -> positive -> negative -> scratched |
 
 ## Game Concepts
@@ -198,7 +216,7 @@ Legend in the Mist is a tag-based RPG. Instead of numeric stats, characters are 
 
 ## Active Effects
 
-Active Effects are the **canonical data store** for all tags and statuses. Each effect has a `type` that maps to a TypeDataModel subclass in `modules/data/active-effects/`.
+Active Effects are the **canonical data store** for all tags and statuses. Each effect has a `type` that maps to a TypeDataModel subclass in `modules/active-effects/`.
 
 ### Effect Types
 
@@ -251,7 +269,7 @@ Static methods: `markTier(tiers, tier)`, `stackTiers(tierArrays)`. Instance: `ca
 | `story_tag` | backpack items / actors | Yes (backpack) | Context | Optional | Yes |
 | `status_tag` | actors | No | Context | N/A | N/A |
 
-### ScratchableMixin (`modules/data/active-effects/scratchable-mixin.js`)
+### ScratchableMixin (`modules/active-effects/scratchable-mixin.js`)
 
 Adds `isSuppressed` getter (returns `this.isScratched` -- Foundry skips suppressed effects) and `toggleScratch()` method. Used by `power_tag`, `fellowship_tag`, `relationship_tag`, `story_tag`.
 
@@ -270,9 +288,9 @@ Effects can live on actors or embedded items. Updates must be routed to the corr
 - **Challenge/Journey** (`TagStringSyncMixin`): Dual representation -- `system.tags` string (canonical in edit mode) and ActiveEffects (canonical in play mode). Mixin synchronizes between them on mode switch.
 - **Addon items**: `syncAddonEffects` parses addon's `system.tags` string, creates effects flagged with `flags.litmv2.addonId`. `resyncAddonEffects` deletes and recreates on addon update.
 
-### EffectTagsMixin (`modules/actor/effect-tags-mixin.js`)
+### EffectTagsMixin (`modules/actor/mixins/effect-tags-mixin.js`)
 
-Mixin for actor data models providing: `storyTags` (all `story_tag` effects), `statusEffects` (all `status_tag` effects), `statusParent` (override point for routing), `addStatus(name, {tiers, img})`, `removeStatus(effectId)`. Uses `allApplicableEffects()` internally.
+Mixin for actor data models providing: `storyTags` (all `story_tag` effects), `statusEffects` (all `status_tag` effects), `addStoryTag(effectData)` (override point for routing), `addStatus(name, {tier, tiers, img, isHidden, limitId})`, `removeStatus(effectId)`. Uses `allApplicableEffects()` internally. `addStatus` is the canonical "this actor gains a status" entry point: it stacks (via `calculateMark`) onto a case-insensitive same-named existing status before creating a new one.
 
 ### HeroData Getters (`modules/actor/hero/hero-data.js`)
 
@@ -303,7 +321,7 @@ Always use Foundry's built-in APIs instead of hand-rolling solutions. A symlink 
 
 1. **Actor-level queries** (all tags on a character) -> use `allApplicableEffects()`, never `actor.effects`
 2. **Item-level queries** (tags on a specific theme) -> use `item.effects` directly
-3. **Finding an effect by ID** -> search `allApplicableEffects()` or use `resolveEffect()` from `utils.js`
+3. **Finding an effect by ID** -> search `allApplicableEffects()` or use `resolveEffect()` from `modules/active-effects/effect-queries.js`
 4. **Mutating an effect** -> resolve via `allApplicableEffects()`, use `effect.parent` for the correct document
 5. **Never set `transfer: true` explicitly** -- it's the Foundry default for item-parented effects
 
@@ -387,9 +405,17 @@ Prefer `static migrateData(source)` in DataModel subclasses for data shape chang
 
 **Client:** `customDice`, `popoutTagsSidebar`
 
-### Effect Factory Functions (`modules/utils.js`)
+### Effect Factory Functions (`modules/active-effects/effect-factories.js`)
 
-Use factory functions to create properly-shaped effect data: `powerTagEffect()`, `weaknessTagEffect()`, `fellowshipTagEffect()`, `relationshipTagEffect()`, `storyTagEffect()`, `statusTagEffect()`. Use `updateEffectsByParent(actor, updates)` to route batched effect updates to the correct parent document.
+Use factory functions to create properly-shaped effect data: `powerTagEffect()`, `weaknessTagEffect()`, `fellowshipTagEffect()`, `relationshipTagEffect()`, `storyTagEffect()`, `statusTagEffect()`. For case-insensitive stack-or-create on a status, call `actor.system.addStatus(name, { tier })` (see [EffectTagsMixin](#effecttagsmixin-modulesactormixinseffect-tags-mixinjs)). Use `updateEffectsByParent(actor, updates)` to route batched effect updates to the correct parent document.
+
+### Effect Query Functions (`modules/active-effects/effect-queries.js`)
+
+Read-only queries over an actor's applicable effects: `isEffectVisible(effect)`, `effectToPlain(effect)`, `partitionEffects(actor, ...types)`, `findApplicableEffect(actor, predicate)`, `resolveEffect(effectId, actor, {fellowship})`. All read through `allApplicableEffects()`, not `actor.effects`.
+
+### Tag-String Parsing (`modules/item/action/tag-string.js`)
+
+`parseTagStringMatch(match)` converts a `CONFIG.litmv2.tagStringRe` match into ActiveEffect creation data. Used by addon-effect sync, the story-tag drop handler, and renderer chip pipeline.
 
 ### Utility Functions (`modules/utils.js`)
 
@@ -399,8 +425,10 @@ Use factory functions to create properly-shaped effect data: `powerTagEffect()`,
 - `enrichHTML(text, document)` -- `TextEditor.enrichHTML()` wrapper with owner-aware secrets
 - `confirmDelete(string)` -- `DialogV2.confirm()` prompt; returns `false` on cancel/close
 - `toQuestionOptions(questions, skipFirst)` -- maps question arrays to letter-indexed options
-- `resolveEffect(effectId, actor, {fellowship})` -- finds effect across actor/items/fellowship
 - `parseEmbeddedFormKeys()` -- extracts nested document updates from form data
+- `openLinkedRef(uuid)` / `viewLinkedRefAction(event, target)` / `getLinkedRefName(uuid)` -- linked-ref UUID navigation
+- `transferBackpackTags(source, target, ids)` / `removeAtIndex(doc, path, index)` -- document mutation helpers
+- `getStoryTagSidebar()` -- accessor for the story-tag sidebar instance
 
 ### Custom System Hooks
 
@@ -408,6 +436,9 @@ Use factory functions to create properly-shaped effect data: `powerTagEffect()`,
 - `litm.rollDialogRendered` / `litm.rollDialogClosed` -- roll dialog lifecycle
 - `litm.preTagScratched` / `litm.tagScratched` -- tag scratch lifecycle
 - `litm.themeAdvanced` -- after theme advancement
+- `litm.trackCompleted` -- after a progress track completes; payload `{ actor, trackInfo }` where `trackInfo` is `{ text, type, actorId?, themeId? }`
+- `litm.limitReached` -- after a limit's value crosses its effective max; payload `{ actor, limit }` where `limit` is the full limit object with `max` set to `getEffectiveMax`
+- `litm.sceneTagsChanged` -- after any CRUD on scene tags / statuses / limits via the story-tag sidebar; no payload. Open roll dialogs listen for this to refresh their contributed-tag groups
 
 ### Hooks Organization
 

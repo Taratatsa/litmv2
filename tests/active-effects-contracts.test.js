@@ -6,7 +6,7 @@ import {
 	StatusTagData,
 	StoryTagData,
 	WeaknessTagData,
-} from "../modules/data/active-effects/index.js";
+} from "../modules/active-effects/index.js";
 
 // These getters drive sheet/UI dispatch: which polarity to pre-select, which
 // states a tag is allowed to enter, whether the burn button is enabled.

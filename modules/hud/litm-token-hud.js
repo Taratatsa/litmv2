@@ -1,5 +1,6 @@
+import { resolveEffect } from "../active-effects/effect-queries.js";
 import { ContentSources } from "../system/content-sources.js";
-import { getStoryTagSidebar, resolveEffect, localize as t } from "../utils.js";
+import { getStoryTagSidebar, localize as t } from "../utils.js";
 
 const { TokenHUD } = foundry.applications.hud;
 

@@ -1,271 +1,16 @@
-import { error, warn } from "../logger.js";
-import { getDefaultThemeLevel, getThemeLevels } from "../system/config.js";
-import { createSampleHero } from "../system/sample-hero.js";
-import { LitmSettings } from "../system/settings.js";
-import { sleep, localize as t, toQuestionOptions } from "../utils.js";
+import { error, warn } from "../../logger.js";
+import { getDefaultThemeLevel, getThemeLevels } from "../../system/config.js";
+import { LitmSettings } from "../../system/settings.js";
+import { localize as t, toQuestionOptions } from "../../utils.js";
 import { HeroCreationData } from "./hero-creation-data.js";
+import {
+	animateEnter,
+	animateExit,
+	transitionSlide,
+} from "./welcome-overlay-animations.js";
+import { GENERAL_STORE, HERO_NAMES } from "./welcome-overlay-data.js";
 
 const THEME_SLOTS = 4;
-
-const HERO_NAMES = [
-	"Willow",
-	"Bear",
-	"Heath",
-	"Zephyr",
-	"Solace",
-	"Brave",
-	"Felicity",
-	"Rowan",
-	"Yarrow",
-	"Onyx",
-	"Bayleaf",
-	"Rust",
-	"Marrow",
-	"Daisy",
-	"Bait",
-	"Aster",
-	"Bramble",
-	"Clement",
-	"Steadfast",
-	"Peregrine",
-	"Mila",
-	"Tidin",
-	"Kahira",
-	"Fondo",
-	"Thedea",
-	"Neilem",
-	"Kelda",
-	"Nona",
-	"Bolb",
-	"Eerik",
-	"Gofer",
-	"Thelma",
-	"Jaro",
-	"Koral",
-	"Noxen",
-	"Emille",
-	"Hela",
-	"Veles",
-	"Berglitz",
-	"Gilla",
-	"Elswith",
-	"Laurantadeara",
-	"Aleonora",
-	"Belladonna",
-	"Chrysanthemum",
-	"Amalthea",
-	"Yelizaveta",
-	"Rosamund",
-	"Milorada",
-	"Azeria",
-	"Silverata",
-	"Shozauka",
-	"Sepheera",
-	"Gerrick",
-	"Hythalmun",
-	"Leyla Tanner",
-	"Aurora Beaks",
-	"Colin Stillwater",
-	"Emeralda Fogley",
-	"Karis Hillfell",
-	"Arsinia Hawthorne",
-	"Eerik Kallop",
-	"Hela Grange",
-	"Radym Desimir",
-	"Veles Hayes",
-	"Valen Bertrand",
-	"Nessie Tarnfolk",
-	"Heather Bellrose",
-	"Samuil Flagstone",
-	"Killian Farstride",
-	"Lance Tubroot",
-	"Thedor Cloudborne",
-	"Fleece Oakenfoot",
-	"Jarko Cooper",
-	"Yule the Wood Whisperer",
-	"Torben of Ravenhome",
-	"Tarn of Milkrest",
-	"Froll the Replenisher",
-	"Kurri Blackcurrant",
-	"Riyori of the Kawa",
-	"Nochika",
-	"Gild",
-	"Maol of the Boar",
-	"Ferika of the Vulture",
-	"Ethain of the Bear",
-	"Thrad Pine-Splitter",
-	"Tillis Nebelclaw",
-	"Igraine Demerand",
-	"Demetria Rosethorne",
-	"Dythara Lowtower",
-	"Justine Tanner",
-	"Ferrox the Flamer",
-	"Liliwen Clipped-Wing",
-	"Maxin the Laughing One",
-	"Worel of Stormhelm",
-	"Sidurg the Crafty",
-	"Muddy Med",
-	"Old Dinger",
-	"Stares-to-Horizon",
-	"Ear-to-Ground",
-	"Cedar",
-	"Flint",
-	"Moss",
-	"Lark",
-	"Ash",
-	"Sedge",
-	"Thistle",
-	"Merit",
-	"Patience",
-	"Verity",
-	"Joy",
-	"Knot",
-	"Etch",
-	"Walric Hywell",
-	"Darius Pyke",
-	"Rosamund Field",
-	"Bram Miller",
-	"Kaelen Smith",
-	"Elra of Underbough",
-	"Jarko Hillcrester",
-	"Mila Fletcher",
-	"Tidin Potter",
-	"Kahira Weaver",
-	"Olek Scribe",
-	"Anika of Pasture",
-	"Gavlar Woodsman",
-	"Iryna Baker",
-	"Lev Mason",
-	"Chesna Shepherd",
-	"Bogdan Trapper",
-	"Liafail Mackross",
-	"Azeria Fox",
-	'Petor "Chiselheart"',
-	'Noxen "Cowtipper"',
-	'"Amber-Blood" Hela',
-	'"The Whisperer" Gilla',
-	'"Steadyoars" Farkus',
-	'"Greytail" the Vole',
-	"Greycheeks",
-	"Cracked Twig",
-	"Wake-Runner",
-	"Fork-It",
-	'"The Queen" Heather',
-	"Old Soot",
-	"The Rimy Beaver",
-	"Stone-Carver",
-	"Mud-Walker",
-	"Honey-Tongue",
-	"Silver-Stitch",
-	"Crow-Friend",
-	"Bramble-Bound",
-	"Arkady",
-	"Anton",
-	"Artyom",
-	"Bersha",
-	"Katya",
-	"Kazimir",
-	"Loukiya",
-	"Maksym",
-	"Mirjana",
-	"Nastasya",
-	"Rodion",
-	"Sameyra",
-	"Valadymyr",
-	"Yovanka",
-	"Eryk",
-	"Filipa",
-	"Fyodor",
-	"Alderman Petor Hillsfar",
-	"Wise One Mikhail",
-	"Bogatyr Gavlar",
-	"Knight-Errant Fosten",
-	"Portent Gold-mender",
-	"Deda Houlk the Wizened",
-	"Risa",
-	"Olek",
-	"Bogdan",
-	"Ziv",
-	"Lev",
-	"Filipa Volgin",
-	"Maksym Kozlov",
-	"Maryana Larchok",
-	"Olek Pokva",
-	"Pelanda Hodzic",
-	"Aleksandra Markov",
-	"Andrej Todrov",
-	"Anton Prokov",
-	"Jurik Kodro",
-	"Nikalai Lovic",
-	"Yulia Shiverborn",
-	"Artyom Desimir",
-	"Milena Blackcurrant",
-	"Kazimir Oakenfoot",
-	"Lidia Shiverborn",
-	"Yevgeny",
-	"Zora",
-	"Valescu",
-	'"Broken-Nosed" Emille',
-	'"The Exact" Cecile',
-	'"The Drowned" Vodan',
-	'"The Ratter" Chet',
-	"Alderman Lorne",
-	"Chief Aleksandra",
-];
-
-const GENERAL_STORE = {
-	armor: [
-		"buff coat",
-		"leather armor",
-		"chainmail",
-		"buckler",
-		"wooden shield",
-	],
-	weapons: [
-		"axe",
-		"hunting bow",
-		"dirk",
-		"shortsword",
-		"quarterstaff",
-		"slingshot",
-	],
-	supplies: [
-		"bedroll",
-		"carving knife",
-		"cloth tent",
-		"frying pan",
-		"repair kit",
-		"waterskin",
-	],
-	clothing: [
-		"bracers",
-		"cape",
-		"gloves",
-		"sturdy boots",
-		"travel cloak",
-		"oilskins",
-	],
-	medicinal: [
-		"antidote",
-		"bandages",
-		"healing brew",
-		"foot ointment",
-		"soothing salves",
-	],
-	personal: [
-		"family signet",
-		"grandmother's shawl",
-		"pipe & tobacco",
-		"parchment & ink",
-	],
-	notes: [
-		"funny anecdote",
-		"leftover meal recipe",
-		"little prayer",
-		"strong comeback",
-	],
-	trinkets: ["good luck charm", "prayer beads", "religious icon", "talisman"],
-};
 
 const SLIDE_TEMPLATES = {
 	welcome: "systems/litmv2/templates/apps/welcome-overlay/welcome.html",
@@ -1561,220 +1306,31 @@ export class WelcomeOverlay {
 	}
 
 	// ---------------------------------------------------------------------------
-	// Animations (Web Animations API)
+	// Animations — choreography lives in welcome-overlay-animations.js. The
+	// adapter below exposes the small surface those functions need.
 	// ---------------------------------------------------------------------------
 
-	/**
-	 * Helper: animate an element and return a promise that resolves on finish.
-	 * @param {Element} el
-	 * @param {Keyframe[]} keyframes
-	 * @param {KeyframeAnimationOptions} options
-	 * @returns {Promise<void>}
-	 */
-	static #animate(el, keyframes, options) {
-		return new Promise((resolve) => {
-			const anim = el.animate(keyframes, {
-				fill: "forwards",
-				...options,
-			});
-			anim.onfinish = () => resolve();
-		});
+	get #animationContext() {
+		return {
+			el: this.#el,
+			reducedMotion: this.#reducedMotion,
+			setAnimating: (b) => {
+				this.#isAnimating = b;
+			},
+			renderCurrentSlide: () => this.#renderCurrentSlide(),
+		};
 	}
 
-	/**
-	 * Animate the overlay entrance.
-	 */
-	async #animateEnter() {
-		if (!this.#el) return;
-
-		const bg = this.#el.querySelector(".litm--welcome-overlay__bg");
-		const logo = this.#el.querySelector(".litm--welcome-overlay__logo");
-		const content = this.#el.querySelector(".litm--welcome-overlay__content");
-
-		if (this.#reducedMotion) {
-			this.#el.style.opacity = "1";
-			return;
-		}
-
-		this.#isAnimating = true;
-
-		// Hide children before revealing the container to prevent flash
-		if (bg) bg.style.opacity = "0";
-		if (logo) logo.style.opacity = "0";
-		if (content) {
-			for (const child of content.children) child.style.opacity = "0";
-		}
-
-		// Now reveal the container — children are hidden so no flash
-		this.#el.style.opacity = "1";
-
-		// Run all animations simultaneously
-		const animations = [];
-
-		// Background fades in
-		if (bg) {
-			animations.push(
-				WelcomeOverlay.#animate(bg, [{ opacity: 0 }, { opacity: 1 }], {
-					duration: 500,
-				}),
-			);
-		}
-
-		// Logo scales in alongside background
-		if (logo) {
-			animations.push(
-				WelcomeOverlay.#animate(
-					logo,
-					[
-						{ opacity: 0, transform: "scale(0.9)" },
-						{ opacity: 1, transform: "scale(1)" },
-					],
-					{ duration: 400, delay: 200, easing: "ease-out" },
-				),
-			);
-		}
-
-		// Content children stagger in alongside background
-		if (content?.children.length) {
-			for (let i = 0; i < content.children.length; i++) {
-				animations.push(
-					WelcomeOverlay.#animate(
-						content.children[i],
-						[
-							{
-								opacity: 0,
-								transform: "translateY(20px)",
-							},
-							{ opacity: 1, transform: "translateY(0)" },
-						],
-						{
-							duration: 300,
-							delay: 300 + i * 150,
-							easing: "ease-out",
-						},
-					),
-				);
-			}
-		}
-
-		await Promise.all(animations);
-		this.#isAnimating = false;
+	#animateEnter() {
+		return animateEnter(this.#animationContext);
 	}
 
-	/**
-	 * Animate the overlay exit. Returns a promise that resolves when done.
-	 * @returns {Promise<void>}
-	 */
-	async #animateExit() {
-		const el = this.#el;
-		if (!el) return;
-
-		if (this.#reducedMotion) {
-			el.style.opacity = "0";
-			return;
-		}
-
-		this.#isAnimating = true;
-
-		const slide = el.querySelector(".litm--welcome-overlay__slides");
-		const bg = el.querySelector(".litm--welcome-overlay__bg");
-
-		// Slide fades + slides down
-		if (slide) {
-			await WelcomeOverlay.#animate(
-				slide,
-				[
-					{
-						opacity: 1,
-						transform: "translateY(0)",
-					},
-					{ opacity: 0, transform: "translateY(30px)" },
-				],
-				{
-					duration: 400,
-					easing: "ease-in",
-				},
-			);
-		}
-
-		// Background dissolves
-		if (bg) {
-			await WelcomeOverlay.#animate(bg, [{ opacity: 1 }, { opacity: 0 }], {
-				duration: 400,
-				easing: "ease-in",
-			});
-		}
-
-		this.#isAnimating = false;
+	#animateExit() {
+		return animateExit(this.#animationContext);
 	}
 
-	/**
-	 * Transition between slides with directional animation.
-	 * @param {"forward"|"backward"} direction
-	 */
-	async #transitionSlide(direction) {
-		if (!this.#el) return;
-
-		const container = this.#el.querySelector(".litm--welcome-overlay__slides");
-		if (!container) return;
-
-		const oldSlide = container.firstElementChild;
-
-		this.#isAnimating = true;
-
-		if (this.#reducedMotion) {
-			if (oldSlide) oldSlide.style.opacity = "0";
-			await this.#renderCurrentSlide();
-			const newSlide = container.firstElementChild;
-			if (newSlide) {
-				await WelcomeOverlay.#animate(
-					newSlide,
-					[
-						{ opacity: 0 },
-						{
-							opacity: 1,
-						},
-					],
-					{ duration: 200 },
-				);
-			}
-			this.#isAnimating = false;
-			return;
-		}
-
-		const exitX = direction === "forward" ? -100 : 100;
-		const enterX = direction === "forward" ? 100 : -100;
-		const easing = "cubic-bezier(0.7, 0, 0.3, 1)";
-
-		// Exit old slide
-		if (oldSlide) {
-			await WelcomeOverlay.#animate(
-				oldSlide,
-				[
-					{ opacity: 1, transform: "translateX(0)" },
-					{ opacity: 0, transform: `translateX(${exitX}px)` },
-				],
-				{ duration: 400, easing },
-			);
-		}
-
-		// Render new slide
-		await this.#renderCurrentSlide();
-		const newSlide = container.firstElementChild;
-
-		// Enter new slide
-		if (newSlide) {
-			await WelcomeOverlay.#animate(
-				newSlide,
-				[
-					{ opacity: 0, transform: `translateX(${enterX}px)` },
-					{ opacity: 1, transform: "translateX(0)" },
-				],
-				{ duration: 400, easing },
-			);
-		}
-
-		this.#isAnimating = false;
+	#transitionSlide(direction) {
+		return transitionSlide(this.#animationContext, direction);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -1782,78 +1338,19 @@ export class WelcomeOverlay {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * Called from the ready hook. Delegates to GM setup or player welcome.
+	 * Called from the ready hook. Bootstrap (scene/hero/rename) has already been
+	 * performed by the caller for first-time GM sessions. This method only handles
+	 * showing the overlay — to the GM when not yet welcomed, or to players without
+	 * a character.
 	 */
 	static async showOnReady() {
 		if (game.user.isGM) {
-			await WelcomeOverlay.#gmSetupAndShow();
+			if (LitmSettings.welcomed) return;
+			const overlay = new WelcomeOverlay();
+			await overlay.show();
 		} else {
 			WelcomeOverlay.#playerShowIfNeeded();
 		}
-	}
-
-	/**
-	 * First-time GM world setup: create scene, sample hero, rename narrator, then show overlay.
-	 */
-	static async #gmSetupAndShow() {
-		if (LitmSettings.welcomed) return;
-		if (!game.user.isGM) return;
-
-		const sceneName = game.i18n.localize("LITM.Name");
-		const existingScene = game.scenes.getName(sceneName);
-		if (existingScene) {
-			await existingScene.activate();
-			await createSampleHero();
-			const overlay = new WelcomeOverlay();
-			await overlay.show();
-			return;
-		}
-
-		const sceneData = {
-			name: sceneName,
-			ownership: { default: foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER },
-			navigation: true,
-			width: 1920,
-			height: 1080,
-			initial: { x: 1490, y: 839, scale: 0.7 },
-			grid: { type: 0 },
-			tokenVision: false,
-			environment: { globalLight: { enabled: true } },
-			background: {
-				src: CONFIG.litmv2.assets.splash,
-				color: "#000000",
-			},
-		};
-
-		const levelId = foundry.documents.BaseScene.metadata.defaultLevelId;
-		sceneData.fog = { mode: foundry.CONST.FOG_EXPLORATION_MODES.DISABLED };
-		sceneData.levels = [
-			{
-				_id: levelId,
-				name: sceneName,
-				background: sceneData.background,
-			},
-		];
-		sceneData.initialLevel = levelId;
-
-		const scene = await foundry.documents.Scene.create(sceneData);
-
-		const { thumb } = await scene.createThumbnail();
-		await scene.update({ thumb });
-
-		await sleep(300);
-		await scene.activate();
-		await sleep(300);
-
-		await createSampleHero();
-
-		// Set the GM's display name to "Narrator" (thematic default)
-		if (game.user.name !== t("LITM.Terms.narrator")) {
-			await game.user.update({ name: t("LITM.Terms.narrator") });
-		}
-
-		const overlay = new WelcomeOverlay();
-		await overlay.show();
 	}
 
 	/**

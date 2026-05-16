@@ -1,23 +1,3 @@
-import { ChallengeData } from "./modules/actor/challenge/challenge-data.js";
-import { ChallengeSheet } from "./modules/actor/challenge/challenge-sheet.js";
-import { FellowshipData } from "./modules/actor/fellowship/fellowship-data.js";
-import { FellowshipSheet } from "./modules/actor/fellowship/fellowship-sheet.js";
-import { HeroData } from "./modules/actor/hero/hero-data.js";
-import { HeroSheet } from "./modules/actor/hero/hero-sheet.js";
-import { JourneyData } from "./modules/actor/journey/journey-data.js";
-import { JourneySheet } from "./modules/actor/journey/journey-sheet.js";
-import { StoryThemeActorData } from "./modules/actor/story-theme/story-theme-actor-data.js";
-import { StoryThemeActorSheet } from "./modules/actor/story-theme/story-theme-actor-sheet.js";
-import { ApplyActionMenuApp } from "./modules/apps/apply-action-menu.js";
-import { DoubleSix } from "./modules/apps/dice.js";
-import { LitmRoll } from "./modules/apps/roll.js";
-import { LitmRollDialog } from "./modules/apps/roll-dialog.js";
-import { SpendPowerApp } from "./modules/apps/spend-power.js";
-import { StoryTagSidebar } from "./modules/apps/story-tag-sidebar.js";
-import { ThemeAdvancementApp } from "./modules/apps/theme-advancement.js";
-import { WelcomeOverlay } from "./modules/apps/welcome-overlay.js";
-import { SuperCheckbox } from "./modules/components/super-checkbox.js";
-import { LitmActiveEffectSheet } from "./modules/data/active-effects/active-effect-sheet.js";
 import {
 	FellowshipTagData,
 	PowerTagData,
@@ -25,33 +5,34 @@ import {
 	StatusTagData,
 	StoryTagData,
 	WeaknessTagData,
-} from "./modules/data/active-effects/index.js";
-import { LitmActiveEffect } from "./modules/data/active-effects/litm-active-effect.js";
+} from "./modules/active-effects/index.js";
+import { LitmActiveEffect } from "./modules/active-effects/litm-active-effect.js";
+import { ChallengeData } from "./modules/actor/challenge/challenge-data.js";
+import { FellowshipData } from "./modules/actor/fellowship/fellowship-data.js";
+import { HeroData } from "./modules/actor/hero/hero-data.js";
+import { JourneyData } from "./modules/actor/journey/journey-data.js";
+import { LitmActor } from "./modules/actor/litm-actor.js";
+import { StoryThemeActorData } from "./modules/actor/story-theme/story-theme-actor-data.js";
+import { ApplyActionMenuApp } from "./modules/apps/apply-action-menu.js";
+import { DoubleSix } from "./modules/apps/dice.js";
+import { LitmRoll } from "./modules/apps/roll/roll.js";
+import { LitmRollDialog } from "./modules/apps/roll/roll-dialog.js";
+import { SpendPowerApp } from "./modules/apps/spend-power.js";
+import { StoryTagSidebar } from "./modules/apps/story-tags/story-tag-sidebar.js";
+import { ThemeAdvancementApp } from "./modules/apps/theme-advancement.js";
+import { WelcomeOverlay } from "./modules/apps/welcome/welcome-overlay.js";
+import { SuperCheckbox } from "./modules/components/super-checkbox.js";
 import { LitmTokenHUD } from "./modules/hud/litm-token-hud.js";
 import { ActionData } from "./modules/item/action/action-data.js";
-import { ActionSheet } from "./modules/item/action/action-sheet.js";
 import { AddonData } from "./modules/item/addon/addon-data.js";
-import { AddonSheet } from "./modules/item/addon/addon-sheet.js";
 import { BackpackData } from "./modules/item/backpack/backpack-data.js";
-import { BackpackSheet } from "./modules/item/backpack/backpack-sheet.js";
 import { LitmItem } from "./modules/item/litm-item.js";
 import { StoryThemeData } from "./modules/item/story-theme/story-theme-data.js";
-import { StoryThemeSheet } from "./modules/item/story-theme/story-theme-sheet.js";
 import { ThemeData } from "./modules/item/theme/theme-data.js";
-import { ThemeSheet } from "./modules/item/theme/theme-sheet.js";
 import { ThemebookData } from "./modules/item/themebook/themebook-data.js";
-import { ThemebookSheet } from "./modules/item/themebook/themebook-sheet.js";
 import { TropeData } from "./modules/item/trope/trope-data.js";
-import { TropeSheet } from "./modules/item/trope/trope-sheet.js";
 import { VignetteData } from "./modules/item/vignette/vignette-data.js";
-import { VignetteSheet } from "./modules/item/vignette/vignette-sheet.js";
 import { info, success } from "./modules/logger.js";
-import {
-	ChallengeSheetLandscape,
-	FellowshipSheetLandscape,
-	HeroSheetLandscape,
-	JourneySheetLandscape,
-} from "./modules/sheets/landscape-sheets.js";
 import { LitmConfig } from "./modules/system/config.js";
 import { ContentSources } from "./modules/system/content-sources.js";
 import { Enrichers } from "./modules/system/enrichers.js";
@@ -61,10 +42,10 @@ import {
 	HandlebarsPartials,
 } from "./modules/system/handlebars.js";
 import { LitmHooks } from "./modules/system/hooks/index.js";
-import { loadStatusCompendium } from "./modules/system/hooks/token-hooks.js";
 import { KeyBindings } from "./modules/system/keybindings.js";
 import { migrateWorld } from "./modules/system/migrations.js";
 import { LitmSettings } from "./modules/system/settings.js";
+import { LitmSheets } from "./modules/system/sheets.js";
 import { Sockets } from "./modules/system/sockets.js";
 
 // Register Custom Elements
@@ -73,6 +54,24 @@ SuperCheckbox.Register();
 // Init Hook
 Hooks.once("init", () => {
 	info("Initializing Legend in the Mist...");
+	/**
+	 * The litmv2 system's public surface, exposed for module authors and
+	 * world-level macros. The system aims to be extensible/malleable —
+	 * macros and modules may replace these classes (or subclass them) to
+	 * change behaviour. See the "Extensibility" section in CLAUDE.md.
+	 *
+	 * - `data.*` — ActiveEffect data model classes
+	 * - `methods.calculatePower` — kept for backward compat; prefer
+	 *   `LitmRoll.calculatePower` directly
+	 * - `fellowship` — the singleton fellowship actor (or null when disabled)
+	 * - `LitmRoll`, `LitmRollDialog` — replaceable roll classes; combine with
+	 *   `CONFIG.litmv2.roll.{formula,resolver}` for third-party roll customisation
+	 * - `StoryTagApp`, `SpendPowerApp`, `ApplyActionMenuApp`,
+	 *   `ThemeAdvancementApp`, `WelcomeOverlay` — replaceable app classes
+	 * - `ContentSources` — compendium loading and status seeding entry point
+	 * - `storyTags` — set at ready time to the sidebar tab instance
+	 * - `rollDialogHud` — mutable reference to the active roll-dialog HUD
+	 */
 	game.litmv2 = {
 		data: {
 			PowerTagData,
@@ -83,7 +82,6 @@ Hooks.once("init", () => {
 			StatusTagData,
 		},
 		methods: {
-			// Kept for backward compat with external modules; prefer importing LitmRoll.calculatePower directly.
 			calculatePower: LitmRoll.calculatePower,
 		},
 		get fellowship() {
@@ -98,8 +96,8 @@ Hooks.once("init", () => {
 		SpendPowerApp,
 		ApplyActionMenuApp,
 		ThemeAdvancementApp,
-		rollDialogHud: null,
 		ContentSources,
+		rollDialogHud: null,
 	};
 
 	info("Initializing Config...");
@@ -112,6 +110,7 @@ Hooks.once("init", () => {
 	LitmSettings.register();
 	DoubleSix.register();
 	CONFIG.Dice.rolls.push(LitmRoll);
+	CONFIG.Actor.documentClass = LitmActor;
 	CONFIG.Item.documentClass = LitmItem;
 	CONFIG.ActiveEffect.documentClass = LitmActiveEffect;
 	CONFIG.Item.dataModels.backpack = BackpackData;
@@ -141,122 +140,7 @@ Hooks.once("init", () => {
 
 	StoryTagSidebar.registerSidebarTab();
 
-	info("Registering Sheets...");
-	// Unregister the default sheets
-	foundry.documents.collections.Actors.unregisterSheet(
-		"core",
-		foundry.appv1.sheets.ActorSheet,
-	);
-	foundry.documents.collections.Items.unregisterSheet(
-		"core",
-		foundry.appv1.sheets.ItemSheet,
-	);
-	// Register the sheets
-	foundry.documents.collections.Actors.registerSheet("litmv2", HeroSheet, {
-		types: ["hero"],
-		makeDefault: true,
-		label: "LITM.Sheets.hero",
-	});
-	foundry.documents.collections.Actors.registerSheet("litmv2", ChallengeSheet, {
-		types: ["challenge"],
-		makeDefault: true,
-		label: "LITM.Sheets.challenge",
-	});
-	foundry.documents.collections.Actors.registerSheet("litmv2", JourneySheet, {
-		types: ["journey"],
-		makeDefault: true,
-		label: "LITM.Sheets.journey",
-	});
-	foundry.documents.collections.Actors.registerSheet(
-		"litmv2",
-		FellowshipSheet,
-		{
-			types: ["fellowship"],
-			makeDefault: true,
-			label: "LITM.Sheets.fellowship",
-		},
-	);
-	// Landscape variants
-	foundry.documents.collections.Actors.registerSheet(
-		"litmv2",
-		HeroSheetLandscape,
-		{
-			types: ["hero"],
-			makeDefault: false,
-			label: "LITM.Sheets.hero_landscape",
-		},
-	);
-	foundry.documents.collections.Actors.registerSheet(
-		"litmv2",
-		ChallengeSheetLandscape,
-		{
-			types: ["challenge"],
-			makeDefault: false,
-			label: "LITM.Sheets.challenge_landscape",
-		},
-	);
-	foundry.documents.collections.Actors.registerSheet(
-		"litmv2",
-		JourneySheetLandscape,
-		{
-			types: ["journey"],
-			makeDefault: false,
-			label: "LITM.Sheets.journey_landscape",
-		},
-	);
-	foundry.documents.collections.Actors.registerSheet(
-		"litmv2",
-		FellowshipSheetLandscape,
-		{
-			types: ["fellowship"],
-			makeDefault: false,
-			label: "LITM.Sheets.fellowship_landscape",
-		},
-	);
-	foundry.documents.collections.Actors.registerSheet(
-		"litmv2",
-		StoryThemeActorSheet,
-		{
-			types: ["story_theme"],
-			makeDefault: true,
-			label: "LITM.Sheets.story_theme",
-		},
-	);
-	foundry.documents.collections.Items.registerSheet("litmv2", BackpackSheet, {
-		types: ["backpack"],
-		makeDefault: true,
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", ThemeSheet, {
-		types: ["theme"],
-		makeDefault: true,
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", ThemebookSheet, {
-		types: ["themebook"],
-		makeDefault: true,
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", VignetteSheet, {
-		types: ["vignette"],
-		makeDefault: true,
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", AddonSheet, {
-		types: ["addon"],
-		makeDefault: true,
-		label: "LITM.Sheets.addon",
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", StoryThemeSheet, {
-		types: ["story_theme"],
-		makeDefault: true,
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", TropeSheet, {
-		types: ["trope"],
-		makeDefault: true,
-	});
-	foundry.documents.collections.Items.registerSheet("litmv2", ActionSheet, {
-		types: ["action"],
-		makeDefault: true,
-		label: "LITM.Sheets.action",
-	});
-	LitmActiveEffectSheet.register();
+	LitmSheets.register();
 
 	HandlebarsHelpers.register();
 	HandlebarsPartials.register();
@@ -274,7 +158,7 @@ Hooks.once("i18nInit", () => {
 Hooks.once("ready", async () => {
 	await migrateWorld();
 	await ContentSources.seedStatuses();
-	await loadStatusCompendium();
+	await ContentSources.loadStatusCompendium();
 
 	Sockets.registerListeners();
 

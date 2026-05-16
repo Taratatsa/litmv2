@@ -1,5 +1,5 @@
-import { BURN_POWER, ROLL_TYPES } from "../system/config.js";
-import { localize as t } from "../utils.js";
+import { BURN_POWER, ROLL_TYPES } from "../../system/config.js";
+import { localize as t } from "../../utils.js";
 
 export class LitmRoll extends foundry.dice.Roll {
 	static CHAT_TEMPLATE = "systems/litmv2/templates/chat/message.html";
@@ -76,7 +76,15 @@ export class LitmRoll extends foundry.dice.Roll {
 
 		if (diceTotal === 12 || this.total > 9) {
 			if (this.litm.pushed) {
-				return { label: "snc", description: "LITM.Ui.roll_consequence" };
+				const great = this.litm.type === "quick";
+				return {
+					label: "snc",
+					description: great
+						? "LITM.Ui.roll_great_success_consequence"
+						: "LITM.Ui.roll_consequence",
+					pushed: true,
+					great,
+				};
 			}
 			return { label: "success", description: "LITM.Ui.roll_success" };
 		}

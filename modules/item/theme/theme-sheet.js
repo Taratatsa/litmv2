@@ -1,14 +1,16 @@
+import {
+	fellowshipTagEffect,
+	powerTagEffect,
+	weaknessTagEffect,
+} from "../../active-effects/effect-factories.js";
 import { error } from "../../logger.js";
 import { LitmItemSheet } from "../../sheets/base-item-sheet.js";
 import { getThemeLevels } from "../../system/config.js";
 import {
 	availableThemebookImprovements,
-	fellowshipTagEffect,
 	findThemebookByName,
-	powerTagEffect,
 	queryItemsFromPacks,
 	toQuestionOptions,
-	weaknessTagEffect,
 } from "../../utils.js";
 
 /** Maps tag type + fellowship context to the correct effect factory. */

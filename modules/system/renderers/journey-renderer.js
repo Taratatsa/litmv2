@@ -1,6 +1,6 @@
 import { enrichHTML, localize as t } from "../../utils.js";
 import { makeActorCard } from "./renderer-utils.js";
-import { renderVignette } from "./vignette-renderer.js";
+import { renderVignette, vignetteCard } from "./vignette-renderer.js";
 
 /**
  * Renders a Journey actor as a read-only embed card.
@@ -45,23 +45,13 @@ export async function renderJourney(actor) {
 		? actor.items.get(sys.generalConsequences)
 		: null;
 	if (generalConsequence?.system?.consequences?.length) {
-		const gc = document.createElement("fieldset");
-		gc.classList.add("litm", "vignette-card", "litm-render");
-		const legend = document.createElement("legend");
-		legend.classList.add("litm-banner", "vignette-card-label");
-		legend.textContent = t("LITM.Terms.general_consequences");
-		gc.appendChild(legend);
-
-		const ul = document.createElement("ul");
-		ul.classList.add("consequences-list");
-		for (const c of generalConsequence.system.consequences) {
-			const li = document.createElement("li");
-			li.classList.add("consequence-item");
-			li.textContent = c;
-			ul.appendChild(li);
-		}
-		gc.appendChild(ul);
-		container.appendChild(gc);
+		container.appendChild(
+			vignetteCard({
+				label: t("LITM.Terms.general_consequences"),
+				consequences: generalConsequence.system.consequences,
+				isConsequenceOnly: true,
+			}),
+		);
 	}
 
 	// ── Vignettes ──

@@ -153,6 +153,9 @@ export class LitmSettings {
 			default: 5,
 			range: { min: 1, max: 10, step: 1 },
 			requiresReload: true,
+			onChange: (value) => {
+				CONFIG.litmv2.heroLimit = value;
+			},
 		});
 		game.settings.register("litmv2", "use_fellowship", {
 			name: "LITM.Settings.use_fellowship",

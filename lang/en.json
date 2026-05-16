@@ -330,6 +330,7 @@
 			"experience": "Improvement",
 			"failure": "Consequence",
 			"fellowship": "Fellowship",
+			"fellowship_tags": "Fellowship Tags",
 			"general_consequences": "General Consequences",
 			"greatness": "Greatness",
 			"hidden": "Hidden",
@@ -347,6 +348,7 @@
 			"narrator": "Narrator",
 			"origin": "Origin",
 			"outcome": "Outcome",
+			"power_tags": "Power Tags",
 			"quest": "Quest",
 			"rating": "Rating",
 			"rating_bonus": "Rating Increase",
@@ -380,7 +382,8 @@
 			"unnamed": "Unnamed",
 			"variable": "Variable",
 			"vignette": "Vignette",
-			"vignettes": "Vignettes"
+			"vignettes": "Vignettes",
+			"weakness_tags": "Weakness Tags"
 		},
 		"Themes": {
 			"abandon": "Abandon",
@@ -648,6 +651,7 @@
 			"replace_story_theme_title": "Replace Story Theme",
 			"roll": "Roll!",
 			"roll_consequence": "The action Succeeds, <br /> but there are Consequences.",
+			"roll_great_success_consequence": "A Great Success — <br /> the Narrator grants an additional benefit, but there are Consequences.",
 			"roll_failure": "The action fails or has severe Consequences.",
 			"roll_mitigate": "Reaction",
 			"roll_moderation": "Moderation Request",
@@ -686,6 +690,8 @@
 			"roll_tracked": "Detailed",
 			"push_roll": "Push Your Luck",
 			"roll_tracked_success": "You may Push Your Luck: accept consequences in exchange for 1 extra Power to spend on effects.",
+			"roll_quick_success": "You may Push Your Luck: accept consequences in exchange for a Great Success (Narrator's discretion).",
+			"roll_great_snc": "Great Success &<br /> Consequences",
 			"select": "Select",
 			"send_to_narrator": "Send to Narrator",
 			"special_improvements": "Special Improvements",

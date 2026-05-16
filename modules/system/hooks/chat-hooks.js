@@ -1,18 +1,82 @@
-import { applyThemeSacrifice } from "../../actor/hero/hero-data.js";
 import { ApplyActionMenuApp } from "../../apps/apply-action-menu.js";
-import { WelcomeOverlay } from "../../apps/welcome-overlay.js";
+import { LitmRollDialog } from "../../apps/roll/roll-dialog.js";
+import { SpendPowerApp } from "../../apps/spend-power.js";
+import { ThemeAdvancementApp } from "../../apps/theme-advancement.js";
+import { WelcomeOverlay } from "../../apps/welcome/welcome-overlay.js";
 import {
 	getAllowedVerbs,
 	getSuccessCost,
 } from "../../item/action/action-rules.js";
 import { getVerbDef } from "../../item/action/verb-definitions.js";
 import { localize as t, viewLinkedRefAction } from "../../utils.js";
+import { buildTrackCompleteContent } from "../chat.js";
+import { POWER_TAG_TYPES } from "../config.js";
 import { Sockets } from "../sockets.js";
+
+/**
+ * Apply the consequence of a sacrifice roll to a hero's theme.
+ * Performs document mutations only; notifications are shown by the caller.
+ * @param {Actor} actor - The hero actor
+ * @param {string} themeId - The sacrificed theme's ID
+ * @param {string} level - "painful" or "scarring"
+ * @returns {Promise<{themeName: string}|null>} The theme name for notification, or null if not found
+ */
+async function applyThemeSacrifice(actor, themeId, level) {
+	const theme = actor.items.get(themeId);
+	if (!theme) return null;
+	const themeName = theme.name;
+
+	if (level === "painful") {
+		const powerEffects = theme.effects.filter((e) =>
+			POWER_TAG_TYPES.has(e.type),
+		);
+		if (powerEffects.length) {
+			await theme.updateEmbeddedDocuments(
+				"ActiveEffect",
+				powerEffects.map((e) => ({ _id: e.id, "system.isScratched": true })),
+			);
+		}
+		await actor.updateEmbeddedDocuments("Item", [
+			{ _id: theme.id, "system.isScratched": true },
+		]);
+	} else if (level === "scarring") {
+		await actor.deleteEmbeddedDocuments("Item", [theme.id]);
+	}
+
+	return { themeName };
+}
 
 export function registerChatHooks() {
 	Hooks.on("renderChatMessageHTML", onRenderChatMessage);
+	Hooks.on("litm.trackCompleted", _onTrackCompleted);
+	Hooks.on("litm.limitReached", _onLimitReached);
 	_attachContextMenuToRollMessage();
 	_registerChatCommands();
+}
+
+async function _onTrackCompleted({ actor, trackInfo }) {
+	await foundry.documents.ChatMessage.create({
+		content: await buildTrackCompleteContent(trackInfo),
+		speaker: foundry.documents.ChatMessage.getSpeaker({ actor }),
+	});
+}
+
+async function _onLimitReached({ actor, limit }) {
+	const text = limit.outcome
+		? game.i18n.format("LITM.Ui.limit_reached_with_outcome", {
+				label: limit.label,
+				actor: actor.name,
+				outcome: limit.outcome,
+			})
+		: game.i18n.format("LITM.Ui.limit_reached", {
+				label: limit.label,
+			});
+
+	await foundry.documents.ChatMessage.create({
+		content: await buildTrackCompleteContent({ text, type: "limit" }),
+		whisper: foundry.documents.ChatMessage.getWhisperRecipients("GM"),
+		speaker: foundry.documents.ChatMessage.getSpeaker({ actor }),
+	});
 }
 
 function _getMessageAndRoll(target) {
@@ -27,7 +91,7 @@ async function _handleSpendPower(target) {
 	const power = roll.power;
 	const actorId = roll.litm?.actorId;
 
-	new game.litmv2.SpendPowerApp({
+	new SpendPowerApp({
 		actorId,
 		power,
 		messageId: message.id,
@@ -51,7 +115,7 @@ async function _handleApproveModeration(_target, app) {
 
 	// Roll
 	if (userId === game.userId) {
-		game.litmv2.LitmRollDialog.roll(data);
+		LitmRollDialog.roll(data);
 		// Reset own roll dialog locally (sockets don't echo to sender)
 		const actor = game.actors.get(data.actorId);
 		if (actor?.sheet?.rendered) actor.sheet.resetRollDialog();
@@ -91,7 +155,20 @@ async function _handleCompleteSacrifice(target) {
 	});
 	if (!confirmed) return;
 
-	await applyThemeSacrifice(actor, sacrificeThemeId, sacrificeLevel);
+	const result = await applyThemeSacrifice(
+		actor,
+		sacrificeThemeId,
+		sacrificeLevel,
+	);
+	if (result) {
+		const notifKey =
+			sacrificeLevel === "scarring"
+				? "LITM.Ui.sacrifice_theme_removed"
+				: "LITM.Ui.sacrifice_theme_scratched";
+		ui.notifications.info(
+			game.i18n.format(notifKey, { theme: result.themeName }),
+		);
+	}
 
 	// Mark sacrifice as completed so button disappears
 	roll.options.sacrificeCompleted = true;
@@ -113,7 +190,7 @@ async function _handleRejectModeration(_target, app) {
 async function _handleOpenThemeAdvancement(target) {
 	const { actorId, themeId } = target.dataset;
 	if (!actorId || !themeId) return;
-	new game.litmv2.ThemeAdvancementApp({ actorId, themeId }).render(true);
+	new ThemeAdvancementApp({ actorId, themeId }).render(true);
 }
 
 function _handleViewActionRef(target) {

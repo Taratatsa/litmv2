@@ -11,6 +11,25 @@
  */
 
 /**
+ * Read the flag-backed limits array for the given actor.
+ * @param {Actor} actor
+ * @returns {object[]}
+ */
+export function getActorLimits(actor) {
+	return actor.getFlag("litmv2", "limits") ?? [];
+}
+
+/**
+ * Write the flag-backed limits array for the given actor.
+ * @param {Actor} actor
+ * @param {object[]} limits
+ * @returns {Promise<Actor>}
+ */
+export function setActorLimits(actor, limits) {
+	return actor.setFlag("litmv2", "limits", limits);
+}
+
+/**
  * Apply a delta to a flag-stored limit on the given actor. Returns the
  * change result, or `null` if the limit id wasn't found.
  * @param {Actor} actor
@@ -36,7 +55,8 @@ export async function advanceFlagLimit(actor, limitId, delta) {
  * @returns {Promise<LimitChangeResult|null>}
  */
 export async function advanceSystemLimit(actor, limitId, delta) {
-	const limits = actor.system.limits ?? [];
+	// Read from _source to get the canonical (non-addon-derived) limits array.
+	const limits = actor.system._source?.limits ?? [];
 	const result = _shiftLimit(limits, limitId, delta);
 	if (!result) return null;
 	await actor.update({ "system.limits": result.updated });

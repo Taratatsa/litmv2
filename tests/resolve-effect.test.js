@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveEffect } from "../modules/utils.js";
+import { resolveEffect } from "../modules/active-effects/effect-queries.js";
 import { fakeActor, fakeEffect, fakeItem } from "./__helpers__/factories.js";
 
 describe("resolveEffect", () => {
